@@ -36,6 +36,7 @@ namespace SwitchManager
 //            gameCollection.AddGame("Test Game 5", "titleid5", "titlekey5", true);
 
             gameCollection.LoadTitleKeysFile("titlekeys.txt");
+            gameCollection.LoadTitleIcons("Images");
         }
     }
 }

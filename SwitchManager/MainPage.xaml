@@ -15,12 +15,16 @@
                        HorizontalAlignment="Stretch" Height="564" Margin="20,100,20,100" VerticalAlignment="Top">
       <controls:DataGrid.RowDetailsTemplate>
         <DataTemplate x:DataType="coll:SwitchCollectionItem">
-          <StackPanel Margin="20,10" Padding="5">
-            <TextBlock Margin="20" Text="Here are the details for the selected game:"/>
-            <TextBlock Text="{x:Bind Game.Name, Mode=OneWay}"/>
-            <TextBlock FontSize="13" Text="{x:Bind Game.Name, Mode=OneWay}"/>
-            <TextBlock FontSize="13" Text="{x:Bind Game.Name, Mode=OneWay}" />
-            <TextBlock FontSize="13" Text="{x:Bind Game.Name, Mode=OneWay}" />
+          <StackPanel Orientation="Horizontal">
+            <Image Source="{x:Bind Game.Icon.Location}"/>
+
+            <StackPanel Margin="20,10" Padding="5" Orientation="Horizontal">
+              <TextBlock Margin="20" Text="Here are the details for the selected game:"/>
+              <TextBlock Text="{x:Bind Game.Name, Mode=OneWay}"/>
+              <TextBlock FontSize="13" Text="{x:Bind Game.Name, Mode=OneWay}"/>
+              <TextBlock FontSize="13" Text="{x:Bind Game.Name, Mode=OneWay}" />
+              <TextBlock FontSize="13" Text="{x:Bind Game.Name, Mode=OneWay}" />
+            </StackPanel>
           </StackPanel>
         </DataTemplate>
       </controls:DataGrid.RowDetailsTemplate>
