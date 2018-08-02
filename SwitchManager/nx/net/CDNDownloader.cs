@@ -199,7 +199,7 @@ namespace SwitchManager.nx.net
             var handler = new HttpClientHandler
             {
                 ClientCertificateOptions = ClientCertificateOption.Manual,
-                SslProtocols = SslProtocols.Tls12,
+                //SslProtocols = SslProtocols.Tls12,
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
             };
             handler.ClientCertificates.Add(cert);

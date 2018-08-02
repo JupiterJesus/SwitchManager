@@ -31,11 +31,6 @@ namespace SwitchManager
 
             CDNDownloader downloader = new CDNDownloader("client.pfx", "0000000000000000", "5.1.0-0", "lp1");
             gameCollection = new SwitchCollection(downloader);
-            //            gameCollection.AddGame("Test Game 1", "titleid1", "titlekey1", SwitchCollectionState.NOT_OWNED, true);
-            //            gameCollection.AddGame("Test Game 2", "titleid2", "titlekey2", SwitchCollectionState.OWNED, false);
-            //            gameCollection.AddGame("Test Game 3", "titleid3", "titlekey3", SwitchCollectionState.DOWNLOADED);
-            //            gameCollection.AddGame("Test Game 4", "titleid4", "titlekey4", SwitchCollectionState.ON_SWITCH);
-            //            gameCollection.AddGame("Test Game 5", "titleid5", "titlekey5", true);
 
             gameCollection.LoadTitleKeysFile("titlekeys.txt");
             gameCollection.LoadTitleIcons("Images");

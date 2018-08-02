@@ -3,18 +3,58 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.2042
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchManager", "SwitchManager\SwitchManager.csproj", "{32364351-8617-482E-A3CC-9133EBB26F88}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchManagerWPF", "SwitchManager\SwitchManagerWPF.csproj", "{32364351-8617-482E-A3CC-9133EBB26F88}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchManagerUWP", "C:\Users\Ben\Documents\Visual Studio 2017\Projects\SwitchManager\SwitchManagerUWP\SwitchManagerUWP.csproj", "{2840C9D5-9535-43F3-82F8-8F41B09D7434}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|ARM = Debug|ARM
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|ARM = Release|ARM
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{32364351-8617-482E-A3CC-9133EBB26F88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{32364351-8617-482E-A3CC-9133EBB26F88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Debug|ARM.Build.0 = Debug|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Debug|x64.Build.0 = Debug|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Debug|x86.Build.0 = Debug|Any CPU
 		{32364351-8617-482E-A3CC-9133EBB26F88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{32364351-8617-482E-A3CC-9133EBB26F88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Release|ARM.ActiveCfg = Release|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Release|ARM.Build.0 = Release|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Release|x64.ActiveCfg = Release|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Release|x64.Build.0 = Release|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Release|x86.ActiveCfg = Release|Any CPU
+		{32364351-8617-482E-A3CC-9133EBB26F88}.Release|x86.Build.0 = Release|Any CPU
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|ARM.ActiveCfg = Debug|ARM
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|ARM.Build.0 = Debug|ARM
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|ARM.Deploy.0 = Debug|ARM
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|x64.ActiveCfg = Debug|x64
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|x64.Build.0 = Debug|x64
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|x64.Deploy.0 = Debug|x64
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|x86.ActiveCfg = Debug|x86
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|x86.Build.0 = Debug|x86
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Debug|x86.Deploy.0 = Debug|x86
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|Any CPU.ActiveCfg = Release|x86
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|ARM.ActiveCfg = Release|ARM
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|ARM.Build.0 = Release|ARM
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|ARM.Deploy.0 = Release|ARM
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|x64.ActiveCfg = Release|x64
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|x64.Build.0 = Release|x64
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|x64.Deploy.0 = Release|x64
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|x86.ActiveCfg = Release|x86
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|x86.Build.0 = Release|x86
+		{2840C9D5-9535-43F3-82F8-8F41B09D7434}.Release|x86.Deploy.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
