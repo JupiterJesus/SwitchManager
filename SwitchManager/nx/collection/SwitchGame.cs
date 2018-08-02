@@ -25,6 +25,9 @@ namespace SwitchManager.nx.collection
             Name = name;
             TitleID = titleid;
             TitleKey = titlekey;
+            this.DLC = new List<string>();
+            this.Updates = new List<string>();
+            this.Versions = new List<string>();
         }
     }
 }

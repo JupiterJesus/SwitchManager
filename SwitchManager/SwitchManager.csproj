@@ -1,381 +1,350 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
-    <ProjectGuid>{97AEB5B9-F162-431F-9C87-513A63D2C5F0}</ProjectGuid>
-    <OutputType>AppContainerExe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{32364351-8617-482E-A3CC-9133EBB26F88}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
     <RootNamespace>SwitchManager</RootNamespace>
     <AssemblyName>SwitchManager</AssemblyName>
-    <DefaultLanguage>en-US</DefaultLanguage>
-    <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
-    <TargetPlatformVersion Condition=" '$(TargetPlatformVersion)' == '' ">10.0.16299.0</TargetPlatformVersion>
-    <TargetPlatformMinVersion>10.0.10240.0</TargetPlatformMinVersion>
-    <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <WindowsXamlEnableOverview>true</WindowsXamlEnableOverview>
-    <PackageCertificateKeyFile>SwitchManager_TemporaryKey.pfx</PackageCertificateKeyFile>
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <WarningLevel>4</WarningLevel>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\x86\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
-    <NoWarn>;2008</NoWarn>
     <DebugType>full</DebugType>
-    <PlatformTarget>x86</PlatformTarget>
-    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
-    <OutputPath>bin\x86\Release\</OutputPath>
-    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
-    <Optimize>true</Optimize>
-    <NoWarn>;2008</NoWarn>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
-    <PlatformTarget>x86</PlatformTarget>
-    <UseVSHostingProcess>false</UseVSHostingProcess>
-    <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
-    <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|ARM'">
-    <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\ARM\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
-    <NoWarn>;2008</NoWarn>
-    <DebugType>full</DebugType>
-    <PlatformTarget>ARM</PlatformTarget>
-    <UseVSHostingProcess>false</UseVSHostingProcess>
-    <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|ARM'">
-    <OutputPath>bin\ARM\Release\</OutputPath>
-    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
     <Optimize>true</Optimize>
-    <NoWarn>;2008</NoWarn>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>ARM</PlatformTarget>
-    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
-    <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\x64\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
-    <NoWarn>;2008</NoWarn>
-    <DebugType>full</DebugType>
-    <PlatformTarget>x64</PlatformTarget>
-    <UseVSHostingProcess>false</UseVSHostingProcess>
-    <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-    <OutputPath>bin\x64\Release\</OutputPath>
-    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
-    <Optimize>true</Optimize>
-    <NoWarn>;2008</NoWarn>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>x64</PlatformTarget>
-    <UseVSHostingProcess>false</UseVSHostingProcess>
-    <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
-    <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <StartupObject>SwitchManager.App</StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="App.xaml.cs">
-      <DependentUpon>App.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="MainPage.xaml.cs">
-      <DependentUpon>MainPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="nx\collection\SwitchCollectionItem.cs" />
-    <Compile Include="nx\collection\SwitchCollectionState.cs" />
-    <Compile Include="nx\collection\SwitchGame.cs" />
-    <Compile Include="nx\img\SwitchImageLoader.cs" />
-    <Compile Include="nx\img\SwitchImage.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="nx\collection\SwitchCollection.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <AppxManifest Include="Package.appxmanifest">
-      <SubType>Designer</SubType>
-    </AppxManifest>
-    <None Include="SwitchManager_TemporaryKey.pfx" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Images\0100000000010000.jpg" />
-    <Content Include="Images\010001b005e5c000.jpg" />
-    <Content Include="Images\0100023009c72000.jpg" />
-    <Content Include="Images\0100024008310000.jpg" />
-    <Content Include="Images\010002d00632e000.jpg" />
-    <Content Include="Images\01000320000cc000.jpg" />
-    <Content Include="Images\0100052004384000.jpg" />
-    <Content Include="Images\010006a0042f0000.jpg" />
-    <Content Include="Images\010008900705c000.jpg" />
-    <Content Include="Images\010009900947a000.jpg" />
-    <Content Include="Images\010009e001d90000.jpg" />
-    <Content Include="Images\01000a10041ea000.jpg" />
-    <Content Include="Images\01000d5005974000.jpg" />
-    <Content Include="Images\01000e2003fa0000.jpg" />
-    <Content Include="Images\01000f5003068000.jpg" />
-    <Content Include="Images\0100112003b8a000.jpg" />
-    <Content Include="Images\01001180021fa000.jpg" />
-    <Content Include="Images\010011b00910c000.jpg" />
-    <Content Include="Images\010015d003ee4000.jpg" />
-    <Content Include="Images\010016a00ba0c000.jpg" />
-    <Content Include="Images\010016e004796000.jpg" />
-    <Content Include="Images\0100192003fa4000.jpg" />
-    <Content Include="Images\0100197008b52000.jpg" />
-    <Content Include="Images\01001e40041be000.jpg" />
-    <Content Include="Images\01001f600829a000.jpg" />
-    <Content Include="Images\01001fa0034e2000.jpg" />
-    <Content Include="Images\0100207007eb2000.jpg" />
-    <Content Include="Images\010021c000b6a000.jpg" />
-    <Content Include="Images\0100225000fee000.jpg" />
-    <Content Include="Images\0100230005a52000.jpg" />
-    <Content Include="Images\010024c001224000.jpg" />
-    <Content Include="Images\01002a1004c48000.jpg" />
-    <Content Include="Images\01002b2004f76000.jpg" />
-    <Content Include="Images\01002b30028f6000.jpg" />
-    <Content Include="Images\01002c400b6b6000.jpg" />
-    <Content Include="Images\01002d4007ae0000.jpg" />
-    <Content Include="Images\01002fc00412c000.jpg" />
-    <Content Include="Images\0100307004b4c000.jpg" />
-    <Content Include="Images\0100331005e8e000.jpg" />
-    <Content Include="Images\010034500641a000.jpg" />
-    <Content Include="Images\0100352006a10000.jpg" />
-    <Content Include="Images\01003620068ea000.jpg" />
-    <Content Include="Images\01003670066de000.jpg" />
-    <Content Include="Images\0100388008758000.jpg" />
-    <Content Include="Images\010038f00afa0000.jpg" />
-    <Content Include="Images\010039a008e76000.jpg" />
-    <Content Include="Images\01003c300aaae000.jpg" />
-    <Content Include="Images\01003c6008940000.jpg" />
-    <Content Include="Images\0100416004c00000.jpg" />
-    <Content Include="Images\0100417007f78000.jpg" />
-    <Content Include="Images\0100421003fd4000.jpg" />
-    <Content Include="Images\0100423009358000.jpg" />
-    <Content Include="Images\010042c006490000.jpg" />
-    <Content Include="Images\010043500a17a000.jpg" />
-    <Content Include="Images\0100437004170000.jpg" />
-    <Content Include="Images\010045600a0d4000.jpg" />
-    <Content Include="Images\0100465008756000.jpg" />
-    <Content Include="Images\010047f001dbc000.jpg" />
-    <Content Include="Images\0100496004194000.jpg" />
-    <Content Include="Images\010049c0075f0000.jpg" />
-    <Content Include="Images\01004a9006b84000.jpg" />
-    <Content Include="Images\01004b1001d22000.jpg" />
-    <Content Include="Images\01004b4002b6a000.jpg" />
-    <Content Include="Images\01004b800af5a000.jpg" />
-    <Content Include="Images\01004be00a682000.jpg" />
-    <Content Include="Images\01004d10020f2000.jpg" />
-    <Content Include="Images\01004d1007926000.jpg" />
-    <Content Include="Images\01004db003e6a000.jpg" />
-    <Content Include="Images\01004f8006a78000.jpg" />
-    <Content Include="Images\0100506005a2c000.jpg" />
-    <Content Include="Images\01005250086c4000.jpg" />
-    <Content Include="Images\0100534009ff2000.jpg" />
-    <Content Include="Images\010053e002ea2000.jpg" />
-    <Content Include="Images\01005640080b0000.jpg" />
-    <Content Include="Images\01005700031ae000.jpg" />
-    <Content Include="Images\010057d0021e8000.jpg" />
-    <Content Include="Images\010057d006492000.jpg" />
-    <Content Include="Images\01005be008674000.jpg" />
-    <Content Include="Images\01005c40037c6000.jpg" />
-    <Content Include="Images\01005c60086be000.jpg" />
-    <Content Include="Images\01005c8005f34000.jpg" />
-    <Content Include="Images\01005cb009e20000.jpg" />
-    <Content Include="Images\01005e5009ef2000.jpg" />
-    <Content Include="Images\01005ec0039e4000.jpg" />
-    <Content Include="Images\01005ff002e2a000.jpg" />
-    <Content Include="Images\0100618004096000.jpg" />
-    <Content Include="Images\0100628004bce000.jpg" />
-    <Content Include="Images\0100633007d48000.jpg" />
-    <Content Include="Images\0100643002136000.jpg" />
-    <Content Include="Images\0100646009fbe000.jpg" />
-    <Content Include="Images\010067300059a000.jpg" />
-    <Content Include="Images\01006740034f6000.jpg" />
-    <Content Include="Images\01006a200936c000.jpg" />
-    <Content Include="Images\01006e50042ea000.jpg" />
-    <Content Include="Images\01006ea00a294000.jpg" />
-    <Content Include="Images\01006f6002840000.jpg" />
-    <Content Include="Images\0100701001d92000.jpg" />
-    <Content Include="Images\0100704000b3a000.jpg" />
-    <Content Include="Images\0100720008ed2000.jpg" />
-    <Content Include="Images\010073c001d5e000.jpg" />
-    <Content Include="Images\0100749009844000.jpg" />
-    <Content Include="Images\0100751007ada000.jpg" />
-    <Content Include="Images\0100767008502000.jpg" />
-    <Content Include="Images\0100769004584000.jpg" />
-    <Content Include="Images\010076f0049a2000.jpg" />
-    <Content Include="Images\0100779004172000.jpg" />
-    <Content Include="Images\010077b0038b2000.jpg" />
-    <Content Include="Images\01007960049a0000.jpg" />
-    <Content Include="Images\01007d7001d0e000.jpg" />
-    <Content Include="Images\01007e3006dda000.jpg" />
-    <Content Include="Images\01007ef00011e000.jpg" />
-    <Content Include="Images\01007f200b0c0000.jpg" />
-    <Content Include="Images\0100830004fb6000.jpg" />
-    <Content Include="Images\0100830008426000.jpg" />
-    <Content Include="Images\0100842008ec4000.jpg" />
-    <Content Include="Images\0100849000bda000.jpg" />
-    <Content Include="Images\010085300314e000.jpg" />
-    <Content Include="Images\010086300486e000.jpg" />
-    <Content Include="Images\010086500ac4a000.jpg" />
-    <Content Include="Images\0100875008000000.jpg" />
-    <Content Include="Images\010088e003a76000.jpg" />
-    <Content Include="Images\01008b8004e36000.jpg" />
-    <Content Include="Images\01008e6006502000.jpg" />
-    <Content Include="Images\01008e900471e000.jpg" />
-    <Content Include="Images\01008ee00b22c000.jpg" />
-    <Content Include="Images\01008f1008da6000.jpg" />
-    <Content Include="Images\01008f2005154000.jpg" />
-    <Content Include="Images\01008fd004db6000.jpg" />
-    <Content Include="Images\01009040091e0000.jpg" />
-    <Content Include="Images\0100921006a04000.jpg" />
-    <Content Include="Images\0100928005bd2000.jpg" />
-    <Content Include="Images\01009320084a4000.jpg" />
-    <Content Include="Images\0100945003a0e000.jpg" />
-    <Content Include="Images\010095a004040000.jpg" />
-    <Content Include="Images\01009aa000faa000.jpg" />
-    <Content Include="Images\01009b900401e000.jpg" />
-    <Content Include="Images\01009bf0072d4000.jpg" />
-    <Content Include="Images\01009c8009026000.jpg" />
-    <Content Include="Images\01009d3008d20000.jpg" />
-    <Content Include="Images\01009d4001dc4000.jpg" />
-    <Content Include="Images\01009d60076f6000.jpg" />
-    <Content Include="Images\01009f20086a0000.jpg" />
-    <Content Include="Images\0100a0500348a000.jpg" />
-    <Content Include="Images\0100a21007ffa000.jpg" />
-    <Content Include="Images\0100a4200a284000.jpg" />
-    <Content Include="Images\0100a48008ae8000.jpg" />
-    <Content Include="Images\0100a5900472e000.jpg" />
-    <Content Include="Images\0100a6000acea000.jpg" />
-    <Content Include="Images\0100a62002042000.jpg" />
-    <Content Include="Images\0100a66003384000.jpg" />
-    <Content Include="Images\0100a6a00894c000.jpg" />
-    <Content Include="Images\0100a7d00a982000.jpg" />
-    <Content Include="Images\0100a8d003bae000.jpg" />
-    <Content Include="Images\0100a9a0088fe000.jpg" />
-    <Content Include="Images\0100ac40038f4000.jpg" />
-    <Content Include="Images\0100ae00096ea000.jpg" />
-    <Content Include="Images\0100ae5003ee6000.jpg" />
-    <Content Include="Images\0100b1a0066dc000.jpg" />
-    <Content Include="Images\0100b1e0022f8000.jpg" />
-    <Content Include="Images\0100b2600a398000.jpg" />
-    <Content Include="Images\0100b52006e8c000.jpg" />
-    <Content Include="Images\0100b58007d40000.jpg" />
-    <Content Include="Images\0100b61008208000.jpg" />
-    <Content Include="Images\0100b7d0022ee000.jpg" />
-    <Content Include="Images\0100ba8001dc6000.jpg" />
-    <Content Include="Images\0100bc2004ff4000.jpg" />
-    <Content Include="Images\0100bcb00ae98000.jpg" />
-    <Content Include="Images\0100bde00862a000.jpg" />
-    <Content Include="Images\0100be50042f6000.jpg" />
-    <Content Include="Images\0100bf1003b9a000.jpg" />
-    <Content Include="Images\0100bf7006bca000.jpg" />
-    <Content Include="Images\0100c0f0020e8000.jpg" />
-    <Content Include="Images\0100c1f0051b6000.jpg" />
-    <Content Include="Images\0100c3800049c000.jpg" />
-    <Content Include="Images\0100c38004dcc000.jpg" />
-    <Content Include="Images\0100c5e003b40000.jpg" />
-    <Content Include="Images\0100c9800a454000.jpg" />
-    <Content Include="Images\0100ca9002322000.jpg" />
-    <Content Include="Images\0100cb2001db8000.jpg" />
-    <Content Include="Images\0100cc7009196000.jpg" />
-    <Content Include="Images\0100cc80013d6000.jpg" />
-    <Content Include="Images\0100cea007d08000.jpg" />
-    <Content Include="Images\0100d06003056000.jpg" />
-    <Content Include="Images\0100d1b006744000.jpg" />
-    <Content Include="Images\0100d250083b4000.jpg" />
-    <Content Include="Images\0100d3000aec2000.jpg" />
-    <Content Include="Images\0100d71004694000.jpg" />
-    <Content Include="Images\0100d87002ee0000.jpg" />
-    <Content Include="Images\0100dc000a472000.jpg" />
-    <Content Include="Images\0100e04009bd4000.jpg" />
-    <Content Include="Images\0100e1f003ee8000.jpg" />
-    <Content Include="Images\0100e29001298000.jpg" />
-    <Content Include="Images\0100e46003042000.jpg" />
-    <Content Include="Images\0100e4d00a690000.jpg" />
-    <Content Include="Images\0100e5f0000c0000.jpg" />
-    <Content Include="Images\0100e65002bb8000.jpg" />
-    <Content Include="Images\0100e74007eac000.jpg" />
-    <Content Include="Images\0100e95004038000.jpg" />
-    <Content Include="Images\0100ea1009022000.jpg" />
-    <Content Include="Images\0100eb6005e90000.jpg" />
-    <Content Include="Images\0100eb600a4da000.jpg" />
-    <Content Include="Images\0100eb900a534000.jpg" />
-    <Content Include="Images\0100ebe002b3e000.jpg" />
-    <Content Include="Images\0100ec8004762000.jpg" />
-    <Content Include="Images\0100ecf008474000.jpg" />
-    <Content Include="Images\0100ee6002b48000.jpg" />
-    <Content Include="Images\0100efd00a4fa000.jpg" />
-    <Content Include="Images\0100f0000869c000.jpg" />
-    <Content Include="Images\0100f0400351c000.jpg" />
-    <Content Include="Images\0100f110029c8000.jpg" />
-    <Content Include="Images\0100f15003e64000.jpg" />
-    <Content Include="Images\0100f2a005c98000.jpg" />
-    <Content Include="Images\0100f3d008436000.jpg" />
-    <Content Include="Images\0100f5e008aa0000.jpg" />
-    <Content Include="Images\0100f7800a434000.jpg" />
-    <Content Include="Images\0100f89003bc8000.jpg" />
-    <Content Include="Images\0100f900046c4000.jpg" />
-    <Content Include="Images\0100ff00042ee000.jpg" />
-    <Content Include="Images\0100ff5005b76000.jpg" />
-    <Content Include="Images\blank.jpg" />
-    <Content Include="Properties\Default.rd.xml" />
-    <Content Include="Assets\LockScreenLogo.scale-200.png" />
-    <Content Include="Assets\SplashScreen.scale-200.png" />
-    <Content Include="Assets\Square150x150Logo.scale-200.png" />
-    <Content Include="Assets\Square44x44Logo.scale-200.png" />
-    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
-    <Content Include="Assets\StoreLogo.png" />
-    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
-    <Content Include="titlekeys.txt" />
+    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xaml">
+      <RequiredTargetFramework>4.0</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="WindowsBase" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Page Include="MainPage.xaml">
+    <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="App.xaml.cs">
+      <DependentUpon>App.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MainWindow.xaml.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform">
-      <Version>6.0.8</Version>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Toolkit.Uwp.UI">
-      <Version>3.0.0</Version>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Toolkit.Uwp.UI.Controls">
-      <Version>3.0.0</Version>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Toolkit.Uwp.UI.Controls.DataGrid">
-      <Version>3.1.0-preview1</Version>
-    </PackageReference>
+    <Compile Include="nx\collection\SwitchCollection.cs" />
+    <Compile Include="nx\collection\SwitchCollectionItem.cs" />
+    <Compile Include="nx\collection\SwitchCollectionState.cs" />
+    <Compile Include="nx\collection\SwitchGame.cs" />
+    <Compile Include="nx\img\SwitchImage.cs" />
+    <Compile Include="nx\net\CDNDownloader.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <None Include="ca-certificates.crt" />
+    <None Include="Certificate.cert" />
+    <None Include="client-cert.cert" />
+    <None Include="client-pkey.pem" />
+    <None Include="client.pfx" />
+    <None Include="nx_tls_client_cert.pem" />
+    <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <None Include="queue.json" />
+    <None Include="ShopN.pem" />
+    <None Include="Ticket.tik" />
+    <None Include="update_titlekeys.bat" />
   </ItemGroup>
-  <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
-    <VisualStudioVersion>14.0</VisualStudioVersion>
-  </PropertyGroup>
-  <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+  <ItemGroup>
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="blank.jpg" />
+    <Content Include="CDNSP-GUI-Bob-v4.py" />
+    <Content Include="hactool.exe" />
+    <Resource Include="Images\0100000000010000.jpg" />
+    <Resource Include="Images\010001b005e5c000.jpg" />
+    <Resource Include="Images\0100023009c72000.jpg" />
+    <Resource Include="Images\0100024008310000.jpg" />
+    <Resource Include="Images\010002d00632e000.jpg" />
+    <Resource Include="Images\01000320000cc000.jpg" />
+    <Resource Include="Images\0100052004384000.jpg" />
+    <Resource Include="Images\010006a0042f0000.jpg" />
+    <Resource Include="Images\010008900705c000.jpg" />
+    <Resource Include="Images\010009900947a000.jpg" />
+    <Resource Include="Images\010009e001d90000.jpg" />
+    <Resource Include="Images\01000a10041ea000.jpg" />
+    <Resource Include="Images\01000d5005974000.jpg" />
+    <Resource Include="Images\01000e2003fa0000.jpg" />
+    <Resource Include="Images\01000f5003068000.jpg" />
+    <Resource Include="Images\0100112003b8a000.jpg" />
+    <Resource Include="Images\01001180021fa000.jpg" />
+    <Resource Include="Images\010011b00910c000.jpg" />
+    <Resource Include="Images\010015d003ee4000.jpg" />
+    <Resource Include="Images\010016a00ba0c000.jpg" />
+    <Resource Include="Images\010016e004796000.jpg" />
+    <Resource Include="Images\0100192003fa4000.jpg" />
+    <Resource Include="Images\0100197008b52000.jpg" />
+    <Resource Include="Images\01001e40041be000.jpg" />
+    <Resource Include="Images\01001f600829a000.jpg" />
+    <Resource Include="Images\01001fa0034e2000.jpg" />
+    <Resource Include="Images\0100207007eb2000.jpg" />
+    <Resource Include="Images\010021c000b6a000.jpg" />
+    <Resource Include="Images\0100225000fee000.jpg" />
+    <Resource Include="Images\0100230005a52000.jpg" />
+    <Resource Include="Images\010024c001224000.jpg" />
+    <Resource Include="Images\01002a1004c48000.jpg" />
+    <Resource Include="Images\01002b2004f76000.jpg" />
+    <Resource Include="Images\01002b30028f6000.jpg" />
+    <Resource Include="Images\01002c400b6b6000.jpg" />
+    <Resource Include="Images\01002d4007ae0000.jpg" />
+    <Resource Include="Images\01002fc00412c000.jpg" />
+    <Resource Include="Images\0100307004b4c000.jpg" />
+    <Resource Include="Images\0100331005e8e000.jpg" />
+    <Resource Include="Images\010034500641a000.jpg" />
+    <Resource Include="Images\0100352006a10000.jpg" />
+    <Resource Include="Images\01003620068ea000.jpg" />
+    <Resource Include="Images\01003670066de000.jpg" />
+    <Resource Include="Images\0100388008758000.jpg" />
+    <Resource Include="Images\010038f00afa0000.jpg" />
+    <Resource Include="Images\010039a008e76000.jpg" />
+    <Resource Include="Images\01003c300aaae000.jpg" />
+    <Resource Include="Images\01003c6008940000.jpg" />
+    <Resource Include="Images\0100416004c00000.jpg" />
+    <Resource Include="Images\0100417007f78000.jpg" />
+    <Resource Include="Images\0100421003fd4000.jpg" />
+    <Resource Include="Images\0100423009358000.jpg" />
+    <Resource Include="Images\010042c006490000.jpg" />
+    <Resource Include="Images\010043500a17a000.jpg" />
+    <Resource Include="Images\0100437004170000.jpg" />
+    <Resource Include="Images\010045600a0d4000.jpg" />
+    <Resource Include="Images\0100465008756000.jpg" />
+    <Resource Include="Images\010047f001dbc000.jpg" />
+    <Resource Include="Images\0100496004194000.jpg" />
+    <Resource Include="Images\010049c0075f0000.jpg" />
+    <Resource Include="Images\01004a9006b84000.jpg" />
+    <Resource Include="Images\01004b1001d22000.jpg" />
+    <Resource Include="Images\01004b4002b6a000.jpg" />
+    <Resource Include="Images\01004b800af5a000.jpg" />
+    <Resource Include="Images\01004be00a682000.jpg" />
+    <Resource Include="Images\01004d10020f2000.jpg" />
+    <Resource Include="Images\01004d1007926000.jpg" />
+    <Resource Include="Images\01004db003e6a000.jpg" />
+    <Resource Include="Images\01004f8006a78000.jpg" />
+    <Resource Include="Images\0100506005a2c000.jpg" />
+    <Resource Include="Images\01005250086c4000.jpg" />
+    <Resource Include="Images\0100534009ff2000.jpg" />
+    <Resource Include="Images\010053e002ea2000.jpg" />
+    <Resource Include="Images\01005640080b0000.jpg" />
+    <Resource Include="Images\01005700031ae000.jpg" />
+    <Resource Include="Images\010057d0021e8000.jpg" />
+    <Resource Include="Images\010057d006492000.jpg" />
+    <Resource Include="Images\01005be008674000.jpg" />
+    <Resource Include="Images\01005c40037c6000.jpg" />
+    <Resource Include="Images\01005c60086be000.jpg" />
+    <Resource Include="Images\01005c8005f34000.jpg" />
+    <Resource Include="Images\01005cb009e20000.jpg" />
+    <Resource Include="Images\01005e5009ef2000.jpg" />
+    <Resource Include="Images\01005ec0039e4000.jpg" />
+    <Resource Include="Images\01005ff002e2a000.jpg" />
+    <Resource Include="Images\0100618004096000.jpg" />
+    <Resource Include="Images\0100628004bce000.jpg" />
+    <Resource Include="Images\0100633007d48000.jpg" />
+    <Resource Include="Images\0100643002136000.jpg" />
+    <Resource Include="Images\0100646009fbe000.jpg" />
+    <Resource Include="Images\010067300059a000.jpg" />
+    <Resource Include="Images\01006740034f6000.jpg" />
+    <Resource Include="Images\01006a200936c000.jpg" />
+    <Resource Include="Images\01006e50042ea000.jpg" />
+    <Resource Include="Images\01006ea00a294000.jpg" />
+    <Resource Include="Images\01006f6002840000.jpg" />
+    <Resource Include="Images\0100701001d92000.jpg" />
+    <Resource Include="Images\0100704000b3a000.jpg" />
+    <Resource Include="Images\0100720008ed2000.jpg" />
+    <Resource Include="Images\010073c001d5e000.jpg" />
+    <Resource Include="Images\0100749009844000.jpg" />
+    <Resource Include="Images\0100751007ada000.jpg" />
+    <Resource Include="Images\0100767008502000.jpg" />
+    <Resource Include="Images\0100769004584000.jpg" />
+    <Resource Include="Images\010076f0049a2000.jpg" />
+    <Resource Include="Images\0100779004172000.jpg" />
+    <Resource Include="Images\010077b0038b2000.jpg" />
+    <Resource Include="Images\01007960049a0000.jpg" />
+    <Resource Include="Images\01007d7001d0e000.jpg" />
+    <Resource Include="Images\01007e3006dda000.jpg" />
+    <Resource Include="Images\01007ef00011e000.jpg" />
+    <Resource Include="Images\01007f200b0c0000.jpg" />
+    <Resource Include="Images\0100830004fb6000.jpg" />
+    <Resource Include="Images\0100830008426000.jpg" />
+    <Resource Include="Images\0100842008ec4000.jpg" />
+    <Resource Include="Images\0100849000bda000.jpg" />
+    <Resource Include="Images\010085300314e000.jpg" />
+    <Resource Include="Images\010086300486e000.jpg" />
+    <Resource Include="Images\010086500ac4a000.jpg" />
+    <Resource Include="Images\0100875008000000.jpg" />
+    <Resource Include="Images\010088e003a76000.jpg" />
+    <Resource Include="Images\01008b8004e36000.jpg" />
+    <Resource Include="Images\01008e6006502000.jpg" />
+    <Resource Include="Images\01008e900471e000.jpg" />
+    <Resource Include="Images\01008ee00b22c000.jpg" />
+    <Resource Include="Images\01008f1008da6000.jpg" />
+    <Resource Include="Images\01008f2005154000.jpg" />
+    <Resource Include="Images\01008fd004db6000.jpg" />
+    <Resource Include="Images\01009040091e0000.jpg" />
+    <Resource Include="Images\0100921006a04000.jpg" />
+    <Resource Include="Images\0100928005bd2000.jpg" />
+    <Resource Include="Images\01009320084a4000.jpg" />
+    <Resource Include="Images\0100945003a0e000.jpg" />
+    <Resource Include="Images\010095a004040000.jpg" />
+    <Resource Include="Images\01009aa000faa000.jpg" />
+    <Resource Include="Images\01009b900401e000.jpg" />
+    <Resource Include="Images\01009bf0072d4000.jpg" />
+    <Resource Include="Images\01009c8009026000.jpg" />
+    <Resource Include="Images\01009d3008d20000.jpg" />
+    <Resource Include="Images\01009d4001dc4000.jpg" />
+    <Resource Include="Images\01009d60076f6000.jpg" />
+    <Resource Include="Images\01009f20086a0000.jpg" />
+    <Resource Include="Images\0100a0500348a000.jpg" />
+    <Resource Include="Images\0100a21007ffa000.jpg" />
+    <Resource Include="Images\0100a4200a284000.jpg" />
+    <Resource Include="Images\0100a48008ae8000.jpg" />
+    <Resource Include="Images\0100a5900472e000.jpg" />
+    <Resource Include="Images\0100a6000acea000.jpg" />
+    <Resource Include="Images\0100a62002042000.jpg" />
+    <Resource Include="Images\0100a66003384000.jpg" />
+    <Resource Include="Images\0100a6a00894c000.jpg" />
+    <Resource Include="Images\0100a7d00a982000.jpg" />
+    <Resource Include="Images\0100a8d003bae000.jpg" />
+    <Resource Include="Images\0100a9a0088fe000.jpg" />
+    <Resource Include="Images\0100ac40038f4000.jpg" />
+    <Resource Include="Images\0100ae00096ea000.jpg" />
+    <Resource Include="Images\0100ae5003ee6000.jpg" />
+    <Resource Include="Images\0100b1a0066dc000.jpg" />
+    <Resource Include="Images\0100b1e0022f8000.jpg" />
+    <Resource Include="Images\0100b2600a398000.jpg" />
+    <Resource Include="Images\0100b52006e8c000.jpg" />
+    <Resource Include="Images\0100b58007d40000.jpg" />
+    <Resource Include="Images\0100b61008208000.jpg" />
+    <Resource Include="Images\0100b7d0022ee000.jpg" />
+    <Resource Include="Images\0100ba8001dc6000.jpg" />
+    <Resource Include="Images\0100bc2004ff4000.jpg" />
+    <Resource Include="Images\0100bcb00ae98000.jpg" />
+    <Resource Include="Images\0100bde00862a000.jpg" />
+    <Resource Include="Images\0100be50042f6000.jpg" />
+    <Resource Include="Images\0100bf1003b9a000.jpg" />
+    <Resource Include="Images\0100bf7006bca000.jpg" />
+    <Resource Include="Images\0100c0f0020e8000.jpg" />
+    <Resource Include="Images\0100c1f0051b6000.jpg" />
+    <Resource Include="Images\0100c3800049c000.jpg" />
+    <Resource Include="Images\0100c38004dcc000.jpg" />
+    <Resource Include="Images\0100c5e003b40000.jpg" />
+    <Resource Include="Images\0100c9800a454000.jpg" />
+    <Resource Include="Images\0100ca9002322000.jpg" />
+    <Resource Include="Images\0100cb2001db8000.jpg" />
+    <Resource Include="Images\0100cc7009196000.jpg" />
+    <Resource Include="Images\0100cc80013d6000.jpg" />
+    <Resource Include="Images\0100cea007d08000.jpg" />
+    <Resource Include="Images\0100d06003056000.jpg" />
+    <Resource Include="Images\0100d1b006744000.jpg" />
+    <Resource Include="Images\0100d250083b4000.jpg" />
+    <Resource Include="Images\0100d3000aec2000.jpg" />
+    <Resource Include="Images\0100d71004694000.jpg" />
+    <Resource Include="Images\0100d87002ee0000.jpg" />
+    <Resource Include="Images\0100dc000a472000.jpg" />
+    <Resource Include="Images\0100e04009bd4000.jpg" />
+    <Resource Include="Images\0100e1f003ee8000.jpg" />
+    <Resource Include="Images\0100e29001298000.jpg" />
+    <Resource Include="Images\0100e46003042000.jpg" />
+    <Resource Include="Images\0100e4d00a690000.jpg" />
+    <Resource Include="Images\0100e5f0000c0000.jpg" />
+    <Resource Include="Images\0100e65002bb8000.jpg" />
+    <Resource Include="Images\0100e74007eac000.jpg" />
+    <Resource Include="Images\0100e95004038000.jpg" />
+    <Resource Include="Images\0100ea1009022000.jpg" />
+    <Resource Include="Images\0100eb6005e90000.jpg" />
+    <Resource Include="Images\0100eb600a4da000.jpg" />
+    <Resource Include="Images\0100eb900a534000.jpg" />
+    <Resource Include="Images\0100ebe002b3e000.jpg" />
+    <Resource Include="Images\0100ec8004762000.jpg" />
+    <Resource Include="Images\0100ecf008474000.jpg" />
+    <Resource Include="Images\0100ee6002b48000.jpg" />
+    <Resource Include="Images\0100efd00a4fa000.jpg" />
+    <Resource Include="Images\0100f0000869c000.jpg" />
+    <Resource Include="Images\0100f0400351c000.jpg" />
+    <Resource Include="Images\0100f110029c8000.jpg" />
+    <Resource Include="Images\0100f15003e64000.jpg" />
+    <Resource Include="Images\0100f2a005c98000.jpg" />
+    <Resource Include="Images\0100f3d008436000.jpg" />
+    <Resource Include="Images\0100f5e008aa0000.jpg" />
+    <Resource Include="Images\0100f7800a434000.jpg" />
+    <Resource Include="Images\0100f89003bc8000.jpg" />
+    <Resource Include="Images\0100f900046c4000.jpg" />
+    <Resource Include="Images\0100ff00042ee000.jpg" />
+    <Resource Include="Images\0100ff5005b76000.jpg" />
+    <Resource Include="Images\blank.jpg" />
+    <Resource Include="keys.txt" />
+    <Content Include="pfx_to_pem.py" />
+    <Resource Include="titlekeys.txt" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -1,0 +1,17 @@
+{
+    "Options": {
+        "Download_location": "",
+        "Game_location": "",
+        "NSP_repack": "True",
+        "Mute": "False",
+        "Titlekey_check": "True",
+        "noaria": "True",
+        "Disable_game_image": "False",
+        "Shorten": "False",
+        "Tinfoil": "False",
+        "SysVerZero": "False",
+        "Main_win": "650x530+100+100",
+        "Queue_win": "620x300+770+100",
+        "Update_win": "600x400+120+200"
+    }
+}

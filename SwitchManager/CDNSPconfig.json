@@ -1,0 +1,16 @@
+{
+    "Paths": {
+        "hactoolPath": "hactool",
+        "keysPath": "keys.txt",
+        "NXclientPath": "nx_tls_client_cert.pem",
+        "ShopNPath": "ShopN.pem"
+    },
+    "Values": {
+        "Region": "US",
+        "Firmware": "5.1.0-3",
+        "DeviceID": "6065843202480808",
+        "Environment": "lp1",
+        "TitleKeysURL": "http://snip.li/newkeydb",
+        "NspOut": "_NSPOUT"
+    }
+}

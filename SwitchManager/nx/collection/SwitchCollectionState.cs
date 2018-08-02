@@ -12,5 +12,6 @@ namespace SwitchManager.nx.collection
         OWNED,
         DOWNLOADED,
         ON_SWITCH,
+        NEW,
     }
 }

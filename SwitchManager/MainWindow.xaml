@@ -1,0 +1,51 @@
+﻿<Window x:Class="SwitchManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SwitchManager"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+
+  <Grid Margin="10,0,-10,0">
+    <DataGrid x:Name="DataGrid_Collection" AutoGenerateColumns="False" ItemsSource="{Binding Source=gameCollection.Collection}"
+                       HorizontalAlignment="Stretch" Height="564" Margin="20,100,20,100" VerticalAlignment="Top">
+      <DataGrid.RowDetailsTemplate>
+        <DataTemplate>
+          <StackPanel Orientation="Horizontal">
+            <Image Source="{Binding Source=Game.Icon.Location}"/>
+
+            <StackPanel Margin="20,10" Orientation="Vertical">
+              <TextBlock Margin="20" FontSize="24" Text="{Binding Source=Game.Name, Mode=OneWay}"/>
+              <TextBlock Text="{Binding Game.Name, Mode=OneWay}"/>
+              <TextBlock FontSize="13" Text="{Binding Source=Game.TitleKey, Mode=OneWay}"/>
+              <TextBlock FontSize="13" Text="{Binding Source=Game.TitleID, Mode=OneWay}" />
+              <TextBlock FontSize="13" Text="{Binding Source=Game.Size, Mode=OneWay}" />
+            </StackPanel>
+          </StackPanel>
+        </DataTemplate>
+      </DataGrid.RowDetailsTemplate>
+      <DataGrid.Columns>
+        <DataGridTextColumn 
+            Header="Title Name" 
+            MaxWidth="400"
+            Binding="{Binding Source=Game.Name, Mode=OneWay}" 
+            FontSize="20" />
+        <DataGridTextColumn 
+            Header="Title ID" 
+            Binding="{Binding Source=Game.TitleID, Mode=OneWay}" 
+            FontSize="20" />
+        <DataGridTextColumn 
+            Header="Title Key"
+            Binding="{Binding Source=Game.TitleKey, Mode=OneWay}" >
+        </DataGridTextColumn>
+        <DataGridTextColumn 
+            Header="State" 
+            Binding="{Binding Source=StateName, Mode=OneWay}" />
+        <DataGridCheckBoxColumn 
+              Header="Favorite ?"  
+              Binding="{Binding Source=IsFavorite, Mode=TwoWay, Path=IsFavorite}" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </Grid>
+</Window>

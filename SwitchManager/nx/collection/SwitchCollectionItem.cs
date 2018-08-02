@@ -19,6 +19,7 @@ namespace SwitchManager.nx.collection
                     case SwitchCollectionState.DOWNLOADED: return "Downloaded";
                     case SwitchCollectionState.OWNED: return "Owned";
                     case SwitchCollectionState.ON_SWITCH: return "On Switch";
+                    case SwitchCollectionState.NEW: return "New";
                     default: return "Not Owned";
                 }
             }

@@ -1,4 +1,5 @@
 ﻿using SwitchManager.nx.img;
+using SwitchManager.nx.net;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -12,36 +13,40 @@ namespace SwitchManager.nx.collection
     internal class SwitchCollection
     {
         public ObservableCollection<SwitchCollectionItem> Collection { get; set; }
-        private SwitchImageLoader imageLoader;
+        private CDNDownloader loader;
 
-        internal SwitchCollection()
+        internal SwitchCollection(CDNDownloader loader)
         {
             Collection = new ObservableCollection<SwitchCollectionItem>();
-            imageLoader = new SwitchImageLoader();
+            this.loader = loader;
         }
 
-        internal void AddGame(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
+        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
         {
             SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, state, isFavorite);
             Collection.Add(item);
+            return item;
         }
 
-        internal void AddGame(string name, string titleid, string titlekey, bool isFavorite)
+        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, bool isFavorite)
         {
             SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, isFavorite);
             Collection.Add(item);
+            return item;
         }
 
-        internal void AddGame(string name, string titleid, string titlekey, SwitchCollectionState state)
+        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state)
         {
             SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, state);
             Collection.Add(item);
+            return item;
         }
 
-        internal void AddGame(string name, string titleid, string titlekey)
+        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey)
         {
             SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey);
             Collection.Add(item);
+            return item;
         }
 
         internal void LoadTitleIcons(string localPath)
@@ -60,11 +65,12 @@ namespace SwitchManager.nx.collection
         /// <returns></returns>
         private SwitchImage LoadTitleIcon(SwitchGame game)
         {
-            SwitchImage img = imageLoader.GetLocalImage(game.TitleID);
+            SwitchImage img = loader.GetLocalImage(game.TitleID);
             if (img == null)
             {
                 // Ask the image loader to get the image remotely and cache it
-                img = imageLoader.GetRemoteImage(game.TitleID);
+                //img = loader.GetRemoteImage(game);
+                img = null; // TODO: Fix remote image loading
             }
 
             // Return cached image
@@ -81,7 +87,12 @@ namespace SwitchManager.nx.collection
                 string tkey = split[1]?.Trim()?.Substring(0, 32);
                 string name = split[2]?.Trim();
 
-                AddGame(name, tid, tkey);
+                var game = AddGame(name, tid, tkey)?.Game;
+                if (game != null)
+                {
+                    //List<string> versions = loader.GetVersions(game);
+                    //foreach (var v in versions) game.Versions.Add(v);
+                }
             }
         }
     }
