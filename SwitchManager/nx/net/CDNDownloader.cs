@@ -17,15 +17,6 @@ namespace SwitchManager.nx.net
 
     public class CDNDownloader
     {
-        // {0} = n
-        // {1} = environment
-        // {2} = titleid - self-evident
-        // {3} = title_version - for images, "base_version" is the last version
-        // {4} = device_id
-        private static readonly string remotePathPattern = "https://atum{0}.hac.{1}.d4c.nintendo.net/t/a/{2}/{3}?device_id={4}";
-
-        // {0} = tid
-        private static readonly string localPathPattern = localPath + Path.DirectorySeparatorChar + "{0}.jpg";
 
         // THIS IS ALL CONFIG
         // TO BE GOTTEN FROM A FILE, PROBABLY
@@ -42,7 +33,17 @@ namespace SwitchManager.nx.net
         private static readonly string ShopNPath = "ShopN.pem";
     
         public X509Certificate clientCert { get; }
-    
+
+        // {0} = n
+        // {1} = environment
+        // {2} = titleid - self-evident
+        // {3} = title_version - for images, "base_version" is the last version
+        // {4} = device_id
+        private static readonly string remotePathPattern = "https://atum{0}.hac.{1}.d4c.nintendo.net/t/a/{2}/{3}?device_id={4}";
+
+        // {0} = tid
+        private static readonly string localPathPattern = localPath + Path.DirectorySeparatorChar + "{0}.jpg";
+
         public CDNDownloader(string clientCertPath, string deviceId, string firmware, string environment)
         {
             this.clientCertPath = clientCertPath;

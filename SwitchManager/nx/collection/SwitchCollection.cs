@@ -35,6 +35,16 @@ namespace SwitchManager.nx.collection
             return item;
         }
 
+        internal void LoadMetadata(string filename)
+        {
+
+        }
+
+        internal void SaveMetadata(string filename)
+        {
+
+        }
+
         internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state)
         {
             SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, state);

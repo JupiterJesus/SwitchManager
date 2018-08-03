@@ -1,15 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace SwitchManager.nx.collection
 {
-    public class SwitchCollectionItem
+    public class SwitchCollectionItem : INotifyPropertyChanged
     {
+        private SwitchCollectionState state;
+        private bool isFavorite;
+
         public SwitchGame Game { get; set; }
-        public SwitchCollectionState State { get; set; }
+        public SwitchCollectionState State
+        {
+            get { return this.state; }
+            set { this.state = value; NotifyPropertyChanged("State"); }
+        }
+
         public string StateName
         {
             get
@@ -23,9 +32,25 @@ namespace SwitchManager.nx.collection
                     default: return "Not Owned";
                 }
             }
+            set
+            {
+                switch (value)
+                {
+                    case "Downloaded": this.state = SwitchCollectionState.DOWNLOADED; break;
+                    case "Owned": this.state = SwitchCollectionState.OWNED; break;
+                    case "On Switch": this.state = SwitchCollectionState.ON_SWITCH; break;
+                    case "New": this.state = SwitchCollectionState.NEW; break;
+                    default: this.state = SwitchCollectionState.NOT_OWNED; break;
+                }
+                NotifyPropertyChanged("StateName");
+            }
         }
 
-        public bool IsFavorite { get; set; }
+        public bool IsFavorite
+        {
+            get { return isFavorite; }
+            set { this.isFavorite = value; NotifyPropertyChanged("IsFavorite"); }
+        }
 
         public SwitchCollectionItem(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
         {
@@ -47,6 +72,14 @@ namespace SwitchManager.nx.collection
         public SwitchCollectionItem(string name, string titleid, string titlekey) : this(name, titleid, titlekey, SwitchCollectionState.NOT_OWNED, false)
         {
 
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+
+        private void NotifyPropertyChanged(string info)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(info));
         }
     }
 }

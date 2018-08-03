@@ -47,7 +47,7 @@ namespace SwitchManager.nx.net
         private static readonly string localPathPattern = localPath + Path.DirectorySeparatorChar + "{0}.jpg";
 
         public X509Certificate clientCert { get; }
-    
+
         public CDNDownloader(string clientCertPath, string deviceId, string firmware, string environment)
         {
             this.clientCertPath = clientCertPath;
@@ -97,7 +97,6 @@ namespace SwitchManager.nx.net
         public SwitchImage GetRemoteImage(SwitchGame game)
         {
             string n = "0";
-            string env = "production";
             string titleID = game.TitleID;
 
             string baseVersion;
@@ -105,9 +104,8 @@ namespace SwitchManager.nx.net
                 baseVersion = "0";
             else
                 baseVersion = game.Versions.Last();
-            // string deviceID
 
-            string url = string.Format(remotePathPattern, n, env, titleID, baseVersion, deviceId);
+            string url = string.Format(remotePathPattern, n, environment, titleID, baseVersion, deviceId);
 
             MakeRequest(HttpMethod.Head, url, null, null);
 
@@ -144,7 +142,7 @@ namespace SwitchManager.nx.net
             string url = string.Format("https://superfly.hac.{0}.d4c.nintendo.net/v1/t/{1}/dv", environment, game.TitleID);
             string result = MakeRequest(HttpMethod.Get, url, null, null);
 
-            Dictionary<string,string> json = JsonConvert.DeserializeObject<Dictionary<string, string>>(result);
+            Dictionary<string, string> json = JsonConvert.DeserializeObject<Dictionary<string, string>>(result);
             string sLatestVersion = json["version"];
             int latestVersion = int.Parse(sLatestVersion);
 
@@ -167,7 +165,7 @@ namespace SwitchManager.nx.net
 
             */
         }
-        
+
         public string GetVersionsList()
         {
             string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", environment);
@@ -183,7 +181,7 @@ namespace SwitchManager.nx.net
         /// </summary>
         /// <param name="method"></param>
         /// <param name="url"></param>
-        private string MakeRequest(HttpMethod method, string url, X509Certificate cert, Dictionary<string,string> args)
+        private string MakeRequest(HttpMethod method, string url, X509Certificate cert, Dictionary<string, string> args)
         {
             if (cert == null)
                 cert = clientCert;
@@ -196,7 +194,7 @@ namespace SwitchManager.nx.net
             request.Headers.Add("Accept-Encoding", "gzip, deflate");
             request.Headers.Add("Accept", "*/*");
             request.Headers.Add("Connection", "keep-alive");
-            
+
             // Add any additional parameters passed into the method
             if (args != null) args.ToList().ForEach(x => request.Headers.Add(x.Key, x.Value));
 
@@ -217,7 +215,7 @@ namespace SwitchManager.nx.net
             {
                 var response = client.SendRequestAsync(request).GetAwaiter().GetResult();
                 string result = response.Content.ReadAsStringAsync().GetResults();
-
+                
                 return result;
             }
             // TODO Make http requests async

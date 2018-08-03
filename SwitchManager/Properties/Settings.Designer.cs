@@ -112,5 +112,32 @@ namespace SwitchManager.Properties {
                 return ((string)(this["ShopNPath"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("library.json")]
+        public string MetadataFile {
+            get {
+                return ((string)(this["MetadataFile"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("titlekeys.txt")]
+        public string TitleKeysFile {
+            get {
+                return ((string)(this["TitleKeysFile"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Images")]
+        public string ImageCache {
+            get {
+                return ((string)(this["ImageCache"]));
+            }
+        }
     }
 }

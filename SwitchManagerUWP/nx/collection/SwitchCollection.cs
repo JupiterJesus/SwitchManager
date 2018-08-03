@@ -69,8 +69,7 @@ namespace SwitchManager.nx.collection
             if (img == null)
             {
                 // Ask the image loader to get the image remotely and cache it
-                //img = loader.GetRemoteImage(game);
-                img = null; // TODO: Fix remote image loading
+                img = loader.GetRemoteImage(game);
             }
 
             // Return cached image
