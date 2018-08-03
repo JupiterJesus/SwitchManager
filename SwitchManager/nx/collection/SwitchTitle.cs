@@ -1,33 +1,32 @@
 ﻿using SwitchManager.nx.img;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace SwitchManager.nx.collection
 {
-    public class SwitchGame
+    public class SwitchTitle
     {
         public string Name { get; set; }
         public string TitleKey { get; set; }
         public string TitleID { get; set; }
+        public SwitchTitleType Type { get; set; }
 
         public SwitchImage Icon { get; set; }
         public ulong Size { get; set; }
 
-        public List<string> DLC { get; }
-        public List<string> Updates { get; }
-        public List<string> Versions { get; }
+        public ObservableCollection<string> DLC { get; set; }
+        public ObservableCollection<string> Updates { get; set;  }
+        public ObservableCollection<uint> Versions { get; set; }
 
-        internal SwitchGame(string name, string titleid, string titlekey)
+        internal SwitchTitle(string name, string titleid, string titlekey)
         {
             Name = name;
             TitleID = titleid;
-            TitleKey = titlekey;
-            this.DLC = new List<string>();
-            this.Updates = new List<string>();
-            this.Versions = new List<string>();
+            TitleKey = titlekey; 
         }
     }
 }

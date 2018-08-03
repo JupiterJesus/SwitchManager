@@ -11,6 +11,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Collections.ObjectModel;
 
 namespace SwitchManager.nx.net
 {
@@ -90,22 +92,23 @@ namespace SwitchManager.nx.net
         /// </summary>
         /// <param name="titleID"></param>
         /// <returns></returns>
-        public SwitchImage GetRemoteImage(SwitchGame game)
+        public SwitchImage GetRemoteImage(SwitchTitle game)
         {
             string n = "0";
             string env = "production";
             string titleID = game.TitleID;
 
-            string baseVersion;
-            if (game.Versions.Count == 0)
-                baseVersion = "0";
+            // Sanity check if no versions or null then base version of 0
+            uint latestVersion;
+            if ((game?.Versions?.Count ?? 0) == 0)
+                latestVersion = 0;
             else
-                baseVersion = game.Versions.Last();
+                latestVersion = game.Versions.First();
             // string deviceID
 
-            string url = string.Format(remotePathPattern, n, env, titleID, baseVersion, deviceId);
+            string url = string.Format(remotePathPattern, n, env, titleID, latestVersion, deviceId);
 
-            MakeRequest(HttpMethod.Head, url, null, null);
+            string r = MakeRequest(HttpMethod.Head, url, null, null);
 
             return new SwitchImage("Images\\blank.jpg");
         }
@@ -134,41 +137,61 @@ namespace SwitchManager.nx.net
         /// </summary>
         /// <param name="game"></param>
         /// <returns></returns>
-        public List<string> GetVersions(SwitchGame game)
+        public ObservableCollection<uint> GetVersions(SwitchTitle game)
         {
             //string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", env);
             string url = string.Format("https://superfly.hac.{0}.d4c.nintendo.net/v1/t/{1}/dv", environment, game.TitleID);
-            string result = MakeRequest(HttpMethod.Get, url, null, null);
+            string r = MakeRequest(HttpMethod.Get, url, null, null);
 
-            Dictionary<string,string> json = JsonConvert.DeserializeObject<Dictionary<string, string>>(result);
-            string sLatestVersion = json["version"];
-            int latestVersion = int.Parse(sLatestVersion);
+            JObject json = JObject.Parse(r);
+            uint latestVersion = json?.Value<uint>("version") ?? 0;
 
-            List<string> versions = new List<string>();
-            if (latestVersion < 65536)
-                versions.Add(sLatestVersion);
-            else
-                versions.Add(sLatestVersion);
-
-            return versions;
-            /*
-        lastestVer = j['version']
-        if lastestVer < 65536:
-            return ['%s' % lastestVer]
-        else:
-            versionList = ('%s' % "-".join(str(i) for i in range(0x10000, lastestVer + 1, 0x10000))).split('-')
-            return versionList
-    except Exception as e:
-        return ['none']
-
-            */
+            return GetAllVersions(latestVersion); ;
         }
-        
-        public string GetVersionsList()
+
+        /// <summary>
+        /// Converts a single version number into a list of all available versions.
+        /// </summary>
+        /// <param name="versionNo"></param>
+        /// <returns></returns>
+        public ObservableCollection<uint> GetAllVersions(uint versionNo)
+        {
+            var versions = new ObservableCollection<uint>();
+            for (uint v = versionNo; v > 0; v -= 0x10000)
+            {
+                versions.Add(v);
+            }
+
+            versions.Add(0);
+            return versions;
+        }
+
+        /// <summary>
+        /// Gets ALL games' versions and required versions, whatever that means.
+        /// format is {"format_version":1,"last_modified":1533248100}, "titles":[{"id":"01007ef00011e800","version":720896,"required_version":720896},...]}
+        /// 
+        /// Versions are 0, 0x10000, 0x20000, etc up to the listed number.
+        /// </summary>
+        /// <returns></returns>
+        public Dictionary<string,uint> GetLatestVersions()
         {
             string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", environment);
-            string result = MakeRequest(HttpMethod.Get, url, null, null);
+            string r = MakeRequest(HttpMethod.Get, url, null, null);
 
+            JObject json = JObject.Parse(r);
+            IList<JToken> titles = json["titles"].Children().ToList();
+
+            var result = new Dictionary<string, uint>();
+            foreach (var title in titles)
+            {
+                // Okay so I don't know why (perhaps this has something to do with word alignment? That's too deep in the weeds for me)
+                // but every title id ends with 000, except in the results from here they all end with 800
+                // Until I understand how it works I'm just going to swap the 8 for a 0.
+                StringBuilder tid = new StringBuilder(title.Value<string>("id"));
+                tid[13] = '0';
+                uint latestVersion = title.Value<uint>("version");
+                result[tid.ToString()] = latestVersion;
+            }
             return result;
         }
 

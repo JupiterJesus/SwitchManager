@@ -12,7 +12,7 @@ namespace SwitchManager.nx.collection
         private SwitchCollectionState state;
         private bool isFavorite;
 
-        public SwitchGame Game { get; set; }
+        public SwitchTitle Title { get; set; }
         public SwitchCollectionState State
         {
             get { return this.state; }
@@ -54,7 +54,7 @@ namespace SwitchManager.nx.collection
 
         public SwitchCollectionItem(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
         {
-            Game = new SwitchGame(name, titleid, titlekey);
+            Title = new SwitchTitle(name, titleid, titlekey);
             State = state;
             IsFavorite = isFavorite;
         }

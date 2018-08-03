@@ -63,7 +63,7 @@ namespace SwitchManager.nx.collection
         {
             foreach (SwitchCollectionItem item in Collection)
             {
-                item.Game.Icon = LoadTitleIcon(item.Game);
+                item.Title.Icon = LoadTitleIcon(item.Title);
             }
         }
 
@@ -73,7 +73,7 @@ namespace SwitchManager.nx.collection
         /// </summary>
         /// <param name="game"></param>
         /// <returns></returns>
-        private SwitchImage LoadTitleIcon(SwitchGame game)
+        private SwitchImage LoadTitleIcon(SwitchTitle game)
         {
             SwitchImage img = loader.GetLocalImage(game.TitleID);
             if (img == null)
@@ -90,6 +90,10 @@ namespace SwitchManager.nx.collection
         public void LoadTitleKeysFile(string filename)
         {
             var lines = File.ReadLines(filename);
+            var versions = loader.GetLatestVersions();
+            var ids = versions.Keys.ToList();
+            ids.Sort() ;
+
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
@@ -97,11 +101,27 @@ namespace SwitchManager.nx.collection
                 string tkey = split[1]?.Trim()?.Substring(0, 32);
                 string name = split[2]?.Trim();
 
-                var game = AddGame(name, tid, tkey)?.Game;
-                if (game != null)
+                var title = AddGame(name, tid, tkey)?.Title;
+                if (title != null)
                 {
-                    //List<string> versions = loader.GetVersions(game);
-                    //foreach (var v in versions) game.Versions.Add(v);
+                    if (versions.ContainsKey(title.TitleID))
+                    {
+                        uint v = versions[title.TitleID];
+                        title.Versions = loader.GetAllVersions(v);
+                    }
+                    else
+                    {
+                        // The database does NOT contain data for any game whose update is 0, which is to say there is no update
+                        // So just give it an updates list of 0
+                        title.Versions = new ObservableCollection<uint>();
+                        title.Versions.Add(0);
+                    }
+                    if (title.Name.EndsWith("Demo"))
+                        title.Type = SwitchTitleType.DEMO;
+                    else if (title.Name.StartsWith("[DLC]"))
+                        title.Type = SwitchTitleType.DLC;
+                    else
+                        title.Type = SwitchTitleType.GAME;
                 }
             }
         }

@@ -76,8 +76,9 @@
   <ItemGroup>
     <Compile Include="nx\collection\SwitchCollection.cs" />
     <Compile Include="nx\collection\SwitchCollectionItem.cs" />
+    <Compile Include="nx\collection\SwitchTitleType.cs" />
     <Compile Include="nx\collection\SwitchCollectionState.cs" />
-    <Compile Include="nx\collection\SwitchGame.cs" />
+    <Compile Include="nx\collection\SwitchTitle.cs" />
     <Compile Include="nx\img\SwitchImage.cs" />
     <Compile Include="nx\net\CDNDownloader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
