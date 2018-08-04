@@ -1,5 +1,5 @@
 ﻿using SwitchManager.nx.img;
-using SwitchManager.nx.net;
+using SwitchManager.nx.cdn;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -79,8 +79,8 @@ namespace SwitchManager.nx.collection
             if (img == null)
             {
                 // Ask the image loader to get the image remotely and cache it
-                //img = loader.GetRemoteImage(game);
-                img = null; // TODO: Fix remote image loading
+                // Task is potentially asynchronous BUT I'm just waiting for it here
+                img = loader.GetRemoteImage(game).Result;
             }
 
             // Return cached image

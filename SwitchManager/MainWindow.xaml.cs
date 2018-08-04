@@ -14,7 +14,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using SwitchManager.nx;
 using SwitchManager.nx.collection;
-using SwitchManager.nx.net;
+using SwitchManager.nx.cdn;
 using SwitchManager.Properties;
 
 namespace SwitchManager
@@ -30,7 +30,7 @@ namespace SwitchManager
         {
             InitializeComponent();
             
-            CDNDownloader downloader = new CDNDownloader(Settings.Default.NXclientPath, Settings.Default.DeviceID, Settings.Default.Firmware, Settings.Default.Environment);
+            CDNDownloader downloader = new CDNDownloader(Settings.Default.NXclientPath, Settings.Default.DeviceID, Settings.Default.Firmware, Settings.Default.Environment, Settings.Default.ImageCache);
             gameCollection = new SwitchCollection(downloader);
 
             gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile);

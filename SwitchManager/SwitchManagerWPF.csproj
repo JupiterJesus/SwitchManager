@@ -74,13 +74,15 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="nx\cdn\NSP.cs" />
     <Compile Include="nx\collection\SwitchCollection.cs" />
     <Compile Include="nx\collection\SwitchCollectionItem.cs" />
     <Compile Include="nx\collection\SwitchTitleType.cs" />
     <Compile Include="nx\collection\SwitchCollectionState.cs" />
     <Compile Include="nx\collection\SwitchTitle.cs" />
     <Compile Include="nx\img\SwitchImage.cs" />
-    <Compile Include="nx\net\CDNDownloader.cs" />
+    <Compile Include="nx\cdn\CDNDownloader.cs" />
+    <Compile Include="nx\cdn\CNMT.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

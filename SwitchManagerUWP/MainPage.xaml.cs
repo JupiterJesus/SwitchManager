@@ -14,7 +14,7 @@ using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
 using Microsoft.Toolkit.Uwp.UI.Controls;
-using SwitchManager.nx.net;
+using SwitchManager.nx.cdn;
 
 namespace SwitchManager
 {

@@ -16,7 +16,7 @@ using Windows.Security.Cryptography.Certificates;
 using Windows.Storage.Streams;
 using Windows.Storage;
 
-namespace SwitchManager.nx.net
+namespace SwitchManager.nx.cdn
 {
 
     public class CDNDownloader

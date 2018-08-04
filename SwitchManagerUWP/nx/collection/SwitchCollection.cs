@@ -1,5 +1,5 @@
 ﻿using SwitchManager.nx.img;
-using SwitchManager.nx.net;
+using SwitchManager.nx.cdn;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
