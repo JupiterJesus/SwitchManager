@@ -15,13 +15,15 @@ namespace SwitchManager.nx.collection
         public ObservableCollection<SwitchCollectionItem> Collection { get; set; }
         private CDNDownloader loader;
         private string imagesPath;
+        public string RomsPath { get; set; }
         private Dictionary<string, SwitchCollectionItem> titlesByID = new Dictionary<string, SwitchCollectionItem>();
 
-        internal SwitchCollection(CDNDownloader loader, string imagesPath)
+        internal SwitchCollection(CDNDownloader loader, string imagesPath, string romsPath)
         {
             Collection = new ObservableCollection<SwitchCollectionItem>();
             this.loader = loader;
             this.imagesPath = imagesPath;
+            this.RomsPath = romsPath;
         }
 
         internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
@@ -65,6 +67,21 @@ namespace SwitchManager.nx.collection
             Collection.Add(item);
             titlesByID[item.Title.TitleID] = item;
             return item;
+        }
+
+        internal async Task DownloadTitle(SwitchCollectionItem titleItem, uint v, bool repack, bool verify)
+        {
+            string dir = this.RomsPath + Path.DirectorySeparatorChar + titleItem.Title.TitleID;
+            DirectoryInfo dinfo = new DirectoryInfo(dir);
+            if (!dinfo.Exists)
+                dinfo.Create();
+
+            var files = await loader.DownloadTitle(titleItem.title, v, dir, repack, verify).ConfigureAwait(false);
+            // TODO Handle all the files
+            if (repack)
+            {
+
+            }
         }
 
         /// <summary>

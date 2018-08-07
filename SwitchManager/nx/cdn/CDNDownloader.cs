@@ -144,8 +144,6 @@ namespace SwitchManager.nx.cdn
         {
             Console.WriteLine($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
 
-            string url = $"https://atum.hac.{environment}.d4c.nintendo.net/t/a/{title.TitleID}/{version}?device_id={deviceId}";
-
             var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false);
             
             if (cnmt != null)
@@ -154,15 +152,15 @@ namespace SwitchManager.nx.cdn
                 string ticketPath = null, certPath = null, cnmtXml = null;
                 if (nspRepack)
                 {
-                    string outfile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFile) + ".xml";
-                    cnmtXml = cnmt.GenerateXml(outfile);
+                    cnmtXml = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFile) + ".xml";
+                    cnmt.GenerateXml(cnmtXml);
 
                     string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
                     ticketPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".tik";
-                    certPath = titleDir = Path.DirectorySeparatorChar + rightsID + ".cert";
+                    certPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".cert";
                     if (cnmt.Type == TitleType.Application || cnmt.Type == TitleType.AddOnContent)
                     {
-                        File.Copy(this.titleCertPath, certPath);
+                        File.Copy(this.titleCertPath, certPath, true);
                         Console.WriteLine($"Generated certificate {certPath}.");
 
                         if (!string.IsNullOrWhiteSpace(title.TitleKey))
@@ -231,9 +229,8 @@ namespace SwitchManager.nx.cdn
                     {
                         string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
                         ncaList.Add(path);
-                        Task t = Task.Run(() => DoDownloadNCA(ncaID, path, verify));
+                        Task t = Task.Run(() => DoDownloadNCA(ncaID, path, verify).ConfigureAwait(false));
                         tasks.Add(t);
-                        t.Start();
                     }
 
                 }
@@ -715,14 +712,11 @@ namespace SwitchManager.nx.cdn
         /// <returns>FileInfo for the downloaded CNMT NCA.</returns>
         private async Task<FileInfo> DownloadCnmt(string cnmtid, string path)
         {
-            // CNMT file location in the temp folder
-            string fpath = path + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
-
             // Download cnmt file, async
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/a/{cnmtid}?device_id={deviceId}";
-            await DownloadFile(url, fpath).ConfigureAwait(false);
+            await DownloadFile(url, path).ConfigureAwait(false);
 
-            return new FileInfo(fpath);
+            return new FileInfo(path);
         }
 
         private async Task<CNMT> DownloadAndDecryptCnmt(SwitchTitle title, uint version, string titleDir)

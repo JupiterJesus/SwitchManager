@@ -21,16 +21,16 @@
       <Value Profile="(Default)">_NSPOUT</Value>
     </Setting>
     <Setting Name="hactoolPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">hactool\\hactool.exe</Value>
+      <Value Profile="(Default)">hactool\hactool.exe</Value>
     </Setting>
     <Setting Name="keysPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">hactool\\keys.txt</Value>
+      <Value Profile="(Default)">hactool\keys.txt</Value>
     </Setting>
     <Setting Name="NXclientPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\\client.pfx</Value>
+      <Value Profile="(Default)">certs\client.pfx</Value>
     </Setting>
     <Setting Name="ShopNPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\\ShopN.pem</Value>
+      <Value Profile="(Default)">certs\ShopN.pem</Value>
     </Setting>
     <Setting Name="MetadataFile" Type="System.String" Scope="Application">
       <Value Profile="(Default)">library.json</Value>
@@ -45,10 +45,16 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="TitleCertPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\\Certificate.cert</Value>
+      <Value Profile="(Default)">certs\Certificate.cert</Value>
     </Setting>
     <Setting Name="TitleTicketPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\\Ticket.tik</Value>
+      <Value Profile="(Default)">certs\Ticket.tik</Value>
+    </Setting>
+    <Setting Name="NSPDirectory" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">nsp</Value>
+    </Setting>
+    <Setting Name="NSPRepack" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
     </Setting>
   </Settings>
 </SettingsFile>

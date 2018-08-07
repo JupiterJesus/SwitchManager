@@ -40,7 +40,7 @@ namespace SwitchManager
                                                          Settings.Default.hactoolPath, 
                                                          Settings.Default.keysPath);
 
-            gameCollection = new SwitchCollection(downloader, Settings.Default.ImageCache);
+            gameCollection = new SwitchCollection(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
 
             gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile);
             Task.Run(() => gameCollection.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages));
@@ -51,6 +51,8 @@ namespace SwitchManager
             itemCollectionViewSource = (CollectionViewSource)(FindResource("ItemCollectionViewSource"));
             itemCollectionViewSource.Source = gameCollection.Collection;
             //
+
+            Task.Run(() => gameCollection.DownloadTitle(gameCollection.GetTitleByID("0100bc60099fe000"), 0, Settings.Default.NSPRepack, false));
         }
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
