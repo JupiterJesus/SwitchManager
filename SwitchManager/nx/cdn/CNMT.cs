@@ -41,21 +41,28 @@ namespace SwitchManager.nx.cdn
     /// </summary>
     public class CNMT
     {
-        private string filePath;
-        private string id;
-        private uint version;
-        private TitleType type;
+        public string CnmtFilePath { get; set; }
+        public string CnmtDirectory { get; set; }
+        public string CnmtNcaFile { get; set; }
+
+        public string ID { get; set; }
+        public uint Version { get; set; }
+        public TitleType Type { get; set; }
+
         private ushort tableOffset;
         private ushort numContentEntries;
         private ushort numMetaEntries;
         private string requiredDownloadSysVersion;
         private string minSysVersion;
         private byte[] hash;
-        private byte[] keyGeneration;
+        public byte MasterKeyRevision { get; set; }
 
-        public CNMT(string filePath, string headerPath)
+        public CNMT(string filePath, string headerPath, string cnmtDir, string ncaPath)
         {
-            this.filePath = filePath;
+            this.CnmtFilePath = filePath;
+            this.CnmtDirectory = cnmtDir;
+            this.CnmtNcaFile = ncaPath;
+
             FileStream fs = File.OpenRead(filePath);
             BinaryReader br = new BinaryReader(fs);
 
@@ -63,14 +70,14 @@ namespace SwitchManager.nx.cdn
             // See http://switchbrew.org/index.php?title=NCA#Metadata_file
 
             // Title ID is at offset 0 and is 8 bytes long
-            this.id = $"{br.ReadUInt64():X16}";
+            this.ID = $"{br.ReadUInt64():X16}";
 
             // Title Version is immediately after at offset 8 and is 4 bytes long
-            this.version = br.ReadUInt32();
+            this.Version = br.ReadUInt32();
 
             // Title Type is immediately after at offset 0xC and is 1 byte long
             // See http://switchbrew.org/index.php?title=NCM_services#Title_Types
-            this.type = (TitleType)br.ReadByte();
+            this.Type = (TitleType)br.ReadByte();
 
             // What's at 0xD?
             br.ReadByte();
@@ -101,8 +108,9 @@ namespace SwitchManager.nx.cdn
             br = new BinaryReader(fs);
             // Grabs the first 0x220 bytes from Header.bin and stores them for later
             // See http://switchbrew.org/index.php?title=NCA_Format#Header
-            // TODO: Figure out why
-            this.keyGeneration = br.ReadBytes(0x220); // self.mkeyrev = str(read_u8(ncaHd, 0x220))
+            // This is used later in the rights ID
+            br.BaseStream.Seek(0x220, SeekOrigin.Begin);
+            this.MasterKeyRevision = br.ReadByte();
             br.Close();
         }
 
@@ -116,11 +124,11 @@ namespace SwitchManager.nx.cdn
             // but I ultimately settled on having one parse for system update that handles system updates and
             // one that handles other stuff
             // I might even have two different CNMTs with different parse methods, subclassing CNMT, I dunno
-            if (this.type != TitleType.SystemUpdate)
+            if (this.Type != TitleType.SystemUpdate)
                 throw new Exception("Do not call ParseSystemUpdate unless the CNMT is for a System Update title!!!");
 
             var data = new Dictionary<string, CnmtMetaEntry>();
-            FileStream fs = File.OpenRead(this.filePath);
+            FileStream fs = File.OpenRead(CnmtFilePath);
             BinaryReader br = new BinaryReader(fs);
 
             // Reach each entry, starting at 0x20 (after the header ends)
@@ -153,11 +161,11 @@ namespace SwitchManager.nx.cdn
             // but I would still come right back to having to have a single data type returned by the
             // virtual function that encompassed both content and metadata entries, and I just don't want to
             // They are completely different and shouldn't be combined into one class
-            if (this.type == TitleType.SystemUpdate)
+            if (this.Type == TitleType.SystemUpdate)
                 throw new Exception("Do not call Parse on a System Update title!!! Only for other types!");
 
             var data = new Dictionary<string, CnmtContentEntry>();
-            FileStream fs = File.OpenRead(this.filePath);
+            FileStream fs = File.OpenRead(this.CnmtFilePath);
             BinaryReader br = new BinaryReader(fs);
 
             // Reach each content entry, starting at 0x20 + tableOffset
@@ -188,9 +196,9 @@ namespace SwitchManager.nx.cdn
             return data;
         }
 
-        public void GenerateXml(string ncaPath, string outFile)
+        public string GenerateXml(string outFile)
         {
-            if (this.type == TitleType.SystemUpdate)
+            if (this.Type == TitleType.SystemUpdate)
             {
                 var data = this.ParseSystemUpdate();
             }
@@ -246,6 +254,7 @@ namespace SwitchManager.nx.cdn
 
         */
             Console.WriteLine("Generated XML file {0}!", Path.GetFileName(outFile));
+            return (outFile);
         }
     }
 }

@@ -31,6 +31,8 @@ namespace SwitchManager
             InitializeComponent();
             
             CDNDownloader downloader = new CDNDownloader(Settings.Default.NXclientPath, 
+                                                         Settings.Default.TitleCertPath,
+                                                         Settings.Default.TitleTicketPath,
                                                          Settings.Default.DeviceID, 
                                                          Settings.Default.Firmware, 
                                                          Settings.Default.Environment, 
@@ -38,7 +40,7 @@ namespace SwitchManager
                                                          Settings.Default.hactoolPath, 
                                                          Settings.Default.keysPath);
 
-            gameCollection = new SwitchCollection(downloader);
+            gameCollection = new SwitchCollection(downloader, Settings.Default.ImageCache);
 
             gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile);
             Task.Run(() => gameCollection.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages));

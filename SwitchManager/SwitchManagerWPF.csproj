@@ -77,6 +77,7 @@
     <Compile Include="nx\cdn\CNMTContentEntry.cs" />
     <Compile Include="nx\cdn\CNMTMetaEntry.cs" />
     <Compile Include="nx\cdn\NSP.cs" />
+    <Compile Include="nx\cdn\TitleTicket.cs" />
     <Compile Include="nx\collection\SwitchCollection.cs" />
     <Compile Include="nx\collection\SwitchCollectionItem.cs" />
     <Compile Include="nx\collection\SwitchTitleType.cs" />
@@ -114,7 +115,7 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <None Include="certs\ShopN.pem" />
-    <None Include="Ticket.tik" />
+    <None Include="certs\Ticket.tik" />
     <None Include="update_titlekeys.bat" />
   </ItemGroup>
   <ItemGroup>

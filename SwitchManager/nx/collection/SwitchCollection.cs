@@ -14,12 +14,14 @@ namespace SwitchManager.nx.collection
     {
         public ObservableCollection<SwitchCollectionItem> Collection { get; set; }
         private CDNDownloader loader;
+        private string imagesPath;
         private Dictionary<string, SwitchCollectionItem> titlesByID = new Dictionary<string, SwitchCollectionItem>();
 
-        internal SwitchCollection(CDNDownloader loader)
+        internal SwitchCollection(CDNDownloader loader, string imagesPath)
         {
             Collection = new ObservableCollection<SwitchCollectionItem>();
             this.loader = loader;
+            this.imagesPath = imagesPath;
         }
 
         internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
@@ -36,9 +38,13 @@ namespace SwitchManager.nx.collection
             return item;
         }
 
+        /// <summary>
+        /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
+        /// </summary>
+        /// <param name="filename"></param>
         internal void LoadMetadata(string filename)
         {
-
+            // TODO: LoadMetadata
         }
 
         internal void SaveMetadata(string filename)
@@ -67,6 +73,7 @@ namespace SwitchManager.nx.collection
         /// every single image if it isn't found locally.
         /// </summary>
         /// <param name="localPath"></param>
+        /// <param name="preload">Set preload to true to load all images at once if they aren't available locally. False will return a blank image if it isn't found in the cache.</param>
         internal void LoadTitleIcons(string localPath, bool preload = false)
         {
             foreach (SwitchCollectionItem item in Collection)
@@ -76,27 +83,54 @@ namespace SwitchManager.nx.collection
         }
 
         /// <summary>
-        /// Gets a title icon. If it isn't cached locally, gets it from nintendo.
-        /// TODO: Remote and local paths are currently hard-coded in the image loader!
+        /// Gets a title icon. If it isn't cached locally, gets it from nintendo. Only loads a local image if downloadRemote is false, but will download
+        /// from the CDN if downloadRemote is true.
         /// </summary>
-        /// <param name="game"></param>
+        /// <param name="title">Title whose icon you wish to load</param>
+        /// <param name="downloadRemote">If true, loads the image from nintendo if it isn't found in cache</param>
         /// <returns></returns>
-        private async Task LoadTitleIcon(SwitchTitle game, bool preload = false)
+        private async Task LoadTitleIcon(SwitchTitle title, bool downloadRemote = false)
         {
-            SwitchImage img = loader.GetLocalImage(game.TitleID);
-            if (img == null && preload && SwitchTitle.IsBaseGameID(game.TitleID))
+            SwitchImage img = GetLocalImage(title.TitleID);
+            if (img == null && downloadRemote && SwitchTitle.IsBaseGameID(title.TitleID))
             {
                 // Ask the image loader to get the image remotely and cache it
                 // Task is potentially asynchronous BUT I'm just waiting for it here
-                img = await loader.GetRemoteImage(game).ConfigureAwait(false);
+                await loader.DownloadRemoteImage(title).ConfigureAwait(false);
+                img = GetLocalImage(title.TitleID);
             }
             // Return cached image, or blank if it couldn't be found
 
             if (img == null)
-                game.Icon = blankImage;
+                title.Icon = blankImage;
             else
-                game.Icon = img;
+                title.Icon = img;
         }
+
+        public SwitchImage GetLocalImage(string titleID)
+        {
+            string path = Path.GetFullPath(this.imagesPath);
+            if (Directory.Exists(path))
+            {
+                string location = path + Path.DirectorySeparatorChar + titleID + ".jpg";
+                if (File.Exists(location))
+                {
+                    SwitchImage img = new SwitchImage(location);
+                    return img;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                Directory.CreateDirectory(this.imagesPath);
+            }
+
+            return null;
+        }
+
 
         private static SwitchImage blankImage = new SwitchImage("Images\\blank.jpg");
 

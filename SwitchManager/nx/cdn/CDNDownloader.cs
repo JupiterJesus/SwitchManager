@@ -18,31 +18,33 @@ using System.Diagnostics;
 
 namespace SwitchManager.nx.cdn
 {
-
     public class CDNDownloader
     {
-
         // THIS IS ALL CONFIG
         // TO BE GOTTEN FROM A FILE, PROBABLY
         private string environment;
         private string firmware;
+
         private string deviceId;
         private static readonly string region = "US";
-        private static readonly string titleKeysUrl = "http://snip.li/newkeydb";
 
         private string imagesPath;
-        private string hactoolPath = "hactool";
-        private string keysPath = "keys.txt";
+        private string hactoolPath;
+        private string keysPath;
         private string clientCertPath;
         private static readonly string ShopNPath = "ShopN.pem";
-    
+        private string titleCertPath;
+        private string titleTicketPath;
+
         public X509Certificate clientCert { get; }
 
         public List<Task> DownloadTasks { get; } = new List<Task>();
 
-        public CDNDownloader(string clientCertPath, string deviceId, string firmware, string environment, string imagesPath, string hactoolPath, string keysPath)
+        public CDNDownloader(string clientCertPath, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string imagesPath, string hactoolPath, string keysPath)
         {
             this.clientCertPath = clientCertPath;
+            this.titleCertPath = titleCertPath;
+            this.titleTicketPath = titleTicketPath;
             this.clientCert = LoadSSL(clientCertPath);
             this.deviceId = deviceId;
             this.firmware = firmware;
@@ -82,29 +84,6 @@ namespace SwitchManager.nx.cdn
             return Convert.FromBase64String(pemString.Substring(start, end));
         }
 
-        public SwitchImage GetLocalImage(string titleID)
-        {
-            if (Directory.Exists(this.imagesPath))
-            {
-                string location = this.imagesPath + Path.DirectorySeparatorChar + titleID + ".jpg";
-                if (File.Exists(location))
-                {
-                    SwitchImage img = new SwitchImage(location);
-                    return img;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-            else
-            {
-                Directory.CreateDirectory(this.imagesPath);
-            }
-
-            return null;
-        }
-
         /// <summary>
         /// Loads a remote image from nintendo.
         /// 
@@ -113,7 +92,7 @@ namespace SwitchManager.nx.cdn
         /// </summary>
         /// <param name="titleID"></param>
         /// <returns></returns>
-        public async Task<SwitchImage> GetRemoteImage(SwitchTitle title)
+        public async Task DownloadRemoteImage(SwitchTitle title)
         {
             // Sanity check if no versions or null then base version of 0
             uint version;
@@ -121,61 +100,188 @@ namespace SwitchManager.nx.cdn
                 version = 0;
             else
                 version = title.Versions.Last(); // I don't know if this is supposed to be the newest or oldest version
-            // string deviceID
 
-            string url = $"https://atum.hac.{environment}.d4c.nintendo.net/t/a/{title.TitleID}/{version}?device_id={deviceId}";
+            // Temporary download folder within the images folder for this title
+            // Make sure directory is created first
+            string gamePath = this.imagesPath + Path.DirectorySeparatorChar + title.TitleID;
+            DirectoryInfo gameDir = Directory.CreateDirectory(gamePath);
 
-            var head = await HeadRequest(url, null, null).ConfigureAwait(false);
 
-            string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
-            if (cnmtid != null)
+            var cnmt = await DownloadAndDecryptCnmt(title, version, gamePath).ConfigureAwait(false);
+            if (cnmt != null)
             {
-                // Temporary download folder within the images folder for this title
-                // Make sure directory is created first
-                string gamePath = this.imagesPath + Path.DirectorySeparatorChar + title.TitleID;
-                DirectoryInfo gameDir = Directory.CreateDirectory(gamePath);
-
-                // CNMT file location in the temp folder
-                string fpath = gamePath + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
-
-                // Download file. Function is async and returns a task, and you can wait for it or keep the task around while it finishes
-                // We need it NOW though and can't do anything until it is done, so no awaiting...
-                await DownloadFile(url, fpath).ConfigureAwait(false);
-
-                // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
-                // Hactool does the job for us
-                var cnmtDir = DecryptNCA(fpath);
-
-                // For CNMTs, there is a section0 containing a single cnmt file, plus a Header.bin right next to section0
-                var sectionDirInfo = cnmtDir.EnumerateDirectories("section0").First();
-                var extractedCnmt = sectionDirInfo.EnumerateFiles().First();
-                var headerFile = cnmtDir.EnumerateFiles("Header.bin").First();
-
-                var cnmt = new CNMT(extractedCnmt.FullName, headerFile.FullName);
-
                 // Parse "control" type content entries inside the NCA (just one...)
                 // Download each file (just one)
 
                 string ncaID = cnmt.Parse(NCAType.Control).Keys.First(); // There's only one control.nca
-                url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
-                fpath = gamePath + Path.DirectorySeparatorChar + "control.nca";
-                await DownloadFile(url, fpath); // download file and wait for it since we can't do anything until it is done
+                string fpath = gamePath + Path.DirectorySeparatorChar + "control.nca";
+                await DownloadNCA(ncaID, fpath).ConfigureAwait(false);
 
                 var controlDir = DecryptNCA(fpath);
 
-                sectionDirInfo = controlDir.EnumerateDirectories("romfs").First();
+                DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
 
-                var iconFile = sectionDirInfo.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
+                var iconFile = imageDir.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
                 iconFile.MoveTo(imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg");
                 gameDir.Delete(true);
-
-                // Finished downloading file to disk, so now just return the local file
-                return GetLocalImage(title.TitleID);
             }
             else
             {
                 throw new Exception("No cnmtid found for title " + title.Name);
             }
+        }
+
+        /// <summary>
+        /// TODO Implement DownloadTitle
+        /// </summary>
+        /// <param name="title"></param>
+        /// <param name="version"></param>
+        /// <param name="nspRepack"></param>
+        /// <param name="verify"></param>
+        /// <param name="pathDir"></param>
+        /// <returns></returns>
+        public async Task<IEnumerable<string>> DownloadTitle(SwitchTitle title, uint version, string titleDir, bool nspRepack = false, bool verify = false)
+        {
+            Console.WriteLine($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
+
+            string url = $"https://atum.hac.{environment}.d4c.nintendo.net/t/a/{title.TitleID}/{version}?device_id={deviceId}";
+
+            var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false);
+            
+            if (cnmt != null)
+            {
+                // Now that the CNMT NCA was downloaded and decrypted, read it f
+                string ticketPath = null, certPath = null, cnmtXml = null;
+                if (nspRepack)
+                {
+                    string outfile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFile) + ".xml";
+                    cnmtXml = cnmt.GenerateXml(outfile);
+
+                    string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
+                    ticketPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".tik";
+                    certPath = titleDir = Path.DirectorySeparatorChar + rightsID + ".cert";
+                    if (cnmt.Type == TitleType.Application || cnmt.Type == TitleType.AddOnContent)
+                    {
+                        File.Copy(this.titleCertPath, certPath);
+                        Console.WriteLine($"Generated certificate {certPath}.");
+
+                        if (!string.IsNullOrWhiteSpace(title.TitleKey))
+                        {
+                            byte[] data = File.ReadAllBytes(this.titleTicketPath);
+
+                            // The ticket file starts with the bytes 4 0 1 0, reversed for endianness that gives
+                            // 0x00010004, which indicates a RSA_2048 SHA256 signature method.
+                            // The signature requires 4 bytes for the type, 0x100 for the signature and 0x3C for padding
+                            // The total signature is 0x140. That explains the 0x140 mystery bytes at the start.
+                            
+                            // Copy the 16-byte value of the 32 character hex title key into memory starting at position 0x180
+                            for (int n = 0; n < 0x10; n++)
+                            {
+                                string byteValue = title.TitleKey.Substring(n * 2, 2);
+                                data[0x180 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                            }
+
+                            data[0x286] = cnmt.MasterKeyRevision; 
+                            // switchbrew says this should be at 0x285, not 0x286...
+                            // Who's right? Does it even matter?
+
+                            // Copy the rights ID in there too at 0x2A0, also 16 bytes (32 characters) long
+                            for (int n = 0; n < 0x10; n++)
+                            {
+                                string byteValue = rightsID.Substring(n * 2, 2);
+                                data[0x2A0 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                            }
+                            File.WriteAllBytes(ticketPath, data);
+
+                            Console.WriteLine($"Generated ticket {ticketPath}.");
+                        }
+                    }
+                    else if (cnmt.Type == TitleType.Patch)
+                    {
+                        // TODO: Patch type CNMT
+                        /*
+                            print('\nDownloading cetk...')
+
+                            with open(download_cetk(rightsID, os.path.join(gameDir, '%s.cetk' % rightsID)), 'rb') as cetk:
+                                cetk.seek(0x180)
+                                tkey = hx(cetk.read(0x10)).decode()
+                                print('\nTitlekey: %s' % tkey)
+
+                                with open(tikPath, 'wb') as tik:
+                                    cetk.seek(0x0)
+                                    tik.write(cetk.read(0x2C0))
+
+                                with open(certPath, 'wb') as cert:
+                                    cetk.seek(0x2C0)
+                                    cert.write(cetk.read(0x700))
+
+                            print('\nExtracted %s and %s from cetk!' % (os.path.basename(certPath), os.path.basename(tikPath)))
+                        */
+                    }
+                }
+
+                List<Task> tasks = new List<Task>();
+                Dictionary<NCAType, List<string>> NCAs = new Dictionary<NCAType, List<string>>();
+
+                foreach (var type in new [] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
+                {
+                    List<string> ncaList = new List<string>();
+                    NCAs.Add(type, ncaList);
+                    foreach (var ncaID in cnmt.Parse(type).Keys)
+                    {
+                        string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
+                        ncaList.Add(path);
+                        Task t = Task.Run(() => DoDownloadNCA(ncaID, path, verify));
+                        tasks.Add(t);
+                        t.Start();
+                    }
+
+                }
+
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+
+                if (nspRepack)
+                {
+                    List<string> files = new List<string>();
+                    files.Add(certPath);
+                    if (!string.IsNullOrWhiteSpace(title.TitleKey))
+                        files.Add(ticketPath);
+                    foreach (var type in new[] { NCAType.Program, NCAType.LegalInformation, NCAType.Data, NCAType.HtmlDocument, NCAType.DeltaFragment })
+                    {
+                        files.AddRange(NCAs[type]);
+                    }
+                    files.Add(cnmt.CnmtNcaFile);
+                    files.Add(cnmtXml);
+                    files.AddRange(NCAs[NCAType.Control]);
+                    return files;
+                }
+            }
+
+            return null;
+        }
+
+        private async Task DoDownloadNCA(string ncaID, string path, bool verify)
+        {
+            await DownloadNCA(ncaID, path).ConfigureAwait(false);
+            if (verify)
+            {
+                /*
+                 * 
+                            if calc_sha256(fPath) != CNMT.parse(CNMT.ncaTypes[type])[ncaID][2]:
+                                print('\n\n%s is corrupted, hashes don\'t match!' % os.path.basename(fPath))
+                            else:
+                                print('\nVerified %s...' % os.path.basename(fPath))
+                                */
+            }
+        }
+
+        private async Task<string> DownloadNCA(string ncaID, string path)
+        {
+            string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
+
+            await DownloadFile(url, path); // download file and wait for it since we can't do anything until it is done
+
+            return path;
         }
 
         /// <summary>
@@ -185,7 +291,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="fpath"></param>
         /// <returns></returns>
         private DirectoryInfo DecryptNCA(string ncaPath, string outDir = null)
-        { 
+        {
             string fName = Path.GetFileNameWithoutExtension(ncaPath); // fName = os.path.basename(fPath).split()[0]
             if (outDir == null)
                 outDir = Path.GetDirectoryName(ncaPath) + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(ncaPath);
@@ -230,7 +336,7 @@ namespace SwitchManager.nx.cdn
 
                 //string errors = hactool.StandardError.ReadToEnd();
                 //string output = hactool.StandardOutput.ReadToEnd();
-                
+
                 hactool.WaitForExit();
 
                 if (outDirInfo.GetDirectories().Length == 0)
@@ -243,19 +349,50 @@ namespace SwitchManager.nx.cdn
 
             return outDirInfo;
         }
-        
-        /// <summary>
-        /// TODO Implement DownloadTitle
-        /// </summary>
-        /// <param name="title"></param>
-        /// <param name="version"></param>
-        /// <param name="nspRepack"></param>
-        /// <param name="verify"></param>
-        /// <param name="pathDir"></param>
-        /// <returns></returns>
-        public async Task DownloadTitle(SwitchTitle title, uint version, bool nspRepack = false, bool verify = false, string pathDir = null)
+
+        private bool VerifyNCA(string ncaPath, SwitchTitle title)
         {
-            throw new NotImplementedException();
+            string hactoolExe = (this.hactoolPath);
+            string keysFile = (this.keysPath);
+            string tkey = title.TitleKey;
+
+            // NOTE: Using single quotes here instead of single quotes fucks up windows, it CANNOT handle single quotes
+            // Anything surrounded in single quotes will throw an error because the file/folder isn't found
+            // Must use escaped double quotes!
+            string commandLine = $" -k \"{keysFile}\"" +
+                                 $" --titlekey=\"{tkey}\"" +
+                                 $" \"{ncaPath}\"";
+            try
+            {
+                ProcessStartInfo hactoolSI = new ProcessStartInfo()
+                {
+                    FileName = hactoolExe,
+                    WorkingDirectory = System.IO.Directory.GetCurrentDirectory(),
+                    Arguments = commandLine,
+                    UseShellExecute = false,
+                    //RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+                Process hactool = Process.Start(hactoolSI);
+
+                string errors = hactool.StandardError.ReadToEnd();
+                hactool.WaitForExit();
+
+                if (errors.Contains("Error: section 0 is corrupted!") ||
+                    errors.Contains("Error: section 1 is corrupted!"))
+                {
+                    Console.WriteLine("NCA title key verification failed");
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Hactool decryption failed!", e);
+            }
+
+            Console.WriteLine("NCA title key verification successful");
+            return true;
         }
 
         /// <summary>
@@ -274,9 +411,9 @@ namespace SwitchManager.nx.cdn
             if (finfo.Exists)
             {
                 downloaded = finfo.Length;
-                
+
                 result = await MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } });
-                
+
                 if (!"openresty/1.9.7.4".Equals(GetHeader(result.Headers, "Server"))) // Completed download
                 {
                     Console.WriteLine("Download complete, skipping: " + fpath);
@@ -359,6 +496,23 @@ namespace SwitchManager.nx.cdn
         }
 
         /// <summary>
+        /// TODO: Figure out what CETK is
+        /// </summary>
+        /// <param name="rightsID"></param>
+        /// <param name="fpath"></param>
+        /// <returns></returns>
+        private async Task DownloadCETK(string rightsID, string fpath)
+        {
+            string url = $"https://atum.hac.{environment}.d4c.nintendo.net/r/t/{rightsID}?device_id={deviceId}";
+            var head = await HeadRequest(url, null, null).ConfigureAwait(false);
+
+            string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
+
+            url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/t/{cnmtid}?device_id={deviceId}";
+            await DownloadFile(url, fpath).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Queries the CDN for all versions of a game
         /// </summary>
         /// <param name="game"></param>
@@ -399,7 +553,7 @@ namespace SwitchManager.nx.cdn
         /// Versions are 0, 0x10000, 0x20000, etc up to the listed number.
         /// </summary>
         /// <returns></returns>
-        public async Task<Dictionary<string,uint>> GetLatestVersions()
+        public async Task<Dictionary<string, uint>> GetLatestVersions()
         {
             string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", environment);
             string r = await GetRequest(url).ConfigureAwait(false);
@@ -488,7 +642,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private async Task<HttpResponseHeaders> HeadRequest(string url, X509Certificate cert, Dictionary<string, string> args)
+        private async Task<HttpResponseHeaders> HeadRequest(string url, X509Certificate cert = null, Dictionary<string, string> args = null)
         {
             var response = await MakeRequest(HttpMethod.Head, url, cert, args);
             return response.Headers;
@@ -515,7 +669,7 @@ namespace SwitchManager.nx.cdn
             request.Headers.Add("Accept-Encoding", "gzip, deflate");
             request.Headers.Add("Accept", "*/*");
             request.Headers.Add("Connection", "keep-alive");
-            
+
             // Add any additional parameters passed into the method
             if (args != null) args.ToList().ForEach(x => request.Headers.Add(x.Key, x.Value));
 
@@ -529,15 +683,76 @@ namespace SwitchManager.nx.cdn
             handler.ClientCertificates.Add(cert);
             ServicePointManager.ServerCertificateValidationCallback += (o, c, ch, er) => true;
 
-            //            handler.ClientCertificates.Add(new X509Certificate("nx_tls_client_cert.pem"));
-
             // Create client and get response
             using (var client = new HttpClient(handler))
             {
                 return await client.SendAsync(request).ConfigureAwait(false);
             }
-            // TODO Make http requests async
         }
 
+        /// <summary>
+        /// Get a game's CNMT ID, which you can use to download the CNMT NCA.
+        /// </summary>
+        /// <param name="title">Title to get the CNMD ID for.</param>
+        /// <param name="version">Version of the title you want. ` </param>
+        /// <returns></returns>
+        private async Task<string> GetCnmtID(SwitchTitle title, uint version)
+        {
+            string url = $"https://atum.hac.{environment}.d4c.nintendo.net/t/a/{title.TitleID}/{version}?device_id={deviceId}";
+
+            var head = await HeadRequest(url, null, null).ConfigureAwait(false);
+
+            string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
+
+            return cnmtid;
+        }
+
+        /// <summary>
+        /// Downloads a CNMT NCA file from Nintendo's CDN.
+        /// </summary>
+        /// <param name="cnmtid">ID of the CNMT. Use GetCnmtId to find it.</param>
+        /// <param name="path">Path of the downloaded file. This is where it will be once this function is completed.</param>
+        /// <returns>FileInfo for the downloaded CNMT NCA.</returns>
+        private async Task<FileInfo> DownloadCnmt(string cnmtid, string path)
+        {
+            // CNMT file location in the temp folder
+            string fpath = path + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
+
+            // Download cnmt file, async
+            string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/a/{cnmtid}?device_id={deviceId}";
+            await DownloadFile(url, fpath).ConfigureAwait(false);
+
+            return new FileInfo(fpath);
+        }
+
+        private async Task<CNMT> DownloadAndDecryptCnmt(SwitchTitle title, uint version, string titleDir)
+        {
+            // Get the CNMT ID for the title
+            string cnmtid = await GetCnmtID(title, version).ConfigureAwait(false);
+
+            // Path to the NCA
+            string ncaPath = titleDir + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
+
+            // Download the CNMT NCA file
+            FileInfo cnmtNca = await DownloadCnmt(cnmtid, ncaPath).ConfigureAwait(false);
+            
+            // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
+            // Hactool does the job for us
+            DirectoryInfo cnmtDir = DecryptNCA(ncaPath);
+
+            CNMT cnmt = GetDownloadedCnmt(cnmtDir, ncaPath);
+            return cnmt;
+        }
+
+        private CNMT GetDownloadedCnmt(DirectoryInfo cnmtDir, string ncaPath)
+        {
+            // For CNMTs, there is a section0 containing a single cnmt file, plus a Header.bin right next to section0
+            var sectionDirInfo = cnmtDir.EnumerateDirectories("section0").First();
+            var extractedCnmt = sectionDirInfo.EnumerateFiles().First();
+            var headerFile = cnmtDir.EnumerateFiles("Header.bin").First();
+
+            return new CNMT(extractedCnmt.FullName, headerFile.FullName, cnmtDir.FullName, ncaPath);
+        }
     }
 }
+                
