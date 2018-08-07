@@ -41,5 +41,8 @@
     <Setting Name="ImageCache" Type="System.String" Scope="Application">
       <Value Profile="(Default)">Images</Value>
     </Setting>
+    <Setting Name="PreloadImages" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

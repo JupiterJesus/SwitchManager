@@ -139,5 +139,14 @@ namespace SwitchManager.Properties {
                 return ((string)(this["ImageCache"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool PreloadImages {
+            get {
+                return ((bool)(this["PreloadImages"]));
+            }
+        }
     }
 }
