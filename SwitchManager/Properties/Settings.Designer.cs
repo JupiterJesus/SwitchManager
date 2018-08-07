@@ -148,5 +148,23 @@ namespace SwitchManager.Properties {
                 return ((bool)(this["PreloadImages"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\\\Certificate.cert")]
+        public string TitleCertPath {
+            get {
+                return ((string)(this["TitleCertPath"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\\\Ticket.tik")]
+        public string TitleTicketPath {
+            get {
+                return ((string)(this["TitleTicketPath"]));
+            }
+        }
     }
 }

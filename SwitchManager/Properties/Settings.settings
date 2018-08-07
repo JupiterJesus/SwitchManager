@@ -44,5 +44,11 @@
     <Setting Name="PreloadImages" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="TitleCertPath" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">certs\\Certificate.cert</Value>
+    </Setting>
+    <Setting Name="TitleTicketPath" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">certs\\Ticket.tik</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
