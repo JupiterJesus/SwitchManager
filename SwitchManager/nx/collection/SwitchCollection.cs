@@ -13,7 +13,7 @@ namespace SwitchManager.nx.collection
     internal class SwitchCollection
     {
         public ObservableCollection<SwitchCollectionItem> Collection { get; set; }
-        private CDNDownloader loader;
+        public CDNDownloader Loader { get; set; }
         private string imagesPath;
         public string RomsPath { get; set; }
         private Dictionary<string, SwitchCollectionItem> titlesByID = new Dictionary<string, SwitchCollectionItem>();
@@ -21,7 +21,7 @@ namespace SwitchManager.nx.collection
         internal SwitchCollection(CDNDownloader loader, string imagesPath, string romsPath)
         {
             Collection = new ObservableCollection<SwitchCollectionItem>();
-            this.loader = loader;
+            this.Loader = loader;
             this.imagesPath = imagesPath;
             this.RomsPath = romsPath;
         }
@@ -76,7 +76,7 @@ namespace SwitchManager.nx.collection
             if (!dinfo.Exists)
                 dinfo.Create();
 
-            var files = await loader.DownloadTitle(titleItem.title, v, dir, repack, verify).ConfigureAwait(false);
+            var files = await Loader.DownloadTitle(titleItem.title, v, dir, repack, verify).ConfigureAwait(false);
             // TODO Handle all the files
             if (repack)
             {
@@ -113,7 +113,7 @@ namespace SwitchManager.nx.collection
             {
                 // Ask the image loader to get the image remotely and cache it
                 // Task is potentially asynchronous BUT I'm just waiting for it here
-                await loader.DownloadRemoteImage(title).ConfigureAwait(false);
+                await Loader.DownloadRemoteImage(title).ConfigureAwait(false);
                 img = GetLocalImage(title.TitleID);
             }
             // Return cached image, or blank if it couldn't be found
@@ -154,7 +154,7 @@ namespace SwitchManager.nx.collection
         public void LoadTitleKeysFile(string filename)
         {
             var lines = File.ReadLines(filename);
-            var versions = loader.GetLatestVersions().Result;
+            var versions = Loader.GetLatestVersions().Result;
 
             foreach (var line in lines)
             {
@@ -169,7 +169,7 @@ namespace SwitchManager.nx.collection
                     if (versions.ContainsKey(title.TitleID))
                     {
                         uint v = versions[title.TitleID];
-                        title.Versions = loader.GetAllVersions(v);
+                        title.Versions = Loader.GetAllVersions(v);
                     }
                     else
                     {

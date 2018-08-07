@@ -15,6 +15,8 @@ using Newtonsoft.Json.Linq;
 using System.Collections.ObjectModel;
 using System.Net.Http.Headers;
 using System.Diagnostics;
+using Windows.Storage;
+using Windows.Storage.Streams;
 
 namespace SwitchManager.nx.cdn
 {
@@ -479,17 +481,50 @@ namespace SwitchManager.nx.cdn
             // for handling progress and task end. Time for some more research!
         }
 
+        public delegate void DownloadDelegate(DownloadTask download);
+        public delegate void DownloadProgressDelegate(DownloadTask download, int progress);
+        public event DownloadDelegate DownloadStarted;
+        public event DownloadProgressDelegate DownloadProgress;
+        public event DownloadDelegate DownloadFinished;
+
         private async Task StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize)
         {
-            await result.Content.CopyToAsync(fileStream);
-            fileStream.Close();
+            // New code.
+            Stream stream = await result.Content.ReadAsStreamAsync();
+            DownloadTask download = new DownloadTask(stream, fileStream, expectedSize);
 
+            if (DownloadStarted != null) DownloadStarted.Invoke(download);
+
+            while (true)
+            {
+                // Read from the web.
+                byte[] buffer = new byte[1048576];
+                int n = await stream.ReadAsync(buffer, 0, buffer.Length);
+
+                if (n == 0)
+                {
+                    // There is nothing else to read.
+                    if (DownloadStarted != null) DownloadFinished.Invoke(download);
+                    break;
+                }
+
+                // Report progress.
+                download.UpdateProgress(n);
+
+                if (DownloadStarted != null) DownloadProgress.Invoke(download, n);
+
+                // Write to file.
+                await fileStream.WriteAsync(buffer, 0, n);
+                await fileStream.FlushAsync();
+            }
+            stream.Dispose();
+            fileStream.Dispose();
+            
             var newFile = new FileInfo(fileStream.Name);
             if (expectedSize != 0 && newFile.Length != expectedSize)
             {
                 throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
             }
-            Console.WriteLine("Saving file to " + newFile.FullName);
         }
 
         /// <summary>
@@ -679,7 +714,7 @@ namespace SwitchManager.nx.cdn
             };
             handler.ClientCertificates.Add(cert);
             ServicePointManager.ServerCertificateValidationCallback += (o, c, ch, er) => true;
-
+            
             // Create client and get response
             using (var client = new HttpClient(handler))
             {

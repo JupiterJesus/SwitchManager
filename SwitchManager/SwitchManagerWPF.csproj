@@ -51,6 +51,9 @@
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
+    <Reference Include="Windows.Foundation.UniversalApiContract">
+      <HintPath>C:\Program Files (x86)\Windows Kits\10\References\10.0.16299.0\Windows.Foundation.UniversalApiContract\5.0.0.0\Windows.Foundation.UniversalApiContract.winmd</HintPath>
+    </Reference>
     <Reference Include="WindowsBase" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
@@ -76,6 +79,7 @@
   <ItemGroup>
     <Compile Include="nx\cdn\CNMTContentEntry.cs" />
     <Compile Include="nx\cdn\CNMTMetaEntry.cs" />
+    <Compile Include="nx\cdn\DownloadTask.cs" />
     <Compile Include="nx\cdn\NSP.cs" />
     <Compile Include="nx\cdn\TitleTicket.cs" />
     <Compile Include="nx\collection\SwitchCollection.cs" />

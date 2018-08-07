@@ -52,8 +52,62 @@ namespace SwitchManager
             itemCollectionViewSource.Source = gameCollection.Collection;
             //
 
+            downloader.DownloadStarted += Downloader_DownloadStarted;
+            downloader.DownloadProgress += Downloader_DownloadProgress;
+            downloader.DownloadFinished += Downloader_DownloadFinished;
             Task.Run(() => gameCollection.DownloadTitle(gameCollection.GetTitleByID("0100bc60099fe000"), 0, Settings.Default.NSPRepack, false));
         }
+
+        private void Downloader_DownloadFinished(DownloadTask download)
+        {
+            Console.WriteLine($"Finished download, saving file to {download.FileName}.");
+        }
+
+        private void Downloader_DownloadProgress(DownloadTask download, int progress)
+        {
+            //System.Diagnostics.Debug.WriteLine("Bytes read: {0}", totalBytesRead);
+            Console.WriteLine($"Saved {progress} bytes to file {download.FileName}, {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)} {100.0*((double)download.Progress) /download.ExpectedSize:3}% complete.");
+        }
+
+        private void Downloader_DownloadStarted(DownloadTask download)
+        {
+            Console.WriteLine($"Starting download to file {download.FileName}, {download.ExpectedSize} bytes.");
+        }
+
+        public static string ToFileSize(double value)
+        {
+            string[] suffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
+            for (int i = 0; i < suffixes.Length; i++)
+            {
+                if (value <= (Math.Pow(1024, i + 1)))
+                {
+                    return ThreeNonZeroDigits(value / Math.Pow(1024, i)) + " " + suffixes[i];
+                }
+            }
+
+            return ThreeNonZeroDigits(value / Math.Pow(1024, suffixes.Length - 1)) + " " + suffixes[suffixes.Length - 1];
+        }
+
+        private static string ThreeNonZeroDigits(double value)
+        {
+            if (value >= 100)
+            {
+                // No digits after the decimal.
+                return value.ToString("0,0");
+            }
+            else if (value >= 10)
+            {
+                // One digit after the decimal.
+                return value.ToString("0.0");
+            }
+            else
+            {
+                // Two digits after the decimal.
+                return value.ToString("0.00");
+            }
+        }
+
+
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             Settings.Default.Save();
