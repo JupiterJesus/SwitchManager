@@ -9,10 +9,16 @@ namespace SwitchManager.nx.collection
 {
     public class SwitchCollectionItem : INotifyPropertyChanged
     {
-        private SwitchCollectionState state;
         private bool isFavorite;
 
-        public SwitchTitle Title { get; set; }
+        public SwitchTitle title;
+        public SwitchTitle Title
+        {
+            get { return this.title; }
+            set { this.title = value; NotifyPropertyChanged("Title"); }
+        }
+
+        private SwitchCollectionState state;
         public SwitchCollectionState State
         {
             get { return this.state; }

@@ -79,7 +79,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("hactool")]
+        [global::System.Configuration.DefaultSettingValueAttribute("hactool\\\\hactool.exe")]
         public string hactoolPath {
             get {
                 return ((string)(this["hactoolPath"]));
@@ -88,7 +88,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("keys.txt")]
+        [global::System.Configuration.DefaultSettingValueAttribute("hactool\\\\keys.txt")]
         public string keysPath {
             get {
                 return ((string)(this["keysPath"]));
@@ -97,7 +97,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("client.pfx")]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\\\client.pfx")]
         public string NXclientPath {
             get {
                 return ((string)(this["NXclientPath"]));
@@ -106,7 +106,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("ShopN.pem")]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\\\ShopN.pem")]
         public string ShopNPath {
             get {
                 return ((string)(this["ShopNPath"]));

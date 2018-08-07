@@ -30,11 +30,17 @@ namespace SwitchManager
         {
             InitializeComponent();
             
-            CDNDownloader downloader = new CDNDownloader(Settings.Default.NXclientPath, Settings.Default.DeviceID, Settings.Default.Firmware, Settings.Default.Environment, Settings.Default.ImageCache);
+            CDNDownloader downloader = new CDNDownloader(Settings.Default.NXclientPath, 
+                                                         Settings.Default.DeviceID, 
+                                                         Settings.Default.Firmware, 
+                                                         Settings.Default.Environment, 
+                                                         Settings.Default.ImageCache, 
+                                                         Settings.Default.hactoolPath, 
+                                                         Settings.Default.keysPath);
             gameCollection = new SwitchCollection(downloader);
 
             gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile);
-            gameCollection.LoadTitleIcons(Settings.Default.ImageCache);
+            Task.Run(() => gameCollection.LoadTitleIcons(Settings.Default.ImageCache, true));
             gameCollection.LoadMetadata(Settings.Default.MetadataFile);
 
             // WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN

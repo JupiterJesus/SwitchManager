@@ -25,7 +25,7 @@
       <DataGrid.RowDetailsTemplate>
         <DataTemplate>
           <StackPanel Orientation="Horizontal">
-            <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon.Location}"/>
+            <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon.Location,Mode=OneWay}"/>
 
             <StackPanel Margin="20,10" Orientation="Vertical" Width="400">
               <TextBlock FontSize="20" Text="{Binding Path=Title.Name, Mode=OneWay}"/>

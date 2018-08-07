@@ -14,6 +14,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Collections.ObjectModel;
 using System.Net.Http.Headers;
+using System.Diagnostics;
 
 namespace SwitchManager.nx.cdn
 {
@@ -30,30 +31,25 @@ namespace SwitchManager.nx.cdn
         private static readonly string titleKeysUrl = "http://snip.li/newkeydb";
 
         private string imagesPath;
-        private static readonly string hactoolPath = "hactool";
-        private static readonly string keysPath = "keys.txt";
+        private string hactoolPath = "hactool";
+        private string keysPath = "keys.txt";
         private string clientCertPath;
         private static readonly string ShopNPath = "ShopN.pem";
     
         public X509Certificate clientCert { get; }
 
-        // {0} = environment, default lp1 (live production 1?)
-        // {1} = titleid - self-evident
-        // {2} = title_version - for images, the latest version
-        // {3} = device_id, default is just 0s
-        private static readonly string remotePathPattern = "https://atum.hac.{0}.d4c.nintendo.net/t/a/{1}/{2}?device_id={3}";
-
         public List<Task> DownloadTasks { get; } = new List<Task>();
 
-        public CDNDownloader(string clientCertPath, string deviceId, string firmware, string environment, string imagesPath)
+        public CDNDownloader(string clientCertPath, string deviceId, string firmware, string environment, string imagesPath, string hactoolPath, string keysPath)
         {
             this.clientCertPath = clientCertPath;
             this.clientCert = LoadSSL(clientCertPath);
             this.deviceId = deviceId;
             this.firmware = firmware;
             this.environment = environment;
-            this.imagesPath = imagesPath;
-            
+            this.imagesPath = Path.GetFullPath(imagesPath);
+            this.hactoolPath = Path.GetFullPath(hactoolPath);
+            this.keysPath = Path.GetFullPath(keysPath);
         }
 
         private X509Certificate LoadSSL(string path)
@@ -98,7 +94,7 @@ namespace SwitchManager.nx.cdn
                 }
                 else
                 {
-                    return new SwitchImage("Images\\blank.jpg");
+                    return null;
                 }
             }
             else
@@ -120,16 +116,16 @@ namespace SwitchManager.nx.cdn
         public async Task<SwitchImage> GetRemoteImage(SwitchTitle title)
         {
             // Sanity check if no versions or null then base version of 0
-            uint latestVersion;
+            uint version;
             if ((title?.Versions?.Count ?? 0) == 0)
-                latestVersion = 0;
+                version = 0;
             else
-                latestVersion = title.Versions.First();
+                version = title.Versions.Last(); // I don't know if this is supposed to be the newest or oldest version
             // string deviceID
 
-            string url = string.Format(remotePathPattern, environment, title.TitleID, latestVersion, deviceId);
+            string url = $"https://atum.hac.{environment}.d4c.nintendo.net/t/a/{title.TitleID}/{version}?device_id={deviceId}";
 
-            var head = HeadRequest(url, null, null);
+            var head = await HeadRequest(url, null, null).ConfigureAwait(false);
 
             string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
             if (cnmtid != null)
@@ -137,26 +133,41 @@ namespace SwitchManager.nx.cdn
                 // Temporary download folder within the images folder for this title
                 // Make sure directory is created first
                 string gamePath = this.imagesPath + Path.DirectorySeparatorChar + title.TitleID;
-                Directory.CreateDirectory(gamePath);
+                DirectoryInfo gameDir = Directory.CreateDirectory(gamePath);
 
                 // CNMT file location in the temp folder
                 string fpath = gamePath + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
 
-                // Download file. Function is async and returns a task, and you can wait for it or keep the task around
-                // while it finishes
-                // Here I'm just waiting for it
-                Task t = DownloadFile(url, fpath);
-                //this.DownloadTasks.Add(t); // I would totally add this if I knew how to remove it later when it is complete
-                await t;
+                // Download file. Function is async and returns a task, and you can wait for it or keep the task around while it finishes
+                // We need it NOW though and can't do anything until it is done, so no awaiting...
+                await DownloadFile(url, fpath).ConfigureAwait(false);
 
                 // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
+                // Hactool does the job for us
                 var cnmtDir = DecryptNCA(fpath);
 
-                DirectoryInfo sectionDir = cnmtDir.EnumerateDirectories("section0").First();
-                DirectoryInfo firstDir = sectionDir.EnumerateDirectories().First();
-                FileInfo headerFile = sectionDir.EnumerateFiles("Header.bin").First();
+                // For CNMTs, there is a section0 containing a single cnmt file, plus a Header.bin right next to section0
+                var sectionDirInfo = cnmtDir.EnumerateDirectories("section0").First();
+                var extractedCnmt = sectionDirInfo.EnumerateFiles().First();
+                var headerFile = cnmtDir.EnumerateFiles("Header.bin").First();
 
-                var cnmt = new CNMT(sectionDir.FullName, headerFile.FullName);
+                var cnmt = new CNMT(extractedCnmt.FullName, headerFile.FullName);
+
+                // Parse "control" type content entries inside the NCA (just one...)
+                // Download each file (just one)
+
+                string ncaID = cnmt.Parse(NCAType.Control).Keys.First(); // There's only one control.nca
+                url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
+                fpath = gamePath + Path.DirectorySeparatorChar + "control.nca";
+                await DownloadFile(url, fpath); // download file and wait for it since we can't do anything until it is done
+
+                var controlDir = DecryptNCA(fpath);
+
+                sectionDirInfo = controlDir.EnumerateDirectories("romfs").First();
+
+                var iconFile = sectionDirInfo.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
+                iconFile.MoveTo(imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg");
+                gameDir.Delete(true);
 
                 // Finished downloading file to disk, so now just return the local file
                 return GetLocalImage(title.TitleID);
@@ -167,9 +178,84 @@ namespace SwitchManager.nx.cdn
             }
         }
 
-        private DirectoryInfo DecryptNCA(string fpath)
+        /// <summary>
+        /// 
+        /// TODO Implement DecryptNCA
+        /// </summary>
+        /// <param name="fpath"></param>
+        /// <returns></returns>
+        private DirectoryInfo DecryptNCA(string ncaPath, string outDir = null)
+        { 
+            string fName = Path.GetFileNameWithoutExtension(ncaPath); // fName = os.path.basename(fPath).split()[0]
+            if (outDir == null)
+                outDir = Path.GetDirectoryName(ncaPath) + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(ncaPath);
+            DirectoryInfo outDirInfo = new DirectoryInfo(outDir);
+            outDirInfo.Create();
+
+            string hactoolExe = (this.hactoolPath);
+            string keysFile = (this.keysPath);
+            string exefsPath = (outDir + Path.DirectorySeparatorChar + "exefs");
+            string romfsPath = (outDir + Path.DirectorySeparatorChar + "romfs");
+            string section0Path = (outDir + Path.DirectorySeparatorChar + "section0");
+            string section1Path = (outDir + Path.DirectorySeparatorChar + "section1");
+            string section2Path = (outDir + Path.DirectorySeparatorChar + "section2");
+            string section3Path = (outDir + Path.DirectorySeparatorChar + "section3");
+            string headerPath = (outDir + Path.DirectorySeparatorChar + "Header.bin");
+
+            // NOTE: Using single quotes here instead of single quotes fucks up windows, it CANNOT handle single quotes
+            // Anything surrounded in single quotes will throw an error because the file/folder isn't found
+            // Must use escaped double quotes!
+            string commandLine = $" -k \"{keysFile}\"" +
+                                 $" --exefsdir=\"{exefsPath}\"" +
+                                 $" --romfsdir=\"{romfsPath}\"" +
+                                 $" --section0dir=\"{section0Path}\"" +
+                                 $" --section1dir=\"{section1Path}\"" +
+                                 $" --section2dir=\"{section2Path}\"" +
+                                 $" --section3dir=\"{section3Path}\"" +
+                                 $" --header=\"{headerPath}\"" +
+                                 $" \"{ncaPath}\"";
+            try
+            {
+                ProcessStartInfo hactoolSI = new ProcessStartInfo()
+                {
+                    FileName = hactoolExe,
+                    WorkingDirectory = System.IO.Directory.GetCurrentDirectory(),
+                    Arguments = commandLine,
+                    UseShellExecute = false,
+                    //RedirectStandardOutput = true,
+                    //RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+                Process hactool = Process.Start(hactoolSI);
+
+                //string errors = hactool.StandardError.ReadToEnd();
+                //string output = hactool.StandardOutput.ReadToEnd();
+                
+                hactool.WaitForExit();
+
+                if (outDirInfo.GetDirectories().Length == 0)
+                    throw new Exception($"Running hactool failed, output directory {outDir} is empty!");
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Hactool decryption failed!", e);
+            }
+
+            return outDirInfo;
+        }
+        
+        /// <summary>
+        /// TODO Implement DownloadTitle
+        /// </summary>
+        /// <param name="title"></param>
+        /// <param name="version"></param>
+        /// <param name="nspRepack"></param>
+        /// <param name="verify"></param>
+        /// <param name="pathDir"></param>
+        /// <returns></returns>
+        public async Task DownloadTitle(SwitchTitle title, uint version, bool nspRepack = false, bool verify = false, string pathDir = null)
         {
-            return new DirectoryInfo(fpath);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -181,7 +267,7 @@ namespace SwitchManager.nx.cdn
         {
             var finfo = new FileInfo(fpath);
             long downloaded = 0;
-            long fileSize = 0;
+            long expectedSize = 0;
             FileStream fs;
             HttpResponseMessage result;
 
@@ -189,33 +275,32 @@ namespace SwitchManager.nx.cdn
             {
                 downloaded = finfo.Length;
                 
-                result = MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } });
-                var headers = result.Headers;
-
-                if (!"openresty/1.9.7.4".Equals(GetHeader(headers, "Server"))) // Completed download
+                result = await MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } });
+                
+                if (!"openresty/1.9.7.4".Equals(GetHeader(result.Headers, "Server"))) // Completed download
                 {
                     Console.WriteLine("Download complete, skipping: " + fpath);
                     return;
                 }
-                else if (null == GetHeader(headers, "Content-Range")) // CDN doesn't return a range if request >= filesize
+                else if (null == GetContentHeader(result, "Content-Range")) // CDN doesn't return a range if request >= filesize
                 {
-                    string cLength = GetHeader(headers, "Content-Length");
+                    string cLength = GetContentHeader(result, "Content-Length");
                     if (long.TryParse(cLength, out long lcLength))
-                        fileSize = lcLength;
+                        expectedSize = lcLength;
                 }
                 else
                 {
-                    string cLength = GetHeader(headers, "Content-Length");
+                    string cLength = GetContentHeader(result, "Content-Length");
                     if (long.TryParse(cLength, out long lcLength))
-                        fileSize = downloaded + lcLength;
+                        expectedSize = downloaded + lcLength;
                 }
 
-                if (downloaded == fileSize)
+                if (downloaded == expectedSize)
                 {
                     Console.WriteLine("Download complete, skipping: " + fpath);
                     return;
                 }
-                else if (downloaded < fileSize)
+                else if (downloaded < expectedSize)
                 {
                     Console.WriteLine("Resuming previous download: " + fpath);
                     fs = File.OpenWrite(fpath);
@@ -229,18 +314,16 @@ namespace SwitchManager.nx.cdn
             }
             else
             {
+                fs = File.Create(fpath);
                 downloaded = 0;
 
-                result = MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } });
-                var headers = result.Headers;
-                string cLength = GetHeader(headers, "Content-Length");
+                result = await MakeRequest(HttpMethod.Get, url);
+                string cLength = GetContentHeader(result, "Content-Length");
                 if (long.TryParse(cLength, out long lcLength))
-                    fileSize = lcLength;
-
-                fs = File.Create(fpath);
+                    expectedSize = lcLength;
             }
 
-            // TODO this is where I download the file
+            // this is where I download the file
             // I can either not have any progress indicators and just DO IT
             // Or I can  create some asynchronous class that maintains a download in a separate thread that communicates with a UI element
 
@@ -250,14 +333,10 @@ namespace SwitchManager.nx.cdn
             // It is confusing because you don't return stuff, you "await" an async task and that implicitly returns a Task
             // but otherwise you always just return with no argument
             // The thing that calls DownloadFile either uses "await" to wait for it to finish or it can 
-            // collect tasks somewhere until they're done
-            await result.Content.CopyToAsync(fs);
-            if (fileSize != 0 && finfo.Length != fileSize)
-            {
-                throw new Exception("Downloaded file doesn't match expected size after download completion: " + fpath);
-            }
-            fs.Close();
-            Console.WriteLine("Saved file to " + fpath);
+            // collect tasks somewhere until they're done. Right? I don't actually know
+
+            //string str = result.Content.ReadAsStringAsync().Result;
+            await StartDownload(fs, result, expectedSize);
 
             // The next thing to figure out is how to get updates on the task
             // Like, after a task is done I want to remove it from the downloads list
@@ -266,16 +345,29 @@ namespace SwitchManager.nx.cdn
             // for handling progress and task end. Time for some more research!
         }
 
+        private async Task StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize)
+        {
+            await result.Content.CopyToAsync(fileStream);
+            fileStream.Close();
+
+            var newFile = new FileInfo(fileStream.Name);
+            if (expectedSize != 0 && newFile.Length != expectedSize)
+            {
+                throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
+            }
+            Console.WriteLine("Saving file to " + newFile.FullName);
+        }
+
         /// <summary>
         /// Queries the CDN for all versions of a game
         /// </summary>
         /// <param name="game"></param>
         /// <returns></returns>
-        public ObservableCollection<uint> GetVersions(SwitchTitle game)
+        public async Task<ObservableCollection<uint>> GetVersions(SwitchTitle game)
         {
             //string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", env);
             string url = string.Format("https://superfly.hac.{0}.d4c.nintendo.net/v1/t/{1}/dv", environment, game.TitleID);
-            string r = GetRequest(url);
+            string r = await GetRequest(url);
 
             JObject json = JObject.Parse(r);
             uint latestVersion = json?.Value<uint>("version") ?? 0;
@@ -307,10 +399,10 @@ namespace SwitchManager.nx.cdn
         /// Versions are 0, 0x10000, 0x20000, etc up to the listed number.
         /// </summary>
         /// <returns></returns>
-        public Dictionary<string,uint> GetLatestVersions()
+        public async Task<Dictionary<string,uint>> GetLatestVersions()
         {
             string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", environment);
-            string r = GetRequest(url);
+            string r = await GetRequest(url).ConfigureAwait(false);
 
             JObject json = JObject.Parse(r);
             IList<JToken> titles = json["titles"].Children().ToList();
@@ -321,17 +413,38 @@ namespace SwitchManager.nx.cdn
                 // Okay so I don't know why (perhaps this has something to do with word alignment? That's too deep in the weeds for me)
                 // but every title id ends with 000, except in the results from here they all end with 800
                 // Until I understand how it works I'm just going to swap the 8 for a 0.
-                StringBuilder tid = new StringBuilder(title.Value<string>("id"));
-                tid[13] = '0';
+                // Research update: see get_name_control in python sou rce
+                // Titles ending in 000 are base game
+                // Titles ending in 800 are updates (what about multiple updates?)
+                // I guess this explains why the versions url gets titles ending in 800 - it is a list of updates,
+                // and that also explains why titles with no update don't appear there.
+                // The pattern for DLC is extra weird
+                // TODO: Figure out DLC title ids
+                // TODO: Figure out how that 800 works if there are multiple updates - do you do a request for XXX800, plus a version to get only the update file?
+                // Does that mean that if you request XXX000 for base title, that the version number is irrelevant? Or do you get updates included in the nsp instead of separately?
+                string tid = SwitchTitle.GetBaseGameIDFromUpdate(title.Value<string>("id"));
                 uint latestVersion = title.Value<uint>("version");
-                result[tid.ToString()] = latestVersion;
+                result[tid] = latestVersion;
             }
             return result;
         }
 
         private string GetHeader(HttpResponseHeaders headers, string name)
         {
-            if (headers.Contains(name))
+            if (headers != null && headers.Contains(name))
+            {
+                IEnumerable<string> h = headers.GetValues(name);
+                string result = h.First();
+                return result;
+            }
+
+            return null;
+        }
+
+        private string GetContentHeader(HttpResponseMessage response, string name)
+        {
+            HttpContentHeaders headers = response?.Content?.Headers;
+            if (headers != null && headers.Contains(name))
             {
                 IEnumerable<string> h = headers.GetValues(name);
                 string result = h.First();
@@ -348,12 +461,10 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private string GetRequest(string url, X509Certificate cert, Dictionary<string, string> args)
+        private async Task<string> GetRequest(string url, X509Certificate cert, Dictionary<string, string> args)
         {
-            var response = MakeRequest(HttpMethod.Get, url, cert, args);
-            string result = response.Content.ReadAsStringAsync().Result;
-
-            return result;
+            var response = await MakeRequest(HttpMethod.Get, url, cert, args);
+            return await response.Content.ReadAsStringAsync();
         }
 
         /// <summary>
@@ -363,10 +474,10 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private string GetRequest(string url)
+        private async Task<string> GetRequest(string url)
         {
-            var response = MakeRequest(HttpMethod.Get, url, null, null);
-            string result = response.Content.ReadAsStringAsync().Result;
+            var response = await MakeRequest(HttpMethod.Get, url, null, null).ConfigureAwait(false);
+            string result = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
             return result;
         }
@@ -377,9 +488,9 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private HttpResponseHeaders HeadRequest(string url, X509Certificate cert, Dictionary<string, string> args)
+        private async Task<HttpResponseHeaders> HeadRequest(string url, X509Certificate cert, Dictionary<string, string> args)
         {
-            var response = MakeRequest(HttpMethod.Head, url, cert, args);
+            var response = await MakeRequest(HttpMethod.Head, url, cert, args);
             return response.Headers;
         }
 
@@ -391,7 +502,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private HttpResponseMessage MakeRequest(HttpMethod method, string url, X509Certificate cert, Dictionary<string, string> args)
+        private async Task<HttpResponseMessage> MakeRequest(HttpMethod method, string url, X509Certificate cert = null, Dictionary<string, string> args = null)
         {
             if (cert == null)
                 cert = clientCert;
@@ -423,8 +534,7 @@ namespace SwitchManager.nx.cdn
             // Create client and get response
             using (var client = new HttpClient(handler))
             {
-                var response = client.SendAsync(request).GetAwaiter().GetResult();
-                return response;
+                return await client.SendAsync(request).ConfigureAwait(false);
             }
             // TODO Make http requests async
         }
