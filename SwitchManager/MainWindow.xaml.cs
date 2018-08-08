@@ -30,21 +30,25 @@ namespace SwitchManager
         {
             InitializeComponent();
             
-            CDNDownloader downloader = new CDNDownloader(Settings.Default.NXclientPath, 
+            CDNDownloader downloader = new CDNDownloader(Settings.Default.NXclientPath,
+                                                         Settings.Default.EShopCertPath,
                                                          Settings.Default.TitleCertPath,
                                                          Settings.Default.TitleTicketPath,
                                                          Settings.Default.DeviceID, 
                                                          Settings.Default.Firmware, 
                                                          Settings.Default.Environment, 
+                                                         Settings.Default.Region,
                                                          Settings.Default.ImageCache, 
                                                          Settings.Default.hactoolPath, 
                                                          Settings.Default.keysPath);
 
+            downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
+
             gameCollection = new SwitchCollection(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
 
-            gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile);
-            Task.Run(() => gameCollection.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages));
-            gameCollection.LoadMetadata(Settings.Default.MetadataFile);
+            gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
+            gameCollection.LoadMetadata(Settings.Default.MetadataFile).Wait();// ConfigureAwait(false);
+            Task.Run(() => gameCollection.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages)).ConfigureAwait(false);
 
             // WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN
             CollectionViewSource itemCollectionViewSource;
@@ -64,8 +68,10 @@ namespace SwitchManager
 
         private void Downloader_DownloadProgress(DownloadTask download, int progress)
         {
+            // TODO: Turn this into progress bars UI
+            // TODO: Add download speed to this and estimated completion
             //System.Diagnostics.Debug.WriteLine("Bytes read: {0}", totalBytesRead);
-            Console.WriteLine($"Saved {progress} bytes to file {download.FileName}, {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)} {((double)download.Progress) /download.ExpectedSize:P2}% complete.");
+            Console.WriteLine($"Downloaded {progress} bytes, {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)} {((double)download.Progress) / download.ExpectedSize:P2}% complete, File:{download.FileName}.");
         }
 
         private void Downloader_DownloadStarted(DownloadTask download)
@@ -127,8 +133,12 @@ namespace SwitchManager
         private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ComboBox cb = (ComboBox)sender;
-            uint v = (uint)cb.SelectedValue;
-            SelectedVersion = v;
+            
+            if (cb.SelectedValue != null)
+            {
+                uint v = (uint)cb.SelectedValue;
+                SelectedVersion = v;
+            }
         }
     }
 }

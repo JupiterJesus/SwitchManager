@@ -1,15 +1,10 @@
 ﻿using SwitchManager.nx.collection;
-using SwitchManager.nx.collection;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using Windows.Web.Http;
-using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Windows.Web.Http.Filters;
 using Windows.Security.Cryptography.Certificates;

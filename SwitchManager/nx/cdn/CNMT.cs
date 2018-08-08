@@ -126,10 +126,49 @@ namespace SwitchManager.nx.cdn
             return data;
         }
 
-
-        public Dictionary<string, CnmtContentEntry> Parse(NCAType? ncaType = null)
+        /// <summary>
+        /// Parses a list of NCA file names that match the given NCA type
+        /// </summary>
+        /// <param name="ncaType"></param>
+        /// <returns></returns>
+        public List<string> ParseNCAs(NCAType desiredType)
         {
-            // Standard Parse is for everything other than system updates
+            // A simplified parse function that only gets the list of NCA files of the given type
+            if (this.Type == TitleType.SystemUpdate)
+                throw new Exception("Do not call Parse on a System Update title!!! Only for other types!");
+
+            var data = new List<string>();
+            FileStream fs = File.OpenRead(this.CnmtFilePath);
+            BinaryReader br = new BinaryReader(fs);
+
+            // Reach each content entry, starting at 0x20 + tableOffset
+            // each entry is 0x38 in size, and their are nEntries of them
+            // With patch, update and addon types, there's a secondary header from 0x20 to 0x30
+            // 0xE tells you how many bytes to skip from 0x20 to the start of the content entries and 0x10 says how many there are
+            br.BaseStream.Seek(0x20 + this.tableOffset, SeekOrigin.Begin);
+            for (int i = 0; i < this.numContentEntries; i++)
+            {
+                // Parse a content entry
+                br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
+                string NcaId = BitConverter.ToString(br.ReadBytes(0x10)).Replace("-", ""); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
+                br.ReadBytes(6);
+                NCAType type = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
+                br.ReadByte(); // Unknown, offset 0x37, 1 byte
+
+                // Only keep entries of the type we care about, or keep all of them if no type was specified
+                if (type == desiredType)
+                {
+                    data.Add(NcaId);
+                }
+                // restart loop 0x38 higher than the last loop read to read next meta entry
+            }
+            br.Close();
+            return data;
+        }
+
+        public Dictionary<string, CnmtContentEntry> ParseContent(NCAType? ncaType = null)
+        {
+            // ParseContent is for everything other than system updates
             // This might be more elegant with subclasses or an interface or something,
             // but I would still come right back to having to have a single data type returned by the
             // virtual function that encompassed both content and metadata entries, and I just don't want to
@@ -151,7 +190,7 @@ namespace SwitchManager.nx.cdn
                 // Parse a content entry
                 var content = new CnmtContentEntry();
                 content.Hash = br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
-                content.NcaId = BitConverter.ToString(br.ReadBytes(0x10)).Replace("-",""); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
+                content.NcaId = BitConverter.ToString(br.ReadBytes(0x10)).Replace("-", ""); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
                 byte[] sizeBuffer = new byte[8];
                 br.Read(sizeBuffer, 0, 6);
                 content.EntrySize = BitConverter.ToUInt64(sizeBuffer, 0); // Size, offset 0x30, 6 bytes (8 byte long converted from only 6 bytes)
@@ -177,7 +216,7 @@ namespace SwitchManager.nx.cdn
             }
             else
             {
-                var data = this.Parse();
+                var data = this.ParseContent();
             }
 
             File.Create(outFile).Close();

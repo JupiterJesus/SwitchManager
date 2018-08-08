@@ -107,9 +107,9 @@ namespace SwitchManager.Properties {
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("certs\\ShopN.pem")]
-        public string ShopNPath {
+        public string EShopCertPath {
             get {
-                return ((string)(this["ShopNPath"]));
+                return ((string)(this["EShopCertPath"]));
             }
         }
         
@@ -182,6 +182,15 @@ namespace SwitchManager.Properties {
         public bool NSPRepack {
             get {
                 return ((bool)(this["NSPRepack"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("8192")]
+        public int DownloadBufferSize {
+            get {
+                return ((int)(this["DownloadBufferSize"]));
             }
         }
     }

@@ -115,7 +115,7 @@ namespace SwitchManager.nx.cdn
                 // Parse "control" type content entries inside the NCA (just one...)
                 // Download each file (just one)
 
-                string ncaID = cnmt.Parse(NCAType.Control).Keys.First(); // There's only one control.nca
+                string ncaID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
                 string fpath = gamePath + Path.DirectorySeparatorChar + "control.nca";
                 await DownloadNCA(ncaID, fpath).ConfigureAwait(false);
 
@@ -224,17 +224,18 @@ namespace SwitchManager.nx.cdn
                 NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFile, cnmtXml);
                 foreach (var type in new [] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
                 {
-                    foreach (var ncaID in cnmt.Parse(type).Keys)
+                    var parsedNCAFiles = cnmt.ParseNCAs(type);
+                    foreach (var ncaID in parsedNCAFiles)
                     {
                         string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
                         nsp.AddNCA(type, path);
-                        Task t = Task.Run(() => DoDownloadNCA(ncaID, path, verify).ConfigureAwait(false));
+                        Task t = DoDownloadNCA(ncaID, path, verify);
                         tasks.Add(t);
                     }
 
                 }
 
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                await Task.WhenAll(tasks);
 
                 if (nspRepack)
                 {
@@ -247,6 +248,7 @@ namespace SwitchManager.nx.cdn
 
         private async Task DoDownloadNCA(string ncaID, string path, bool verify)
         {
+            Console.WriteLine($"Downloading NCA {ncaID}.");
             await DownloadNCA(ncaID, path).ConfigureAwait(false);
             if (verify)
             {
@@ -264,7 +266,7 @@ namespace SwitchManager.nx.cdn
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
 
-            await DownloadFile(url, path); // download file and wait for it since we can't do anything until it is done
+            await DownloadFile(url, path).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
 
             return path;
         }
@@ -397,7 +399,7 @@ namespace SwitchManager.nx.cdn
             {
                 downloaded = finfo.Length;
 
-                result = await MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } });
+                result = await MakeRequest(HttpMethod.Head, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }).ConfigureAwait(false);
 
                 if (!"openresty/1.9.7.4".Equals(GetHeader(result.Headers, "Server"))) // Completed download
                 {
@@ -425,21 +427,24 @@ namespace SwitchManager.nx.cdn
                 else if (downloaded < expectedSize)
                 {
                     Console.WriteLine("Resuming previous download: " + fpath);
+                    result = await MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }, false).ConfigureAwait(false);
                     fs = File.OpenWrite(fpath);
                 }
                 else
                 {
                     Console.WriteLine("Existing file is larger than it should be, restarting: " + fpath);
                     downloaded = 0;
+                    result = await MakeRequest(HttpMethod.Get, url, null, null, false).ConfigureAwait(false);
                     fs = File.Create(fpath);
                 }
+
             }
             else
             {
                 fs = File.Create(fpath);
                 downloaded = 0;
 
-                result = await MakeRequest(HttpMethod.Get, url);
+                result = await MakeRequest(HttpMethod.Get, url, null, null, false);
                 string cLength = GetContentHeader(result, "Content-Length");
                 if (long.TryParse(cLength, out long lcLength))
                     expectedSize = lcLength;
@@ -458,7 +463,15 @@ namespace SwitchManager.nx.cdn
             // collect tasks somewhere until they're done. Right? I don't actually know
 
             //string str = result.Content.ReadAsStringAsync().Result;
-            await StartDownload(fs, result, expectedSize);
+            await StartDownload(fs, result, expectedSize).ConfigureAwait(false);
+
+            var newFile = new FileInfo(fs.Name);
+            if (expectedSize != 0 && newFile.Length != expectedSize)
+            {
+                throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
+            }
+            fs.Dispose();
+            result.Dispose();
 
             // The next thing to figure out is how to get updates on the task
             // Like, after a task is done I want to remove it from the downloads list
@@ -473,43 +486,44 @@ namespace SwitchManager.nx.cdn
         public event DownloadProgressDelegate DownloadProgress;
         public event DownloadDelegate DownloadFinished;
 
+        /// <summary>
+        /// Starts an async file download, which downloads the file in chunks and reports progress, as well
+        /// as the start and end of the download.
+        /// </summary>
+        /// <param name="fileStream"></param>
+        /// <param name="result"></param>
+        /// <param name="expectedSize"></param>
+        /// <returns></returns>
         private async Task StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize)
         {
-            // New code.
-            Stream stream = await result.Content.ReadAsStreamAsync();
-            DownloadTask download = new DownloadTask(stream, fileStream, expectedSize);
-
-            if (DownloadStarted != null) DownloadStarted.Invoke(download);
-
-            while (true)
+            using (Stream remoteStream = await result.Content.ReadAsStreamAsync())
             {
-                // Read from the web.
+                DownloadTask download = new DownloadTask(remoteStream, fileStream, expectedSize);
+
+                if (DownloadStarted != null) DownloadStarted.Invoke(download);
+
                 byte[] buffer = new byte[1048576];
-                int n = await stream.ReadAsync(buffer, 0, buffer.Length);
-
-                if (n == 0)
+                while (true)
                 {
-                    // There is nothing else to read.
-                    break;
+                    // Read from the web.
+                    int n = remoteStream.Read(buffer, 0, buffer.Length);
+
+                    if (n == 0)
+                    {
+                        // There is nothing else to read.
+                        break;
+                    }
+
+                    // Report progress.
+                    download.UpdateProgress(n);
+
+                    if (DownloadStarted != null) DownloadProgress.Invoke(download, n);
+
+                    // Write to file.
+                    await fileStream.WriteAsync(buffer, 0, n);
+                    await fileStream.FlushAsync();
                 }
-
-                // Report progress.
-                download.UpdateProgress(n);
-
-                if (DownloadStarted != null) DownloadProgress.Invoke(download, n);
-
-                // Write to file.
-                await fileStream.WriteAsync(buffer, 0, n);
-                await fileStream.FlushAsync();
-            }
-            stream.Dispose();
-            fileStream.Dispose();
-
-            if (DownloadStarted != null) DownloadFinished.Invoke(download);
-            var newFile = new FileInfo(fileStream.Name);
-            if (expectedSize != 0 && newFile.Length != expectedSize)
-            {
-                throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
+                if (DownloadFinished != null) DownloadFinished.Invoke(download);
             }
         }
 
@@ -666,6 +680,37 @@ namespace SwitchManager.nx.cdn
             return response.Headers;
         }
 
+        private HttpClientHandler singletonHandler;
+        private HttpClient singletonClient;
+        public HttpClient GetSingletonClient(X509Certificate cert)
+        {
+            if (singletonClient == null)
+            {
+                string userAgent = string.Format($"NintendoSDK Firmware/{firmware} (platform:NX; eid:{environment})");
+
+
+                // Add the client certificate
+                singletonHandler = new HttpClientHandler
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                    //SslProtocols = SslProtocols.Tls12,
+                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+                };
+                singletonHandler.ClientCertificates.Add(this.clientCert);
+                ServicePointManager.ServerCertificateValidationCallback += (o, c, ch, er) => true;
+                ServicePointManager.DefaultConnectionLimit = 1000;
+
+                // Create client and get response
+                singletonClient = new HttpClient(singletonHandler);
+                singletonClient.Timeout = TimeSpan.FromMinutes(30);
+            }
+
+            if (cert != null)
+                if (!singletonHandler.ClientCertificates.Contains(cert))
+                    singletonHandler.ClientCertificates.Add(cert);
+            return singletonClient;
+        }
+
         /// <summary>
         /// Makes a request to Ninty's server. Gets back the entire response.
         /// WHY THE FUCK IS THIS SO COMPLICATED???? JUST LET ME SEND A REQUEST
@@ -674,11 +719,8 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private async Task<HttpResponseMessage> MakeRequest(HttpMethod method, string url, X509Certificate cert = null, Dictionary<string, string> args = null)
+        private async Task<HttpResponseMessage> MakeRequest(HttpMethod method, string url, X509Certificate cert = null, Dictionary<string, string> args = null, bool waitForContent = true)
         {
-            if (cert == null)
-                cert = clientCert;
-
             string userAgent = string.Format($"NintendoSDK Firmware/{firmware} (platform:NX; eid:{environment})");
 
             // Create request with method & url, then add headers
@@ -691,21 +733,11 @@ namespace SwitchManager.nx.cdn
             // Add any additional parameters passed into the method
             if (args != null) args.ToList().ForEach(x => request.Headers.Add(x.Key, x.Value));
 
-            // Add the client certificate
-            var handler = new HttpClientHandler
-            {
-                ClientCertificateOptions = ClientCertificateOption.Manual,
-                //SslProtocols = SslProtocols.Tls12,
-                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
-            };
-            handler.ClientCertificates.Add(cert);
-            ServicePointManager.ServerCertificateValidationCallback += (o, c, ch, er) => true;
-            
-            // Create client and get response
-            using (var client = new HttpClient(handler))
-            {
-                return await client.SendAsync(request).ConfigureAwait(false);
-            }
+            var client = GetSingletonClient(cert);
+            if (waitForContent)
+                return await client.SendAsync(request, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
+            else
+                return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
         }
 
         /// <summary>

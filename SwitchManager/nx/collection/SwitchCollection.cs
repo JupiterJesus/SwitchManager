@@ -66,9 +66,10 @@ namespace SwitchManager.nx.collection
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal void LoadMetadata(string filename)
+        internal async Task LoadMetadata(string filename)
         {
             // TODO: LoadMetadata
+            await Task.Run(() => Console.WriteLine("TODO: LOAD METADATA")).ConfigureAwait(false);
         }
 
         internal void SaveMetadata(string filename)
@@ -231,8 +232,7 @@ namespace SwitchManager.nx.collection
             if (img == null && downloadRemote && SwitchTitle.IsBaseGameID(title.TitleID))
             {
                 // Ask the image loader to get the image remotely and cache it
-                // Task is potentially asynchronous BUT I'm just waiting for it here
-                await Loader.DownloadRemoteImage(title).ConfigureAwait(false);
+                await Loader.DownloadRemoteImage(title);
                 img = GetLocalImage(title.TitleID);
             }
             // Return cached image, or blank if it couldn't be found
@@ -270,11 +270,11 @@ namespace SwitchManager.nx.collection
 
         private static SwitchImage blankImage = new SwitchImage("Images\\blank.jpg");
 
-        public void LoadTitleKeysFile(string filename)
+        public async Task LoadTitleKeysFile(string filename)
         {
             var lines = File.ReadLines(filename);
-            var versions = Loader.GetLatestVersions().Result;
-
+            var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+            
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
@@ -308,7 +308,7 @@ namespace SwitchManager.nx.collection
                         {
                             AddDLCTitle(baseGameID, title);
                         }
-                        catch (Exception e)
+                        catch (Exception)
                         {
                             if (GetTitleByID(baseGameID) == null)
                                 Console.WriteLine($"WARNING: Couldn't find base game ID {baseGameID} for DLC {title.Name}");
