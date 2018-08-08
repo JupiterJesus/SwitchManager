@@ -80,14 +80,17 @@
     <Compile Include="nx\cdn\CNMTContentEntry.cs" />
     <Compile Include="nx\cdn\CNMTMetaEntry.cs" />
     <Compile Include="nx\cdn\DownloadTask.cs" />
+    <Compile Include="nx\cdn\NCAType.cs" />
     <Compile Include="nx\cdn\NSP.cs" />
     <Compile Include="nx\cdn\TitleTicket.cs" />
+    <Compile Include="nx\cdn\TitleType.cs" />
+    <Compile Include="nx\collection\DownloadOptions.cs" />
     <Compile Include="nx\collection\SwitchCollection.cs" />
     <Compile Include="nx\collection\SwitchCollectionItem.cs" />
     <Compile Include="nx\collection\SwitchTitleType.cs" />
     <Compile Include="nx\collection\SwitchCollectionState.cs" />
     <Compile Include="nx\collection\SwitchTitle.cs" />
-    <Compile Include="nx\img\SwitchImage.cs" />
+    <Compile Include="nx\collection\SwitchImage.cs" />
     <Compile Include="nx\cdn\CDNDownloader.cs" />
     <Compile Include="nx\cdn\CNMT.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -129,6 +132,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="hactool\hactool.exe" />
+    <Content Include="nx\cdn\Shogun.Designer.vb" />
+    <Content Include="nx\cdn\Shogun.vb" />
     <None Include="Images\0100000000010000.jpg" />
     <None Include="Images\01000040098e4000.jpg" />
     <None Include="Images\010000a00218e000.jpg" />

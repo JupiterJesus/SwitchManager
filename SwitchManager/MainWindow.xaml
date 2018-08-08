@@ -32,13 +32,18 @@
               <TextBlock FontSize="13" Text="{Binding Path=Title.TitleKey, Mode=OneWay}"/>
               <TextBlock FontSize="13" Text="{Binding Path=Title.TitleID, Mode=OneWay}" />
               <TextBlock FontSize="13" Text="{Binding Path=Title.Type, Mode=OneWay}" />
-              <TextBlock FontSize="13" Text="{Binding Path=Title.Size, Mode=OneWay}" />
+              <TextBlock FontSize="13" Text="{Binding Path=Size, Mode=OneWay}" />
             </StackPanel>
 
             <StackPanel Width="100" Margin="20,10" Orientation="Vertical">
               <TextBlock FontSize="13" Text="Versions" />
-              <ComboBox ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}">
+              <ComboBox ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}" SelectionChanged="ComboBox_SelectionChanged">
               </ComboBox>
+              <RadioButton>
+
+              </RadioButton>
+              <Button x:Name="Button_Download" Click="Button_Download_Click">Download Title</Button>
+              
             </StackPanel>
           </StackPanel>
         </DataTemplate>

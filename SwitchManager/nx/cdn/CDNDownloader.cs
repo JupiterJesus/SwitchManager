@@ -1,5 +1,5 @@
 ﻿using SwitchManager.nx.collection;
-using SwitchManager.nx.img;
+using SwitchManager.nx.collection;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -142,7 +142,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="verify"></param>
         /// <param name="pathDir"></param>
         /// <returns></returns>
-        public async Task<IEnumerable<string>> DownloadTitle(SwitchTitle title, uint version, string titleDir, bool nspRepack = false, bool verify = false)
+        public async Task<NSP> DownloadTitle(SwitchTitle title, uint version, string titleDir, bool nspRepack = false, bool verify = false)
         {
             Console.WriteLine($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
 
@@ -221,16 +221,13 @@ namespace SwitchManager.nx.cdn
                 }
 
                 List<Task> tasks = new List<Task>();
-                Dictionary<NCAType, List<string>> NCAs = new Dictionary<NCAType, List<string>>();
-
+                NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFile, cnmtXml);
                 foreach (var type in new [] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
                 {
-                    List<string> ncaList = new List<string>();
-                    NCAs.Add(type, ncaList);
                     foreach (var ncaID in cnmt.Parse(type).Keys)
                     {
                         string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
-                        ncaList.Add(path);
+                        nsp.AddNCA(type, path);
                         Task t = Task.Run(() => DoDownloadNCA(ncaID, path, verify).ConfigureAwait(false));
                         tasks.Add(t);
                     }
@@ -241,18 +238,7 @@ namespace SwitchManager.nx.cdn
 
                 if (nspRepack)
                 {
-                    List<string> files = new List<string>();
-                    files.Add(certPath);
-                    if (!string.IsNullOrWhiteSpace(title.TitleKey))
-                        files.Add(ticketPath);
-                    foreach (var type in new[] { NCAType.Program, NCAType.LegalInformation, NCAType.Data, NCAType.HtmlDocument, NCAType.DeltaFragment })
-                    {
-                        files.AddRange(NCAs[type]);
-                    }
-                    files.Add(cnmt.CnmtNcaFile);
-                    files.Add(cnmtXml);
-                    files.AddRange(NCAs[NCAType.Control]);
-                    return files;
+                    return nsp;
                 }
             }
 
@@ -504,7 +490,6 @@ namespace SwitchManager.nx.cdn
                 if (n == 0)
                 {
                     // There is nothing else to read.
-                    if (DownloadStarted != null) DownloadFinished.Invoke(download);
                     break;
                 }
 
@@ -519,7 +504,8 @@ namespace SwitchManager.nx.cdn
             }
             stream.Dispose();
             fileStream.Dispose();
-            
+
+            if (DownloadStarted != null) DownloadFinished.Invoke(download);
             var newFile = new FileInfo(fileStream.Name);
             if (expectedSize != 0 && newFile.Length != expectedSize)
             {
@@ -758,6 +744,8 @@ namespace SwitchManager.nx.cdn
         {
             // Get the CNMT ID for the title
             string cnmtid = await GetCnmtID(title, version).ConfigureAwait(false);
+            if (cnmtid == null)
+                throw new Exception($"No or invalid CNMT ID found for {title.Name} {title.TitleID}");
 
             // Path to the NCA
             string ncaPath = titleDir + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";

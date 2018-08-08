@@ -1,4 +1,4 @@
-﻿using SwitchManager.nx.img;
+﻿using SwitchManager.nx.collection;
 using SwitchManager.nx.cdn;
 using System;
 using System.Collections.Generic;

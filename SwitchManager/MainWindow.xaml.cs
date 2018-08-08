@@ -55,7 +55,6 @@ namespace SwitchManager
             downloader.DownloadStarted += Downloader_DownloadStarted;
             downloader.DownloadProgress += Downloader_DownloadProgress;
             downloader.DownloadFinished += Downloader_DownloadFinished;
-            Task.Run(() => gameCollection.DownloadTitle(gameCollection.GetTitleByID("0100bc60099fe000"), 0, Settings.Default.NSPRepack, false));
         }
 
         private void Downloader_DownloadFinished(DownloadTask download)
@@ -66,12 +65,12 @@ namespace SwitchManager
         private void Downloader_DownloadProgress(DownloadTask download, int progress)
         {
             //System.Diagnostics.Debug.WriteLine("Bytes read: {0}", totalBytesRead);
-            Console.WriteLine($"Saved {progress} bytes to file {download.FileName}, {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)} {100.0*((double)download.Progress) /download.ExpectedSize:3}% complete.");
+            Console.WriteLine($"Saved {progress} bytes to file {download.FileName}, {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)} {((double)download.Progress) /download.ExpectedSize:P2}% complete.");
         }
 
         private void Downloader_DownloadStarted(DownloadTask download)
         {
-            Console.WriteLine($"Starting download to file {download.FileName}, {download.ExpectedSize} bytes.");
+            Console.WriteLine($"Starting download to file {download.FileName}, {ToFileSize(download.ExpectedSize)}.");
         }
 
         public static string ToFileSize(double value)
@@ -112,6 +111,24 @@ namespace SwitchManager
         {
             Settings.Default.Save();
             gameCollection.SaveMetadata(Settings.Default.MetadataFile);
+        }
+
+        private uint? SelectedVersion { get; set; }
+
+        private void Button_Download_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
+
+            uint v = SelectedVersion ?? item.title.Versions.First();
+            
+            Task.Run(() => gameCollection.DownloadGame(item, v, DownloadOptions.BaseGameOnly, Settings.Default.NSPRepack, false));
+        }
+
+        private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = (ComboBox)sender;
+            uint v = (uint)cb.SelectedValue;
+            SelectedVersion = v;
         }
     }
 }

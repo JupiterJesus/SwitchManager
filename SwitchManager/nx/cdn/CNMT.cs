@@ -8,33 +8,6 @@ using System.Threading.Tasks;
 
 namespace SwitchManager.nx.cdn
 {
-    public enum NCAType
-    {
-        Meta,
-        Program,
-        Data,
-        Control,
-        HtmlDocument,
-        LegalInformation,
-        DeltaFragment,
-    }
-
-    /// <summary>
-    /// Title Type stored in CNMT metadata, in the header at offset 0xE. It is one byte long.
-    /// </summary>
-    public enum TitleType
-    {
-        SystemProgram        = 0x1,
-        SystemData           = 0x2,
-        SystemUpdate         = 0x3,
-        BootImagePackage     = 0x4,
-        BootImagePackageSafe = 0x5,
-        Application          = 0x80,
-        Patch                = 0x81,
-        AddOnContent         = 0x82,
-        Delta                = 0x83,
-    }
-
     /// <summary>
     /// Represents a CNMT file, which is a type of metadata file for NSPs (I think).
     /// See http://switchbrew.org/index.php?title=NCA
@@ -207,6 +180,7 @@ namespace SwitchManager.nx.cdn
                 var data = this.Parse();
             }
 
+            File.Create(outFile).Close();
             //string headerPath = Path.GetDirectoryName(ncaPath) + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(ncaPath) +  Path.DirectorySeparatorChar + "Header.bin";
             /*
              * 

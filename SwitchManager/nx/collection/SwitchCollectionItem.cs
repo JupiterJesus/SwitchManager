@@ -58,6 +58,8 @@ namespace SwitchManager.nx.collection
             set { this.isFavorite = value; NotifyPropertyChanged("IsFavorite"); }
         }
 
+        public ulong Size { get; set; }
+
         public SwitchCollectionItem(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
         {
             Title = new SwitchTitle(name, titleid, titlekey);

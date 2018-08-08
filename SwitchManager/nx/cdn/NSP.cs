@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SwitchManager.nx.collection;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,22 +10,61 @@ namespace SwitchManager.nx.cdn
 {
     public class NSP
     {
-        private string path;
-        private string[] files;
-
-        public NSP(string path, string[] files)
+        private Dictionary<NCAType, List<string>> NCAs = new Dictionary<NCAType, List<string>>();
+        public List<string> Files
         {
-            this.path = path;
-            this.files = files;
+            get
+            {
+                List<string> files = new List<string>();
+                files.Add(Certificate);
+                if (!string.IsNullOrWhiteSpace(Title.TitleKey))
+                    files.Add(Ticket);
+                foreach (var type in new[] { NCAType.Program, NCAType.LegalInformation, NCAType.Data, NCAType.HtmlDocument, NCAType.DeltaFragment })
+                {
+                    if (NCAs.ContainsKey(type))
+                        files.AddRange(NCAs[type]);
+                }
+                files.Add(CnmtNCA);
+                files.Add(CnmtXML);
+
+                if (NCAs.ContainsKey(NCAType.Control))
+                    files.AddRange(NCAs[NCAType.Control]);
+
+                return files;
+            }
+        }
+        
+        public SwitchTitle Title { get; set; }
+        public string Certificate { get; private set; }
+        public string Ticket { get; private set; }
+        public string CnmtNCA { get; private set; }
+        public string CnmtXML { get; private set; }
+
+        public NSP(SwitchTitle title, string certificate, string ticket, string cnmtNca, string cnmtXml)
+        {
+            this.Title = title;
+            this.Certificate = certificate;
+            this.Ticket = ticket;
+            this.CnmtNCA = cnmtNca;
+            this.CnmtXML = cnmtXml;
         }
 
-        public void Repack()
+        /// <summary>
+        /// Repacks this NSP from a set of files into a single file and writes the file out to the given path.
+        /// TODO: Bugfix and test.
+        /// </summary>
+        /// <param name="path"></param>
+        public void Repack(string path)
         {
+            return;
             Console.WriteLine("\tRepacking to NSP...");
             var hd = GenerateHeader();
 
+            string[] files = this.Files.ToArray();
+            int nFiles = files.Length;
+
             // Use lambda to sum sizes of all files in files array
-            long totalSize = hd.Length + this.files.Sum(s => new FileInfo(s).Length);
+            long totalSize = hd.Length + files.Sum(s => new FileInfo(s).Length);
             
             /*
         
@@ -57,79 +97,90 @@ namespace SwitchManager.nx.cdn
         */
         }
 
+        /// <summary>
+        /// Generates the PFS0 (NSP) header
+        /// See http://switchbrew.org/index.php?title=NCA_Format#PFS0
+        /// </summary>
+        /// <returns></returns>
         private byte[] GenerateHeader()
         {
-            int filesNb = this.files.Length;
-            /*
-            stringTable = '\x00'.join(os.path.basename(file) for file in self.files)
-            */
+            string[] files = this.Files.ToArray();
+            int nFiles = files.Length;
+            
+            // The size of the header is 0x10, plus one 0x18 size entry for each file, plus the size of the string table
+            // The string table is all of the file names, separated by nulls
+            int stringTableSize = files.Sum((s) => s.Length + 1);
+            int headerSize = 0x10 + (nFiles) * 0x18 + stringTableSize;
 
-            // TODO Figure out exactly what python join does and what the above means
-            char[] stringTable = new char[0];
-
-            int headerSize = 0x10 + (filesNb) * 0x18 + stringTable.Length;
             int remainder = 0x10 - headerSize % 0x10;
             headerSize += remainder;
-
+            
+            // Calculate the file sizes array (size of file for each file)
             var fileSizes = files.Select(f => new FileInfo(f).Length).ToArray();
-            var fileOffsets = new long[files.Length];
+
+            // Calculate the file offsets array (offset of file from start for each file)
+            var fileOffsets = new long[nFiles];
             for (int i = 0; i < fileOffsets.Length; i++) // fileOffsets = [sum(fileSizes[:n]) for n in range(filesNb)]
                 for (int j = 0; j < i; j++)
                     fileOffsets[i] += fileSizes[j];
 
+            // Calculate the filename lengths array (length of file names)
             var fileNamesLengths = files.Select(f => new FileInfo(f).Name.Length + 1).ToArray(); // fileNamesLengths = [len(os.path.basename(file))+1 for file in self.files] # +1 for the \x00
-            /*
             
-            
-            stringTableOffsets = [sum(fileNamesLengths[:n]) for n in range(filesNb)]
-            */
+            var stringTableOffsets = new long[nFiles];
+            for (int i = 0; i < stringTableOffsets.Length; i++) // = [sum(fileNamesLengths[:n]) for n in range(filesNb)]
+                for (int j = 0; j < i; j++)
+                    stringTableOffsets[i] += files[j].Length+1;
 
-            // TODO the above files sizes, offsets, etc might be better calculated below in the place where they are copied into the header
-            byte[] header =  new byte[0x1000]; // Making up a size...
-            uint n = 0;
+            byte[] header = new byte[headerSize]; 
+            int n = 0;
+
+            // 0x0 + 0x4 PFS0 magic number
             header[n++] = unchecked('P' & 0xFF);
             header[n++] = unchecked('F' & 0xFF);
             header[n++] = unchecked('S' & 0xFF);
             header[n++] = unchecked('0' & 0xFF);
 
-            /*
-            header += pk('<I', filesNb)
-            header += pk('<I', len(stringTable)+remainder)
-            */
+            // 0x4 + 0x4 number of files
+            byte[] nfBytes = BitConverter.GetBytes(nFiles); nfBytes.CopyTo(header, n); n += nfBytes.Length ;
 
-            // TODO figure out what pk is in python and replicate
+            // 0x8 + 0x4 size of string table
+            byte[] stBytes = BitConverter.GetBytes(stringTableSize+remainder); stBytes.CopyTo(header, n); n += stBytes.Length;
+            
             header[n++] = 0x00;
             header[n++] = 0x00;
             header[n++] = 0x00;
             header[n++] = 0x00;
 
-            for (int i = 0; i < filesNb; i++)
+            for (int i = 0; i < nFiles; i++)
             {
-                /*
-                for i in range(filesNb):
-                    header += pk('<Q', fileOffsets[i])
-                    header += pk('<Q', fileSizes[i])
-                    header += pk('<I', stringTableOffsets[i])
-                    */
-
-                header[n++] = 0x00;
-                header[n++] = 0x00;
-                header[n++] = 0x00;
-                header[n++] = 0x00;
+                byte[] foBytes = BitConverter.GetBytes(fileOffsets[i]); foBytes.CopyTo(header, n); n += foBytes.Length;
+                byte[] fsBytes = BitConverter.GetBytes(fileSizes[i]); fsBytes.CopyTo(header, n); n += fsBytes.Length;
+                byte[] stoBytes = BitConverter.GetBytes(stringTableOffsets[i]); stoBytes.CopyTo(header, n); n += stoBytes.Length;
+                header[n++] = 0;
+                header[n++] = 0;
+                header[n++] = 0;
+                header[n++] = 0;
             }
 
-            /*
-            header += stringTable.encode()
-            */
-
-            // TODO figure out what pk is in python and replicate
+            foreach (var str in files)
+            {
+                byte[] strBytes = Encoding.UTF8.GetBytes(str); strBytes.CopyTo(header, n); n += strBytes.Length;
+                header[n++] = 0;
+            }
+            
             while (remainder-- > 0)
-                header[n++] = 0x00;
+                header[n++] = 0;
+            
+            return header;
+        }
 
-            // Put the header into a perfectly sized array so the calling function knows how long it actually is
-            byte[] result = new byte[n];
-            header.CopyTo(result, 0);
-            return result;
+        internal void AddNCA(NCAType type, string path)
+        {
+            if (!NCAs.ContainsKey(type))
+                NCAs.Add(type, new List<string>());
+
+            NCAs[type].Add(path);
         }
     }
 }

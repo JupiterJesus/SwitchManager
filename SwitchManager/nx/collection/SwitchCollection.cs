@@ -1,4 +1,4 @@
-﻿using SwitchManager.nx.img;
+﻿using SwitchManager.nx.collection;
 using SwitchManager.nx.cdn;
 using System;
 using System.Collections.Generic;
@@ -28,16 +28,38 @@ namespace SwitchManager.nx.collection
 
         internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
         {
-            SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, state, isFavorite);
-            Collection.Add(item);
-            return item;
+            // Already there, probably because DLC was listed before a title
+            if (titlesByID.ContainsKey(titleid))
+            {
+                SwitchCollectionItem item = titlesByID[titleid];
+                item.Title.Name = name;
+                item.Title.TitleKey = titlekey;
+                item.State = state;
+                item.IsFavorite = isFavorite;
+                return item;
+            }
+            else
+            {
+                SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, state, isFavorite);
+                Collection.Add(item);
+                titlesByID[titleid] = item;
+                return item;
+            }
         }
 
         internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, bool isFavorite)
         {
-            SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, isFavorite);
-            Collection.Add(item);
-            return item;
+            return AddGame(name, titleid, titlekey, SwitchCollectionState.NOT_OWNED, isFavorite);
+        }
+
+        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state)
+        {
+            return AddGame(name, titleid, titlekey, state, false);
+        }
+
+        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey)
+        {
+            return AddGame(name, titleid, titlekey, SwitchCollectionState.NOT_OWNED, false);
         }
 
         /// <summary>
@@ -54,33 +76,130 @@ namespace SwitchManager.nx.collection
 
         }
 
-        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state)
+        /// <summary>
+        /// Initiates a title download. 
+        /// Note - you MUST match the version and the title id!
+        /// If you try to download a game title with a version number greater than 0, it will fail!
+        /// If you try to download an update title with a version number of 0, it will fail!
+        /// I have no idea what will even happen if you try to download a DLC.
+        /// </summary>
+        /// <param name="titleItem"></param>
+        /// <param name="v"></param>
+        /// <param name="repack"></param>
+        /// <param name="verify"></param>
+        /// <returns></returns>
+        internal async Task DownloadTitle(SwitchTitle title, uint v, bool repack, bool verify)
         {
-            SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, state);
-            Collection.Add(item);
-            return item;
-        }
+            if (title == null)
+                throw new Exception($"No title selected for download");
 
-        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey)
-        {
-            SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey);
-            Collection.Add(item);
-            titlesByID[item.Title.TitleID] = item;
-            return item;
-        }
-
-        internal async Task DownloadTitle(SwitchCollectionItem titleItem, uint v, bool repack, bool verify)
-        {
-            string dir = this.RomsPath + Path.DirectorySeparatorChar + titleItem.Title.TitleID;
+            string dir = this.RomsPath + Path.DirectorySeparatorChar + title.TitleID;
             DirectoryInfo dinfo = new DirectoryInfo(dir);
             if (!dinfo.Exists)
                 dinfo.Create();
+            
+            NSP nsp = null;
 
-            var files = await Loader.DownloadTitle(titleItem.title, v, dir, repack, verify).ConfigureAwait(false);
-            // TODO Handle all the files
-            if (repack)
+            try
             {
 
+                // Download a base version with a game ID
+                if (v == 0)
+                {
+                    if (SwitchTitle.IsBaseGameID(title.TitleID))
+                    {
+                        nsp = await Loader.DownloadTitle(title, v, dir, repack, verify).ConfigureAwait(false);
+                        // TODO Handle all the files
+                        if (repack)
+                        {
+                            string nspFile = $"{this.RomsPath}{Path.DirectorySeparatorChar}[{title.TitleID}][{v}].nsp";
+                            nsp.Repack(nspFile);
+                        }
+                    }
+                    else
+                        throw new Exception("Don't try to download a game with version greater than 0!");
+                }
+                else
+                {
+                    if (SwitchTitle.IsBaseGameID(title.TitleID))
+                        throw new Exception("Don't try to download an update using base game's ID!");
+                    else
+                    {
+                        nsp = await Loader.DownloadTitle(title, v, dir, repack, verify).ConfigureAwait(false);
+
+                        if (repack)
+                        {
+                            string titleid = SwitchTitle.GetBaseGameIDFromUpdate(title.TitleID);
+                            string nspFile = $"{this.RomsPath}{Path.DirectorySeparatorChar}[{titleid}][{v}].nsp";
+                            nsp.Repack(nspFile);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                // TODO delete directory after
+                //dinfo.Delete(true);
+            }
+        }
+
+        /// <summary>
+        /// Executes a download of a title and/or updates/DLC, according to the options presented.
+        /// TODO: Test this
+        /// TODO: DLC
+        /// </summary>
+        /// <param name="titleItem"></param>
+        /// <param name="v"></param>
+        /// <param name="options"></param>
+        /// <param name="repack"></param>
+        /// <param name="verify"></param>
+        /// <returns></returns>
+        internal async Task DownloadGame(SwitchCollectionItem titleItem, uint v, DownloadOptions options, bool repack, bool verify)
+        {
+            SwitchTitle title = titleItem?.Title;
+            if (title == null)
+                throw new Exception($"No title selected for download");
+
+            switch (options)
+            {
+                case DownloadOptions.AllDLC:
+                    break;
+                case DownloadOptions.UpdateAndDLC:
+                    break;
+                case DownloadOptions.BaseGameAndUpdateAndDLC:
+                    
+                case DownloadOptions.BaseGameAndUpdate:
+
+                    // Get the base game version first
+                    uint baseVersion = title.Versions.Last();
+                    await DownloadTitle(title, baseVersion, repack, verify);
+                    
+                    // If a version greater than 0 is selected, download it and every version below it
+                    while (v > 0)
+                    {
+                        SwitchTitle update = title.GetUpdateTitle(v);
+                        await DownloadTitle(update, v, repack, verify);
+                        v -= 0x10000;
+                    }
+                    break;
+                case DownloadOptions.UpdateOnly:
+                    if (v == 0) return;
+
+                    // If a version greater than 0 is selected, download it and every version below it
+                    while (v > 0)
+                    {
+                        SwitchTitle update = SwitchTitle.IsUpdateTitleID(title.TitleID) ? title : title.GetUpdateTitle(v);
+                        await DownloadTitle(update, v, repack, verify);
+                        v -= 0x10000;
+                    }
+                    break;
+                case DownloadOptions.BaseGameAndDLC:
+                    break;
+                case DownloadOptions.BaseGameOnly:
+                default:
+                    v = title.Versions.Last();
+                    await DownloadTitle(title, v, repack, verify);
+                    break;
             }
         }
 
@@ -187,7 +306,7 @@ namespace SwitchManager.nx.collection
                         title.Type = SwitchTitleType.DLC;
                         try
                         {
-                            AddDLCTitle(baseGameID, title.TitleID);
+                            AddDLCTitle(baseGameID, title);
                         }
                         catch (Exception e)
                         {
@@ -209,17 +328,23 @@ namespace SwitchManager.nx.collection
         /// <param name="baseGameID">Title ID of base game.</param>
         /// <param name="dlcID">Title ID of base game's DLC, to add to the game's DLC list.</param>
         /// <returns>The base title that the DLC was attached to.</returns>
-        public SwitchTitle AddDLCTitle(string baseGameID, string dlcID)
+        public SwitchTitle AddDLCTitle(string baseGameID, SwitchTitle dlctitle)
         {
             SwitchTitle baseTitle = GetTitleByID(baseGameID)?.Title;
             if (baseTitle == null)
             {
-                throw new Exception("Tried to add DLC to a title that isn't in the database. Make sure DLC is at the END of your title keys file!");
+                // This can happen if you put the DLC before the title, or if your titlekeys file has DLC for
+                // titles that aren't in it. The one I'm using, for example, has fire emblem warriors JP dlc,
+                // but not the game
+                // If the game ends up being added later, AddGame is able to slide in the proper info over the stub we add here
+                string name = dlctitle.Name.Replace("[DLC] ", "");
+                SwitchCollectionItem item = AddGame(name, baseGameID, null);
+                baseTitle = item.Title;
             }
 
             if (baseTitle.DLC == null) baseTitle.DLC = new ObservableCollection<string>();
 
-            baseTitle.DLC.Add(dlcID);
+            baseTitle.DLC.Add(dlctitle.TitleID);
             return baseTitle;
         }
 

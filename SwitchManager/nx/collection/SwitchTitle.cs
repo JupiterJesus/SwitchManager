@@ -1,4 +1,4 @@
-﻿using SwitchManager.nx.img;
+﻿using SwitchManager.nx.collection;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -37,8 +37,6 @@ namespace SwitchManager.nx.collection
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Icon"));
             }
         }
-
-        public ulong Size { get; set; }
 
         public ObservableCollection<string> DLC { get; set; }
         public ObservableCollection<string> Updates { get; set;  }
@@ -114,6 +112,12 @@ namespace SwitchManager.nx.collection
         internal static string GetUpdateIDFromBaseGame(string titleID)
         {
             return titleID.Substring(0, 13) + "800";
+        }
+
+        internal SwitchTitle GetUpdateTitle(uint v)
+        {
+            SwitchTitle title = new SwitchTitle(this.name + "[v" + v + "]", GetUpdateIDFromBaseGame(this.TitleID), null);
+            return title;
         }
     }
 }
