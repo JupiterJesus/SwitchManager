@@ -8,10 +8,10 @@ namespace SwitchManager.nx.collection
 {
     public enum SwitchCollectionState
     {
-        NOT_OWNED,
-        OWNED,
-        DOWNLOADED,
-        ON_SWITCH,
-        NEW,
+        NotOwned,
+        Owned,
+        Downloaded,
+        OnSwitch,
+        New,
     }
 }

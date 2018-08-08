@@ -49,7 +49,7 @@ namespace SwitchManager.nx.collection
 
         internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, bool isFavorite)
         {
-            return AddGame(name, titleid, titlekey, SwitchCollectionState.NOT_OWNED, isFavorite);
+            return AddGame(name, titleid, titlekey, SwitchCollectionState.NotOwned, isFavorite);
         }
 
         internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey, SwitchCollectionState state)
@@ -59,7 +59,7 @@ namespace SwitchManager.nx.collection
 
         internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey)
         {
-            return AddGame(name, titleid, titlekey, SwitchCollectionState.NOT_OWNED, false);
+            return AddGame(name, titleid, titlekey, SwitchCollectionState.NotOwned, false);
         }
 
         /// <summary>
@@ -298,7 +298,7 @@ namespace SwitchManager.nx.collection
                     }
 
                     if (title.Name.EndsWith("Demo"))
-                        title.Type = SwitchTitleType.DEMO;
+                        title.Type = SwitchTitleType.Demo;
                     else if (title.Name.StartsWith("[DLC]"))
                     {
                         // basetid = '%s%s000' % (tid[:-4], str(int(tid[-4], 16) - 1))
@@ -316,7 +316,7 @@ namespace SwitchManager.nx.collection
                     }
                     else
                     {
-                        title.Type = SwitchTitleType.GAME;
+                        title.Type = SwitchTitleType.Game;
                     }
                 }
             }

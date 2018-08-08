@@ -8,10 +8,10 @@ namespace SwitchManager.nx.collection
 {
     public enum SwitchTitleType
     {
-        UNKNOWN,
-        DEMO,
-        GAME,
-        UPDATE,
+        Unknown,
+        Demo,
+        Game,
+        Update,
         DLC,
     }
 }

@@ -31,10 +31,10 @@ namespace SwitchManager.nx.collection
             {
                 switch (this.State)
                 {
-                    case SwitchCollectionState.DOWNLOADED: return "Downloaded";
-                    case SwitchCollectionState.OWNED: return "Owned";
-                    case SwitchCollectionState.ON_SWITCH: return "On Switch";
-                    case SwitchCollectionState.NEW: return "New";
+                    case SwitchCollectionState.Downloaded: return "Downloaded";
+                    case SwitchCollectionState.Owned: return "Owned";
+                    case SwitchCollectionState.OnSwitch: return "On Switch";
+                    case SwitchCollectionState.New: return "New";
                     default: return "Not Owned";
                 }
             }
@@ -42,11 +42,11 @@ namespace SwitchManager.nx.collection
             {
                 switch (value)
                 {
-                    case "Downloaded": this.state = SwitchCollectionState.DOWNLOADED; break;
-                    case "Owned": this.state = SwitchCollectionState.OWNED; break;
-                    case "On Switch": this.state = SwitchCollectionState.ON_SWITCH; break;
-                    case "New": this.state = SwitchCollectionState.NEW; break;
-                    default: this.state = SwitchCollectionState.NOT_OWNED; break;
+                    case "Downloaded": this.state = SwitchCollectionState.Downloaded; break;
+                    case "Owned": this.state = SwitchCollectionState.Owned; break;
+                    case "On Switch": this.state = SwitchCollectionState.OnSwitch; break;
+                    case "New": this.state = SwitchCollectionState.New; break;
+                    default: this.state = SwitchCollectionState.NotOwned; break;
                 }
                 NotifyPropertyChanged("StateName");
             }
@@ -67,7 +67,7 @@ namespace SwitchManager.nx.collection
             IsFavorite = isFavorite;
         }
 
-        public SwitchCollectionItem(string name, string titleid, string titlekey, bool isFavorite) : this(name, titleid, titlekey, SwitchCollectionState.NOT_OWNED, isFavorite)
+        public SwitchCollectionItem(string name, string titleid, string titlekey, bool isFavorite) : this(name, titleid, titlekey, SwitchCollectionState.NotOwned, isFavorite)
         {
 
         }
@@ -77,7 +77,7 @@ namespace SwitchManager.nx.collection
 
         }
 
-        public SwitchCollectionItem(string name, string titleid, string titlekey) : this(name, titleid, titlekey, SwitchCollectionState.NOT_OWNED, false)
+        public SwitchCollectionItem(string name, string titleid, string titlekey) : this(name, titleid, titlekey, SwitchCollectionState.NotOwned, false)
         {
 
         }
