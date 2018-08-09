@@ -4,27 +4,36 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 
 namespace SwitchManager.nx.collection
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    [XmlRoot(ElementName = "CollectionItem")]
     public class SwitchCollectionItem : INotifyPropertyChanged
     {
-        private bool isFavorite;
-
-        public SwitchTitle title;
+        [XmlIgnore]
         public SwitchTitle Title
         {
             get { return this.title; }
             set { this.title = value; NotifyPropertyChanged("Title"); }
         }
+        private SwitchTitle title;
 
-        private SwitchCollectionState state;
+        [XmlElement(ElementName = "Title")]
+        public string TitleId { get { return title?.TitleID; } set {  } }
+
+        [XmlElement(ElementName = "State")]
         public SwitchCollectionState State
         {
             get { return this.state; }
             set { this.state = value; NotifyPropertyChanged("State"); }
         }
+        private SwitchCollectionState state;
 
+        [XmlIgnore]
         public string StateName
         {
             get
@@ -51,14 +60,30 @@ namespace SwitchManager.nx.collection
                 NotifyPropertyChanged("StateName");
             }
         }
-
+        
+        [XmlElement(ElementName = "Favorite")]
         public bool IsFavorite
         {
             get { return isFavorite; }
             set { this.isFavorite = value; NotifyPropertyChanged("IsFavorite"); }
         }
+        private bool isFavorite;
 
+        [XmlElement(ElementName = "Size")]
         public ulong Size { get; set; }
+
+        [XmlElement(ElementName = "Path")]
+        public string RomPath { get; set; }
+
+        /// <summary>
+        /// Default constructor. I don't like these but XmlSerializer requires it, even though I have NO NO NO
+        /// intention of deserializing into this class  (just serializing). Make sure to populate fields if you call
+        /// this constructor.
+        /// </summary>
+        public SwitchCollectionItem()
+        {
+
+        }
 
         public SwitchCollectionItem(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
         {

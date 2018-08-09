@@ -85,6 +85,7 @@
     <Compile Include="nx\cdn\TitleTicket.cs" />
     <Compile Include="nx\cdn\TitleType.cs" />
     <Compile Include="nx\collection\DownloadOptions.cs" />
+    <Compile Include="nx\collection\LibraryMetadata.cs" />
     <Compile Include="nx\collection\SwitchCollection.cs" />
     <Compile Include="nx\collection\SwitchCollectionItem.cs" />
     <Compile Include="nx\collection\SwitchTitleType.cs" />
@@ -132,6 +133,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="hactool\hactool.exe" />
+    <None Include="library.xml" />
     <Content Include="nx\cdn\Shogun.Designer.vb" />
     <Content Include="nx\cdn\Shogun.vb" />
     <None Include="Images\0100000000010000.jpg" />

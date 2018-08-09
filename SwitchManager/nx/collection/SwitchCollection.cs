@@ -7,23 +7,59 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 
 namespace SwitchManager.nx.collection
 {
-    internal class SwitchCollection
+    /// <summary>
+    /// This is the primary class for the switch library and cdn downloader. It manages all existing title keys,
+    /// library metadata, downloading, eshop access and anything else pretty much. It has XML attributes because it
+    /// is much easier to serialize this class a a copycat of the LibraryMetadata class, but the LibraryMetadata class
+    /// is the one to use for loading/deserializing data, which should then be copied into the appropriate collection items.
+    /// 
+    /// If one were to deserialize a SwitchCollection from the library metadata, they would have to rewrite the loading of title keys to modify the existing
+    /// collection instead of building it from the ground up. I do think that the existing AddGame functions know how to
+    /// handle a collection item already existing and modifying it with relevant data, but you might have to write
+    /// a new LoadTitleKeys method that ensure all of the data is correctly loaded. Maybe not, it is possible that I wrote
+    /// everything so awesomely that it just works even in this unintended situation.
+    /// 
+    /// Anyway, the intended use is to call LoadTitleKeys first to populate the collection, THEN modify the collection with
+    /// any metadata you care to track.
+    /// </summary>
+    [XmlRoot(ElementName = "Library")]
+    public class SwitchCollection
     {
+        [XmlElement(ElementName = "CollectionItem")]
         public ObservableCollection<SwitchCollectionItem> Collection { get; set; }
+
+        [XmlIgnore]
         public CDNDownloader Loader { get; set; }
-        private string imagesPath;
+
+        [XmlIgnore]
         public string RomsPath { get; set; } = ".";
+
+        [XmlIgnore]
         public bool RemoveContentAfterRepack { get; set; } = false;
+
+        [XmlIgnore]
+        public string ImagesPath { get; set; }
+
         private Dictionary<string, SwitchCollectionItem> titlesByID = new Dictionary<string, SwitchCollectionItem>();
 
-        internal SwitchCollection(CDNDownloader loader, string imagesPath, string romsPath)
+        /// <summary>
+        /// This default constructor is ONLY so that XmlSerializer will stop complaining. Don't use it, unless
+        /// you remember to also set the loader, the image path and the rom path!
+        /// </summary>
+        public SwitchCollection()
+        {
+
+        }
+
+        public SwitchCollection(CDNDownloader loader, string imagesPath, string romsPath)
         {
             Collection = new ObservableCollection<SwitchCollectionItem>();
             this.Loader = loader;
-            this.imagesPath = imagesPath;
+            this.ImagesPath = imagesPath;
             this.RomsPath = romsPath;
         }
 
@@ -67,15 +103,53 @@ namespace SwitchManager.nx.collection
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal async Task LoadMetadata(string filename)
+        internal void LoadMetadata(string path)
         {
-            // TODO: LoadMetadata
-            await Task.Run(() => Console.WriteLine("TODO: LOAD METADATA")).ConfigureAwait(false);
+            if (!path.EndsWith(".xml"))
+                path += ".xml";
+            path = Path.GetFullPath(path);
+
+            XmlSerializer xml = new XmlSerializer(typeof(LibraryMetadata));
+            LibraryMetadata metadata;
+            // Create a new file stream to write the serialized object to a file
+
+            if (!File.Exists(path))
+            {
+                Console.WriteLine("Library metadata XML file doesn't exist, one will be created when the app closes.");
+                return;
+            }
+
+            using (FileStream fs = File.OpenRead(path))
+                metadata = xml.Deserialize(fs) as LibraryMetadata;
+
+            foreach (var item in metadata.Items)
+            {
+                SwitchCollectionItem ci = GetTitleByID(item.TitleID);
+                if (ci == null)
+                    Console.WriteLine("Found metadata for a title that doesn't exist: " + ci);
+
+                ci.IsFavorite = item.IsFavorite;
+                ci.RomPath = item.Path;
+                ci.Size = item.Size;
+                ci.State = item.State;
+            }
+
+            Console.WriteLine($"Finished loading library metadata from {path}");
         }
 
-        internal void SaveMetadata(string filename)
+        internal void SaveMetadata(string path)
         {
+            if (!path.EndsWith(".xml"))
+                path += ".xml";
+            path = Path.GetFullPath(path);
 
+            XmlSerializer xml = new XmlSerializer(typeof(SwitchCollection));
+
+            // Create a new file stream to write the serialized object to a file
+            using (FileStream fs = File.OpenWrite(path))
+                xml.Serialize(fs, this);
+
+            Console.WriteLine($"Finished saving library metadata to {path}");
         }
 
         /// <summary>
@@ -346,7 +420,7 @@ namespace SwitchManager.nx.collection
 
         public SwitchImage GetLocalImage(string titleID)
         {
-            string path = Path.GetFullPath(this.imagesPath);
+            string path = Path.GetFullPath(this.ImagesPath);
             if (Directory.Exists(path))
             {
                 string location = path + Path.DirectorySeparatorChar + titleID + ".jpg";
@@ -362,7 +436,7 @@ namespace SwitchManager.nx.collection
             }
             else
             {
-                Directory.CreateDirectory(this.imagesPath);
+                Directory.CreateDirectory(this.ImagesPath);
             }
 
             return null;

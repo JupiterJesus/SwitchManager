@@ -115,7 +115,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("library.json")]
+        [global::System.Configuration.DefaultSettingValueAttribute("library")]
         public string MetadataFile {
             get {
                 return ((string)(this["MetadataFile"]));

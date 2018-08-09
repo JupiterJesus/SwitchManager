@@ -16,6 +16,7 @@ using SwitchManager.nx;
 using SwitchManager.nx.collection;
 using SwitchManager.nx.cdn;
 using SwitchManager.Properties;
+using System.ComponentModel;
 
 namespace SwitchManager
 {
@@ -47,7 +48,7 @@ namespace SwitchManager
             gameCollection = new SwitchCollection(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
 
             gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
-            gameCollection.LoadMetadata(Settings.Default.MetadataFile).Wait();// ConfigureAwait(false);
+            gameCollection.LoadMetadata(Settings.Default.MetadataFile);
             Task.Run(() => gameCollection.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages)).ConfigureAwait(false);
 
             // WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN
@@ -128,7 +129,7 @@ namespace SwitchManager
         {
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
 
-            uint v = SelectedVersion ?? item.title.Versions.First();
+            uint v = SelectedVersion ?? item.Title.Versions.First();
             
             Task.Run(() => gameCollection.DownloadGame(item, v, DownloadOptions.BaseGameOnly, Settings.Default.NSPRepack, false));
         }
@@ -141,6 +142,25 @@ namespace SwitchManager
             {
                 uint v = (uint)cb.SelectedValue;
                 SelectedVersion = v;
+            }
+        }
+
+        private void TextBox_Search_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            TextBox searchBox = (TextBox)sender;
+            string filterText = searchBox.Text;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+
+            if (!string.IsNullOrEmpty(filterText))
+            {
+                cv.Filter = o => {
+                    SwitchCollectionItem i = o as SwitchCollectionItem;
+                    return (i.Title.Name.ToUpper().Contains(filterText.ToUpper()));
+                };
+            }
+            else
+            {
+                cv.Filter = null;
             }
         }
     }
