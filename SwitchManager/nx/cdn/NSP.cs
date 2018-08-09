@@ -15,8 +15,8 @@ namespace SwitchManager.nx.cdn
         {
             get
             {
-                List<string> files = new List<string>();
-                files.Add(Certificate);
+                List<string> files = new List<string> { Certificate };
+
                 if (!string.IsNullOrWhiteSpace(Title.TitleKey))
                     files.Add(Ticket);
                 foreach (var type in new[] { NCAType.Program, NCAType.LegalInformation, NCAType.Data, NCAType.HtmlDocument, NCAType.DeltaFragment })
@@ -54,19 +54,25 @@ namespace SwitchManager.nx.cdn
         /// TODO: Bugfix and test.
         /// </summary>
         /// <param name="path"></param>
-        public void Repack(string path)
+        public async Task<bool> Repack(string path)
         {
             Console.WriteLine($"Repacking to NSP file {path}.");
-            var hd = GenerateHeader();
 
             string[] files = this.Files.ToArray();
             int nFiles = files.Length;
 
+            var hd = GenerateHeader(files);
+
             // Use lambda to sum sizes of all files in files array
             long totalSize = hd.Length + files.Sum(s => new FileInfo(s).Length);
-
+            FileInfo finfo = new FileInfo(path);
+            if (finfo.Exists && finfo.Length == totalSize)
+            {
+                Console.WriteLine($"NSP already exists {path}");
+                return true;
+            }
             FileStream outfs = File.OpenWrite(path);
-            outfs.Write(hd, 0, hd.Length);
+            await outfs.WriteAsync(hd, 0, hd.Length).ConfigureAwait(false);
             /*
         
             totSize = len(hd) + sum(os.path.getsize(file) for file in self.files)
@@ -103,9 +109,8 @@ namespace SwitchManager.nx.cdn
         /// See http://switchbrew.org/index.php?title=NCA_Format#PFS0
         /// </summary>
         /// <returns></returns>
-        private byte[] GenerateHeader()
+        private static byte[] GenerateHeader(string[] files)
         {
-            string[] files = this.Files.ToArray();
             int nFiles = files.Length;
             
             // The size of the header is 0x10, plus one 0x18 size entry for each file, plus the size of the string table

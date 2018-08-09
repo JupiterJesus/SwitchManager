@@ -1,10 +1,13 @@
 ﻿using Newtonsoft.Json.Linq;
+using SwitchManager.nx.collection;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 
 namespace SwitchManager.nx.cdn
 {
@@ -12,29 +15,119 @@ namespace SwitchManager.nx.cdn
     /// Represents a CNMT file, which is a type of metadata file for NSPs (I think).
     /// See http://switchbrew.org/index.php?title=NCA
     /// </summary>
+    [Serializable]
+    [XmlRootAttribute("ContentMeta", Namespace = null, IsNullable = false)]
     public class CNMT
     {
-        public string CnmtFilePath { get; set; }
-        public string CnmtDirectory { get; set; }
-        public string CnmtNcaFile { get; set; }
-
-        public string ID { get; set; }
-        public uint Version { get; set; }
+        // below are XML attributes
+        [XmlElement(ElementName = "Type")]
         public TitleType Type { get; set; }
+
+        [XmlElement(ElementName = "Id")]
+        public string XmlId {
+            get { return "0x" + Id.ToLower(); }
+            set
+            {
+                string id = value.StartsWith("0x") ? value.Substring(2) : value;
+                if (id.Length != 32) throw new Exception("Couldn't read CNMT XmlId from string");
+                this.Id = id;
+            }
+        }
+
+        [XmlElement(ElementName = "Version")]
+        public uint Version { get; set; }
+
+        [XmlElement(ElementName = "RequiredDownloadSystemVersion")]
+        public string RequiredDownloadSystemVersion { get; set; }
+
+
+        [XmlElement(ElementName = "Content")]
+        public CnmtContentEntry[] Content
+        {
+            get
+            {
+                var meta = new CnmtContentEntry();
+                meta.Type = NCAType.Meta;
+                meta.Id = this.CnmtNcaFile.Name.Replace(".cnmt.nca", string.Empty);
+                meta.Size = this.CnmtNcaFile.Length;
+                meta.MasterKeyRevision = MasterKeyRevision;
+                using (FileStream stream = File.OpenRead(this.CnmtNcaFilePath))
+                {
+                    meta.HashData = new SHA256Managed().ComputeHash(stream);
+                }
+                var content = ParseContent();
+                content.Add(meta.Id, meta);
+                return content.Values.ToArray();
+            }
+            set
+            {
+                // this is awkward. There's nowhere to actually store this content, since it is always parsed on the fly
+                // from the cnmt file
+            }
+        }
+
+        [XmlElement(ElementName = "Digest")]
+        public string Digest
+        {
+            get { return ToHexString(hash); }
+            set
+            {
+                if (value.Length != 64) throw new Exception("Coudn't read CNMT Digest from string");
+                this.hash = new byte[value.Length * 2];
+                for (int n = 0; n < this.hash.Length; n++)
+                {
+                    string byteValue = value.Substring(n * 2, 2);
+                    this.hash[n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                }
+            }
+        }
+
+        [XmlElement(ElementName = "KeyGenerationMin")]
+        public byte MasterKeyRevision { get; set; }
+
+        [XmlElement(ElementName = "RequiredSystemVersion")]
+        public string RequiredSystemVersion { get; set; }
+
+        [XmlElement(ElementName = "PatchId")]
+        public string PatchId
+        {
+            get
+            {
+                return "0x" + (SwitchTitle.IsUpdateTitleID(Id) ? SwitchTitle.GetBaseGameIDFromUpdate(Id) : SwitchTitle.GetUpdateIDFromBaseGame(Id)).ToLower();
+            }
+            set
+            {
+                // do nothing, the value is derived from Id
+            }
+        }
+
+        [XmlIgnore]
+        public string Id { get; set; }
+        [XmlIgnore]
+        public string CnmtFilePath { get; set; }
+        [XmlIgnore]
+        public string CnmtDirectory { get; set; }
+        [XmlIgnore]
+        public FileInfo CnmtNcaFile { get; set; }
+        [XmlIgnore]
+        public string CnmtNcaFilePath { get { return CnmtNcaFile?.FullName; } }
+
 
         private ushort tableOffset;
         private ushort numContentEntries;
         private ushort numMetaEntries;
-        private string requiredDownloadSysVersion;
-        private string minSysVersion;
         private byte[] hash;
-        public byte MasterKeyRevision { get; set; }
+
+        public CNMT()
+        {
+
+        }
 
         public CNMT(string filePath, string headerPath, string cnmtDir, string ncaPath)
         {
             this.CnmtFilePath = filePath;
             this.CnmtDirectory = cnmtDir;
-            this.CnmtNcaFile = ncaPath;
+            this.CnmtNcaFile = new FileInfo(ncaPath);
 
             FileStream fs = File.OpenRead(filePath);
             BinaryReader br = new BinaryReader(fs);
@@ -43,7 +136,7 @@ namespace SwitchManager.nx.cdn
             // See http://switchbrew.org/index.php?title=NCA#Metadata_file
 
             // Title ID is at offset 0 and is 8 bytes long
-            this.ID = $"{br.ReadUInt64():X16}";
+            this.Id = $"{br.ReadUInt64():X16}";
 
             // Title Version is immediately after at offset 8 and is 4 bytes long
             this.Version = br.ReadUInt32();
@@ -67,10 +160,10 @@ namespace SwitchManager.nx.cdn
             // I see this in CDNSP but I don't see it in the doc
             // This is the 8 bytes before the app header starts at 0x20
             // The docs give no information about the 12 bytes starting at 0x14 (up to 0x20)
-            br.BaseStream.Seek(0x18, SeekOrigin.Begin); this.requiredDownloadSysVersion = br.ReadUInt64().ToString();
+            br.BaseStream.Seek(0x18, SeekOrigin.Begin); this.RequiredDownloadSystemVersion = br.ReadUInt64().ToString();
 
             // Minimum System Version is at offset 0x28 and is 8 bytes long
-            br.BaseStream.Seek(0x28, SeekOrigin.Begin); this.minSysVersion = br.ReadUInt64().ToString();
+            br.BaseStream.Seek(0x28, SeekOrigin.Begin); this.RequiredSystemVersion = br.ReadUInt64().ToString();
 
             // Get the hash/digest from the last 0x20 bytes
             br.BaseStream.Seek(-0x20, SeekOrigin.End); this.hash = br.ReadBytes(0x20);
@@ -150,7 +243,7 @@ namespace SwitchManager.nx.cdn
             {
                 // Parse a content entry
                 br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
-                string NcaId = BitConverter.ToString(br.ReadBytes(0x10)).Replace("-", ""); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
+                string NcaId = ToHexString(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
                 br.ReadBytes(6);
                 NCAType type = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
                 br.ReadByte(); // Unknown, offset 0x37, 1 byte
@@ -189,18 +282,19 @@ namespace SwitchManager.nx.cdn
             {
                 // Parse a content entry
                 var content = new CnmtContentEntry();
-                content.Hash = br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
-                content.NcaId = BitConverter.ToString(br.ReadBytes(0x10)).Replace("-", ""); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
+                content.HashData = br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
+                content.Id = ToHexString(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
                 byte[] sizeBuffer = new byte[8];
                 br.Read(sizeBuffer, 0, 6);
-                content.EntrySize = BitConverter.ToUInt64(sizeBuffer, 0); // Size, offset 0x30, 6 bytes (8 byte long converted from only 6 bytes)
-                content.NcaType = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
+                content.Size = BitConverter.ToInt64(sizeBuffer, 0); // Size, offset 0x30, 6 bytes (8 byte long converted from only 6 bytes)
+                content.Type = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
                 content.Unknown = br.ReadByte(); // Unknown, offset 0x37, 1 byte
+                content.MasterKeyRevision = this.MasterKeyRevision;
 
                 // Only keep entries of the type we care about, or keep all of them if no type was specified
-                if (content.NcaType == ncaType || !ncaType.HasValue)
+                if (content.Type == ncaType || !ncaType.HasValue)
                 {
-                    data[content.NcaId] = content;
+                    data[content.Id] = content;
                 }
                 // restart loop 0x38 higher than the last loop read to read next meta entry
             }
@@ -208,64 +302,20 @@ namespace SwitchManager.nx.cdn
             return data;
         }
 
+        private string ToHexString(byte[] v)
+        {
+            return BitConverter.ToString(v).Replace("-", "").ToLower();
+        }
+
         public string GenerateXml(string outFile)
         {
-            if (this.Type == TitleType.SystemUpdate)
-            {
-                var data = this.ParseSystemUpdate();
-            }
-            else
-            {
-                var data = this.ParseContent();
-            }
+            XmlSerializer SerializerObj = new XmlSerializer(typeof(CNMT));
 
-            File.Create(outFile).Close();
-            //string headerPath = Path.GetDirectoryName(ncaPath) + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(ncaPath) +  Path.DirectorySeparatorChar + "Header.bin";
-            /*
-             * 
-        ContentMeta = ET.Element('ContentMeta')
+            // Create a new file stream to write the serialized object to a file
+            TextWriter writer = new StreamWriter(outFile);
+            SerializerObj.Serialize(writer, this);
+            writer.Close();
 
-        ET.SubElement(ContentMeta, 'Type').text = self.type
-        ET.SubElement(ContentMeta, 'Id').text = '0x%s' % self.id
-        ET.SubElement(ContentMeta, 'Version').text = self.ver
-        ET.SubElement(ContentMeta, 'RequiredDownloadSystemVersion').text =3 self.dlsysver
-
-        n = 1
-        for tid in data:
-            locals()["Content" + str(n)] = ET.SubElement(ContentMeta, 'Content')
-            ET.SubElement(locals()["Content" + str(n)], 'Type').text = data[tid][0]
-            ET.SubElement(locals()["Content" + str(n)], 'Id').text = tid
-            ET.SubElement(locals()["Content" + str(n)], 'Size').text = data[tid][1]
-            ET.SubElement(locals()["Content" + str(n)], 'Hash').text = data[tid][2]
-            ET.SubElement(locals()["Content" + str(n)], 'KeyGeneration').text = keyGeneration
-            n += 1
-
-        # cnmt.nca itself
-        cnmt = ET.SubElement(ContentMeta, 'Content')
-        ET.SubElement(cnmt, 'Type').text = 'Meta'
-        ET.SubElement(cnmt, 'Id').text = os.path.basename(ncaPath).split('.')[0]
-        ET.SubElement(cnmt, 'Size').text = str(os.path.getsize(ncaPath))
-        hash = sha256()
-        with open(ncaPath, 'rb') as nca:
-            hash.update(nca.read())  # Buffer not needed
-        ET.SubElement(cnmt, 'Hash').text = hash.hexdigest()
-        ET.SubElement(cnmt, 'KeyGeneration').text = mKeyRev
-
-        ET.SubElement(ContentMeta, 'Digest').text = self.digest
-        ET.SubElement(ContentMeta, 'KeyGenerationMin').text = self.mkeyrev
-        global sysver0
-        ET.SubElement(ContentMeta, 'RequiredSystemVersion').text = ('0' if sysver0 else self.sysver)
-        if self.id.endswith('800'):
-            ET.SubElement(ContentMeta, 'PatchId').text = '0x%s000' % self.id[:-3]
-        else:
-            ET.SubElement(ContentMeta, 'PatchId').text = '0x%s800' % self.id[:-3]
-
-        string = ET.tostring(ContentMeta, encoding='utf-8')
-        reparsed = minidom.parseString(string)
-        with open(outf, 'w') as f:
-            f.write(reparsed.toprettyxml(encoding='utf-8', indent='  ').decode()[:-1])
-
-        */
             Console.WriteLine("Generated XML file {0}!", Path.GetFileName(outFile));
             return (outFile);
         }

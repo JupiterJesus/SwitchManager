@@ -36,7 +36,7 @@ namespace SwitchManager.nx.cdn
 
         public int DownloadBuffer { get; set; }
 
-        public X509Certificate clientCert { get; }
+        public X509Certificate ClientCert { get; }
 
         public List<Task> DownloadTasks { get; } = new List<Task>();
 
@@ -46,7 +46,7 @@ namespace SwitchManager.nx.cdn
             this.eShopCertificate = eShopCertificate;
             this.titleCertPath = titleCertPath;
             this.titleTicketPath = titleTicketPath;
-            this.clientCert = LoadSSL(clientCertPath);
+            this.ClientCert = LoadSSL(clientCertPath);
             this.deviceId = deviceId;
             this.firmware = firmware;
             this.environment = environment;
@@ -154,7 +154,7 @@ namespace SwitchManager.nx.cdn
                 string ticketPath = null, certPath = null, cnmtXml = null;
                 if (nspRepack)
                 {
-                    cnmtXml = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFile) + ".xml";
+                    cnmtXml = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFilePath) + ".xml";
                     cnmt.GenerateXml(cnmtXml);
 
                     string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
@@ -221,7 +221,7 @@ namespace SwitchManager.nx.cdn
                 }
 
                 List<Task> tasks = new List<Task>();
-                NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFile, cnmtXml);
+                NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFilePath, cnmtXml);
                 foreach (var type in new [] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
                 {
                     var parsedNCAFiles = cnmt.ParseNCAs(type);
@@ -229,9 +229,9 @@ namespace SwitchManager.nx.cdn
                     {
                         string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
                         nsp.AddNCA(type, path);
-                        DoDownloadNCA(ncaID, path, verify).Wait();
-                        //Task t = DoDownloadNCA(ncaID, path, verify);
-                        //tasks.Add(t);
+                        //DoDownloadNCA(ncaID, path, verify).Wait();
+                        Task t = DoDownloadNCA(ncaID, path, verify);
+                        tasks.Add(t);
                     }
 
                 }
@@ -679,7 +679,7 @@ namespace SwitchManager.nx.cdn
                     //SslProtocols = SslProtocols.Tls12,
                     AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 };
-                singletonHandler.ClientCertificates.Add(this.clientCert);
+                singletonHandler.ClientCertificates.Add(this.ClientCert);
                 ServicePointManager.ServerCertificateValidationCallback += (o, c, ch, er) => true;
                 ServicePointManager.DefaultConnectionLimit = 1000;
 

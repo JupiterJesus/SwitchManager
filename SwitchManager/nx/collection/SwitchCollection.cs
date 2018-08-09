@@ -15,7 +15,8 @@ namespace SwitchManager.nx.collection
         public ObservableCollection<SwitchCollectionItem> Collection { get; set; }
         public CDNDownloader Loader { get; set; }
         private string imagesPath;
-        public string RomsPath { get; set; }
+        public string RomsPath { get; set; } = ".";
+        public bool RemoveContentAfterRepack { get; set; } = false;
         private Dictionary<string, SwitchCollectionItem> titlesByID = new Dictionary<string, SwitchCollectionItem>();
 
         internal SwitchCollection(CDNDownloader loader, string imagesPath, string romsPath)
@@ -78,6 +79,96 @@ namespace SwitchManager.nx.collection
         }
 
         /// <summary>
+        /// Scans a folder for existing roms and updates the collection.
+        /// </summary>
+        /// <param name="path"></param>
+        internal void ScanRomsFolder(string path)
+        {
+            DirectoryInfo dinfo = new DirectoryInfo(path);
+            if (!dinfo.Exists)
+                throw new DirectoryNotFoundException($"Roms directory {path} not found.");
+
+            foreach (var nspFile in dinfo.EnumerateFiles("*.nsp"))
+            {
+                string fname = nspFile.Name; // base name
+                fname = Path.GetFileNameWithoutExtension(fname); // remove .nsp
+                var fileParts = fname.Split();
+                if (fileParts == null || fileParts.Length < 2)
+                    continue;
+
+                string meta = fileParts.Last();
+
+                SwitchTitleType type = SwitchTitleType.Unknown;
+                string name = null;
+                string id = null;
+                string version = null;
+
+                // Lets parse the file name to get name, id and version
+                // Also check for [DLC] and [UPD] signifiers
+                // I could use a Regex but I'm not sure that would be faster or easier to do
+                if ("[DLC]".Equals(fileParts[0].ToLower()))
+                {
+                    type = SwitchTitleType.DLC;
+                    name = string.Join(" ", fileParts.Where((s, idx) => idx > 0 && idx < fileParts.Length - 1));
+                }
+                else
+                {
+                    name = string.Join(" ", fileParts.Where((s, idx) => idx < fileParts.Length - 1));
+                    if (meta.StartsWith("[UPD]"))
+                    {
+                        type = SwitchTitleType.Update;
+                        meta = meta.Remove(0, 5);
+                    }
+                    else
+                    {
+                        if (name.EndsWith("Demo"))
+                        {
+                            type = SwitchTitleType.Demo;
+                        }
+                        else
+                        {
+                            type = SwitchTitleType.Game;
+                        }
+                    }
+                }
+
+                if (meta.StartsWith("[") && meta.EndsWith("]"))
+                {
+                    string[] metaParts = meta.Split(new string[] { "][" }, StringSplitOptions.RemoveEmptyEntries);
+                    
+                    if (metaParts.Length > 1)
+                    {
+                        string verPart = metaParts[1];
+                        if (verPart.EndsWith("]"))
+                            version = verPart.Remove(verPart.Length - 1);
+                    }
+                    if (metaParts.Length > 0)
+                    {
+                        string idPart = metaParts[0];
+                        if (idPart.StartsWith("["))
+                        {
+                            id = idPart.Remove(0, 1);
+                            if (idPart.EndsWith("]"))
+                                id = idPart.Remove(idPart.Length - 1);
+                        }
+                    }
+                }
+
+                /* TODO Scan Roms
+                var item = GetTitleByID(id);
+                if (item  == null)
+                {
+                    item = AddGame(name, id, null);
+                }
+                item.File = nspFile;
+                item.Title.Type = type;
+                if (type == SwitchTitleType.Update)
+                    AddUpdateTitle(id)
+                */
+            }
+        }
+
+        /// <summary>
         /// Initiates a title download. 
         /// Note - you MUST match the version and the title id!
         /// If you try to download a game title with a version number greater than 0, it will fail!
@@ -89,7 +180,7 @@ namespace SwitchManager.nx.collection
         /// <param name="repack"></param>
         /// <param name="verify"></param>
         /// <returns></returns>
-        internal async Task DownloadTitle(SwitchTitle title, uint v, bool repack, bool verify)
+        public async Task DownloadTitle(SwitchTitle title, uint v, bool repack, bool verify)
         {
             if (title == null)
                 throw new Exception($"No title selected for download");
@@ -99,23 +190,14 @@ namespace SwitchManager.nx.collection
             if (!dinfo.Exists)
                 dinfo.Create();
             
-            NSP nsp = null;
-
             try
             {
-
                 // Download a base version with a game ID
                 if (v == 0)
                 {
                     if (SwitchTitle.IsBaseGameID(title.TitleID))
                     {
-                        nsp = await Loader.DownloadTitle(title, v, dir, repack, verify).ConfigureAwait(false);
-                        // TODO Handle all the files
-                        if (repack)
-                        {
-                            string nspFile = $"{this.RomsPath}{Path.DirectorySeparatorChar}[{title.TitleID}][{v}].nsp";
-                            nsp.Repack(nspFile);
-                        }
+                        await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
                     }
                     else
                         throw new Exception("Don't try to download a game with version greater than 0!");
@@ -124,16 +206,14 @@ namespace SwitchManager.nx.collection
                 {
                     if (SwitchTitle.IsBaseGameID(title.TitleID))
                         throw new Exception("Don't try to download an update using base game's ID!");
+                    else if (SwitchTitle.IsDLCID(title.TitleID))
+                    {
+                        // TODO Handle downloading of DLC
+                    }
                     else
                     {
-                        nsp = await Loader.DownloadTitle(title, v, dir, repack, verify).ConfigureAwait(false);
-
-                        if (repack)
-                        {
-                            string titleid = SwitchTitle.GetBaseGameIDFromUpdate(title.TitleID);
-                            string nspFile = $"{this.RomsPath}{Path.DirectorySeparatorChar}[{titleid}][{v}].nsp";
-                            nsp.Repack(nspFile);
-                        }
+                        // TODO: Handle downloading of update
+                        await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
                     }
                 }
             }
@@ -141,6 +221,27 @@ namespace SwitchManager.nx.collection
             {
                 // TODO delete directory after
                 //dinfo.Delete(true);
+            }
+        }
+
+        private async Task DoNspDownloadAndRepack(SwitchTitle title, uint version, DirectoryInfo dir, bool repack, bool verify)
+        {
+            var nsp = await Loader.DownloadTitle(title, version, dir.FullName, repack, verify).ConfigureAwait(false);
+
+            if (repack)
+            {
+                string nspFile = $"{title.Name} [{title.TitleID}][{version}].nsp";
+                string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
+
+                // Repack the game files into an NSP
+                bool success = await nsp.Repack(nspPath).ConfigureAwait(false);
+
+                // If the NSP failed somehow but the file exists any, remove it
+                if (!success && File.Exists(nspPath))
+                    File.Delete(nspPath);
+
+                if (this.RemoveContentAfterRepack)
+                    dir.Delete(true);
             }
         }
 

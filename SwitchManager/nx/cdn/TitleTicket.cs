@@ -87,7 +87,7 @@ namespace SwitchManager.nx.cdn
             for (int n = 0; n < 0x10; n++)
             {
                 string byteValue = rightsID.Substring(n * 2, 2);
-                RightsID[n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                RightsID[n] = HexToByte(byteValue);
             }
         }
 
