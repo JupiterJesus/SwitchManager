@@ -9,12 +9,12 @@ namespace SwitchManager.nx.cdn
         public long ExpectedSize { get; set; }
         public long Progress { get; set; }
         public string FileName {  get { return FileStream?.Name ?? null; } }
-        public DownloadTask(Stream webStream, FileStream fileStream, long expectedSize)
+        public DownloadTask(Stream webStream, FileStream fileStream, long expectedSize, long startingSize = 0)
         {
             this.WebStream = webStream;
             this.FileStream = fileStream;
             this.ExpectedSize = expectedSize;
-            this.Progress = 0;
+            this.Progress = startingSize;
         }
 
         public void UpdateProgress(int progress)

@@ -63,7 +63,7 @@ namespace SwitchManager
 
         private void Downloader_DownloadFinished(DownloadTask download)
         {
-            Console.WriteLine($"Finished download, saving file to {download.FileName}.");
+            Console.WriteLine($"Finished download, File: '{download.FileName}'.");
         }
 
         private void Downloader_DownloadProgress(DownloadTask download, int progress)
@@ -71,12 +71,15 @@ namespace SwitchManager
             // TODO: Turn this into progress bars UI
             // TODO: Add download speed to this and estimated completion
             //System.Diagnostics.Debug.WriteLine("Bytes read: {0}", totalBytesRead);
-            Console.WriteLine($"Downloaded {progress} bytes, {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)} {((double)download.Progress) / download.ExpectedSize:P2}% complete, File:{download.FileName}.");
+            Console.WriteLine($"Downloaded {progress} bytes, {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)} {((double)download.Progress) / download.ExpectedSize:P2} complete, File: '{download.FileName}'.");
         }
 
         private void Downloader_DownloadStarted(DownloadTask download)
         {
-            Console.WriteLine($"Starting download to file {download.FileName}, {ToFileSize(download.ExpectedSize)}.");
+            if (download.Progress == 0)
+                Console.WriteLine($"Starting download of size {ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
+            else
+                Console.WriteLine($"Resuming download at {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
         }
 
         public static string ToFileSize(double value)

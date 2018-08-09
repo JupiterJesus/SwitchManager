@@ -1,12 +1,10 @@
 ﻿using SwitchManager.nx.collection;
-using SwitchManager.nx.collection;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,8 +13,6 @@ using Newtonsoft.Json.Linq;
 using System.Collections.ObjectModel;
 using System.Net.Http.Headers;
 using System.Diagnostics;
-using Windows.Storage;
-using Windows.Storage.Streams;
 
 namespace SwitchManager.nx.cdn
 {
@@ -28,29 +24,33 @@ namespace SwitchManager.nx.cdn
         private string firmware;
 
         private string deviceId;
-        private static readonly string region = "US";
+        private string region;
 
         private string imagesPath;
         private string hactoolPath;
         private string keysPath;
         private string clientCertPath;
-        private static readonly string ShopNPath = "ShopN.pem";
+        private string eShopCertificate;
         private string titleCertPath;
         private string titleTicketPath;
+
+        public int DownloadBuffer { get; set; }
 
         public X509Certificate clientCert { get; }
 
         public List<Task> DownloadTasks { get; } = new List<Task>();
 
-        public CDNDownloader(string clientCertPath, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string imagesPath, string hactoolPath, string keysPath)
+        public CDNDownloader(string clientCertPath, string eShopCertificate, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath)
         {
             this.clientCertPath = clientCertPath;
+            this.eShopCertificate = eShopCertificate;
             this.titleCertPath = titleCertPath;
             this.titleTicketPath = titleTicketPath;
             this.clientCert = LoadSSL(clientCertPath);
             this.deviceId = deviceId;
             this.firmware = firmware;
             this.environment = environment;
+            this.region = region;
             this.imagesPath = Path.GetFullPath(imagesPath);
             this.hactoolPath = Path.GetFullPath(hactoolPath);
             this.keysPath = Path.GetFullPath(keysPath);
@@ -229,8 +229,9 @@ namespace SwitchManager.nx.cdn
                     {
                         string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
                         nsp.AddNCA(type, path);
-                        Task t = DoDownloadNCA(ncaID, path, verify);
-                        tasks.Add(t);
+                        DoDownloadNCA(ncaID, path, verify).Wait();
+                        //Task t = DoDownloadNCA(ncaID, path, verify);
+                        //tasks.Add(t);
                     }
 
                 }
@@ -399,24 +400,22 @@ namespace SwitchManager.nx.cdn
             {
                 downloaded = finfo.Length;
 
-                result = await MakeRequest(HttpMethod.Head, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }).ConfigureAwait(false);
+                result = await MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }, false).ConfigureAwait(false);
 
-                if (!"openresty/1.9.7.4".Equals(GetHeader(result.Headers, "Server"))) // Completed download
+                if (!result.Headers.Server.First().ToString().Equals("openresty/1.9.7.4")) // Completed download
                 {
                     Console.WriteLine("Download complete, skipping: " + fpath);
                     return;
                 }
-                else if (null == GetContentHeader(result, "Content-Range")) // CDN doesn't return a range if request >= filesize
+                else if (result.Content.Headers.ContentRange == null) // CDN doesn't return a range if request >= filesize
                 {
-                    string cLength = GetContentHeader(result, "Content-Length");
-                    if (long.TryParse(cLength, out long lcLength))
-                        expectedSize = lcLength;
+                    long cLength = result.Content.Headers.ContentLength ?? 0;
+                    expectedSize = cLength;
                 }
                 else
                 {
-                    string cLength = GetContentHeader(result, "Content-Length");
-                    if (long.TryParse(cLength, out long lcLength))
-                        expectedSize = downloaded + lcLength;
+                    long cLength = result.Content.Headers.ContentLength ?? 0;
+                    expectedSize = downloaded + cLength;
                 }
 
                 if (downloaded == expectedSize)
@@ -427,14 +426,12 @@ namespace SwitchManager.nx.cdn
                 else if (downloaded < expectedSize)
                 {
                     Console.WriteLine("Resuming previous download: " + fpath);
-                    result = await MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }, false).ConfigureAwait(false);
-                    fs = File.OpenWrite(fpath);
+                    fs = File.Open(fpath, FileMode.Append, FileAccess.Write);
                 }
                 else
                 {
                     Console.WriteLine("Existing file is larger than it should be, restarting: " + fpath);
                     downloaded = 0;
-                    result = await MakeRequest(HttpMethod.Get, url, null, null, false).ConfigureAwait(false);
                     fs = File.Create(fpath);
                 }
 
@@ -445,9 +442,8 @@ namespace SwitchManager.nx.cdn
                 downloaded = 0;
 
                 result = await MakeRequest(HttpMethod.Get, url, null, null, false);
-                string cLength = GetContentHeader(result, "Content-Length");
-                if (long.TryParse(cLength, out long lcLength))
-                    expectedSize = lcLength;
+                long cLength = result.Content.Headers.ContentLength ?? 0;
+                expectedSize = cLength;
             }
 
             // this is where I download the file
@@ -462,16 +458,16 @@ namespace SwitchManager.nx.cdn
             // The thing that calls DownloadFile either uses "await" to wait for it to finish or it can 
             // collect tasks somewhere until they're done. Right? I don't actually know
 
-            //string str = result.Content.ReadAsStringAsync().Result;
-            await StartDownload(fs, result, expectedSize).ConfigureAwait(false);
+            await StartDownload(fs, result, expectedSize, downloaded).ConfigureAwait(false);
 
-            var newFile = new FileInfo(fs.Name);
+            fs.Dispose();
+            result.Dispose();
+
+            var newFile = new FileInfo(fpath);
             if (expectedSize != 0 && newFile.Length != expectedSize)
             {
                 throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
             }
-            fs.Dispose();
-            result.Dispose();
 
             // The next thing to figure out is how to get updates on the task
             // Like, after a task is done I want to remove it from the downloads list
@@ -494,20 +490,20 @@ namespace SwitchManager.nx.cdn
         /// <param name="result"></param>
         /// <param name="expectedSize"></param>
         /// <returns></returns>
-        private async Task StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize)
+        private async Task StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize, long startingSize = 0)
         {
-            using (Stream remoteStream = await result.Content.ReadAsStreamAsync())
+            using (Stream remoteStream = await result.Content.ReadAsStreamAsync().ConfigureAwait(false))
             {
-                DownloadTask download = new DownloadTask(remoteStream, fileStream, expectedSize);
+                DownloadTask download = new DownloadTask(remoteStream, fileStream, expectedSize, startingSize);
 
                 if (DownloadStarted != null) DownloadStarted.Invoke(download);
 
-                byte[] buffer = new byte[1048576];
+                byte[] buffer = new byte[this.DownloadBuffer];
                 while (true)
                 {
                     // Read from the web.
-                    int n = remoteStream.Read(buffer, 0, buffer.Length);
-
+                    int n = await remoteStream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                    
                     if (n == 0)
                     {
                         // There is nothing else to read.
@@ -518,12 +514,12 @@ namespace SwitchManager.nx.cdn
                     download.UpdateProgress(n);
 
                     if (DownloadStarted != null) DownloadProgress.Invoke(download, n);
-
+                    
                     // Write to file.
-                    await fileStream.WriteAsync(buffer, 0, n);
-                    await fileStream.FlushAsync();
+                    fileStream.Write(buffer, 0, n);
                 }
                 if (DownloadFinished != null) DownloadFinished.Invoke(download);
+                fileStream.Flush();
             }
         }
 
@@ -617,19 +613,6 @@ namespace SwitchManager.nx.cdn
 
         private string GetHeader(HttpResponseHeaders headers, string name)
         {
-            if (headers != null && headers.Contains(name))
-            {
-                IEnumerable<string> h = headers.GetValues(name);
-                string result = h.First();
-                return result;
-            }
-
-            return null;
-        }
-
-        private string GetContentHeader(HttpResponseMessage response, string name)
-        {
-            HttpContentHeaders headers = response?.Content?.Headers;
             if (headers != null && headers.Contains(name))
             {
                 IEnumerable<string> h = headers.GetValues(name);
