@@ -119,5 +119,40 @@ namespace SwitchManager.nx.collection
             SwitchTitle title = new SwitchTitle(this.name + "[v" + v + "]", GetUpdateIDFromBaseGame(this.TitleID), null);
             return title;
         }
+
+        public override string ToString()
+        {
+            if (TitleID == null && Name == null)
+                return "Unknown Title";
+            else if (TitleID == null)
+                return Name;
+            else if (Name == null)
+                return "[" + TitleID + "]";
+            else
+                return Name + " [" + TitleID + "]";
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+                return false;
+
+            if (!(obj is SwitchTitle))
+                return false;
+
+            SwitchTitle other = obj as SwitchTitle;
+            if (TitleID == null && other.TitleID == null)
+                return true;
+
+            if (TitleID == null || other.TitleID == null)
+                return false;
+
+            return TitleID.Equals(other.TitleID);
+        }
+
+        public override int GetHashCode()
+        {
+            return TitleID?.GetHashCode() ?? 0;
+        }
     }
 }

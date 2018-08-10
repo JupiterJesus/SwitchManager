@@ -388,7 +388,7 @@ namespace SwitchManager.nx.cdn
         /// </summary>
         /// <param name="url"></param>
         /// <param name="fpath"></param>
-        private async Task DownloadFile(string url, string fpath)
+        public async Task DownloadFile(string url, string fpath)
         {
             var finfo = new FileInfo(fpath);
             long downloaded = 0;

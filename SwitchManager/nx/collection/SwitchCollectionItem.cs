@@ -114,5 +114,33 @@ namespace SwitchManager.nx.collection
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(info));
         }
+
+        public override string ToString()
+        {
+            return title?.ToString();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+                return false;
+
+            if (!(obj is SwitchCollectionItem))
+                return false;
+
+            SwitchCollectionItem other = obj as SwitchCollectionItem;
+            if (title == null && other.title == null)
+                return true;
+
+            if (title == null || other.title == null)
+                return false;
+
+            return title.Equals(other.title);
+        }
+
+        public override int GetHashCode()
+        {
+            return title?.GetHashCode() ?? 0;
+        }
     }
 }

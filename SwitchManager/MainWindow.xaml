@@ -19,26 +19,25 @@
     <DockPanel Grid.Row="0" Margin="0,0,0.333,-0.333" Grid.RowSpan="2">
       <Menu DockPanel.Dock="Top">
         <MenuItem Header="_File">
-          <MenuItem Header="_Open"/>
-          <MenuItem Header="_Close"/>
-          <MenuItem Header="_Save"/>
+          <MenuItem Header="_Update Title Keys" Click="MenuItemUpdate_Click"/>
+          <MenuItem Header="_Scan For Games" Click="MenuItemScan_Click"/>
+          <MenuItem Header="Save _Library" Click="MenuItemSaveLibrary_Click"/>
         </MenuItem>
-        THIS MENU DOES NOTHING RIGHT NOW
       </Menu>
       <StackPanel></StackPanel>
     </DockPanel>
-    <StackPanel Orientation="Horizontal" Margin="5,5,5,5" >
-      <Grid Background="White" HorizontalAlignment="Right" VerticalAlignment="Top"  >
+    <StackPanel Orientation="Horizontal" >
+      <Grid Background="White" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="5,5,5,5">
         <!-- overlay with hint text -->
         <TextBlock Margin="5,2" Height="20"  MinWidth="50" Text="Type to filter library by name..." 
                    Foreground="LightSteelBlue" Visibility="{Binding ElementName=TextBox_Search, Path=Text.IsEmpty, Converter={StaticResource TextInputToVisibilityConverter}}" />
         <!-- enter term here -->
         <TextBox Height="20" MinWidth="50" x:Name="TextBox_Search" Width="200" TextChanged="TextBox_Search_TextChanged"  Background="Transparent" />
       </Grid>
-      <CheckBox x:Name="CheckBox_Demos" Checked="CheckBox_Demos_Checked" Unchecked="CheckBox_Demos_Checked">Hide Demos?</CheckBox>
+      <CheckBox x:Name="CheckBox_Demos" Margin="5,5,5,5" Checked="CheckBox_Demos_Checked" Unchecked="CheckBox_Demos_Checked">Hide Demos?</CheckBox>
     </StackPanel>
     <DataGrid x:Name="DataGrid_Collection"  Grid.Row="2"
-              MaxHeight="2000" MaxWidth="2000" Margin="5,5,5,5" 
+              MaxHeight="600" Margin="5,5,5,5" 
               AutoGenerateColumns="False" 
               DataContext="{StaticResource ItemCollectionViewSource}"
               ItemsSource="{Binding}"

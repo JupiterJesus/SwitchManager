@@ -18,6 +18,8 @@ using SwitchManager.nx.cdn;
 using SwitchManager.Properties;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
+using System.Net;
 
 namespace SwitchManager
 {
@@ -49,7 +51,16 @@ namespace SwitchManager
             gameCollection = new SwitchCollection(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
 
             gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
-            gameCollection.LoadMetadata(Settings.Default.MetadataFile);
+
+            try
+            {
+                gameCollection.LoadMetadata(Settings.Default.MetadataFile);
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Error reading library metadata file, it will be recreated on exit or when you force save it.");
+            }
+
             Task.Run(() => gameCollection.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages)).ConfigureAwait(false);
 
             // WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN
@@ -71,6 +82,8 @@ namespace SwitchManager
             });
             cv.Filter = datagridFilter;
         }
+
+        #region Download Progress
 
         private void Downloader_DownloadFinished(DownloadTask download)
         {
@@ -126,12 +139,15 @@ namespace SwitchManager
             }
         }
 
+        #endregion
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             Settings.Default.Save();
             gameCollection.SaveMetadata(Settings.Default.MetadataFile);
         }
+
+        #region Buttons and other controls on the datagrid
 
         private uint? SelectedVersion { get; set; }
 
@@ -154,6 +170,10 @@ namespace SwitchManager
                 SelectedVersion = v;
             }
         }
+
+        #endregion 
+
+        #region DataGrid filtering
 
         private string filterText = null;
         private bool hideDemos = false;
@@ -178,6 +198,61 @@ namespace SwitchManager
                 cv.Refresh();
             }
         }
+
+        #endregion
+
+        #region Menu Items
+
+        private async void MenuItemUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            await DownloadTitleKeys();
+        }
+
+        private async Task DownloadTitleKeys()
+        {
+            string tkeysFile = System.IO.Path.GetFullPath(Settings.Default.TitleKeysFile);
+            string tempTkeysFile = tkeysFile + ".tmp";
+
+            using (var client = new WebClient())
+            {
+                client.DownloadFile(new Uri(Settings.Default.TitleKeysURL), tempTkeysFile);
+            }
+
+            FileInfo tempTkeys = new FileInfo(tempTkeysFile);
+            FileInfo tkeys = new FileInfo(tkeysFile);
+
+            if (tempTkeys.Exists && tempTkeys.Length >= tkeys.Length)
+            {
+                Console.WriteLine("Successfully downloaded new title keys file");
+                var newTitles = await gameCollection.UpdateTitleKeysFile(tempTkeysFile);
+
+                if (newTitles.Count > 0)
+                {
+                    // New titles to show you!
+                    var message = string.Join(Environment.NewLine, newTitles);
+                    MessageBox.Show(message, "New Title Keys Found!", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                File.Delete(tkeysFile);
+                tempTkeys.MoveTo(tkeysFile);
+            }
+            else
+            {
+                Console.WriteLine("Failed to download new title keys file or new file was smaller than the old one");
+                File.Delete(tempTkeysFile);
+            }
+        }
+
+        private void MenuItemScan_Click(object sender, RoutedEventArgs e)
+        {
+            this.gameCollection.ScanRomsFolder(Settings.Default.NSPDirectory);
+        }
+
+        private void MenuItemSaveLibrary_Click(object sender, RoutedEventArgs e)
+        {
+            this.gameCollection.SaveMetadata(Settings.Default.MetadataFile);
+        }
+
+        #endregion
     }
 
     public class TextInputToVisibilityConverter : IValueConverter
