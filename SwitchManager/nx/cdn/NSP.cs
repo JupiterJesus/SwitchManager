@@ -61,6 +61,7 @@ namespace SwitchManager.nx.cdn
             string[] files = this.Files.ToArray();
             int nFiles = files.Length;
 
+
             var hd = GenerateHeader(files);
 
             // Use lambda to sum sizes of all files in files array
@@ -71,14 +72,21 @@ namespace SwitchManager.nx.cdn
                 Console.WriteLine($"NSP already exists {path}");
                 return true;
             }
-            FileStream outfs = File.OpenWrite(path);
-            await outfs.WriteAsync(hd, 0, hd.Length).ConfigureAwait(false);
+            using (FileStream outfs = File.OpenWrite(path))
+            {
+                await outfs.WriteAsync(hd, 0, hd.Length).ConfigureAwait(false);
+            }
+
+            if (finfo.Exists && finfo.Length == totalSize)
+            {
+                Console.WriteLine($"Successfully repacked NSP to {path}");
+                return true;
+            }
+
+            Console.WriteLine($"Failed to repack NSP to {path}");
+            return false;
             /*
         
-            totSize = len(hd) + sum(os.path.getsize(file) for file in self.files)
-            if os.path.exists(self.path) and os.path.getsize(self.path) == totSize:
-                print('\t\tRepack %s is already complete!' % self.path)
-                return
             
             t = tqdm(total=totSize, unit='B', unit_scale=True, desc=os.path.basename(self.path), leave=False)
         
@@ -99,9 +107,6 @@ namespace SwitchManager.nx.cdn
                         t.update(len(buf))
             t.close()
             */
-
-            Console.WriteLine($"Finished repacking NSP to {outfs.Name}!");
-            outfs.Dispose();
         }
 
         /// <summary>

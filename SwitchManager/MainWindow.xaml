@@ -11,6 +11,8 @@
   <!-- WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN-->
   <Window.Resources>
     <CollectionViewSource x:Key="ItemCollectionViewSource"  CollectionViewType="ListCollectionView"/>
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    <local:TextInputToVisibilityConverter x:Key="TextInputToVisibilityConverter" />
   </Window.Resources>
 
   <StackPanel Margin="0">
@@ -21,10 +23,20 @@
           <MenuItem Header="_Close"/>
           <MenuItem Header="_Save"/>
         </MenuItem>
+        THIS MENU DOES NOTHING RIGHT NOW
       </Menu>
       <StackPanel></StackPanel>
     </DockPanel>
-    <TextBox x:Name="TextBox_Search" Margin="5,5,5,5" TextChanged="TextBox_Search_TextChanged" Grid.RowSpan="2" Grid.Row="1" Height="20" VerticalAlignment="Top"/>
+    <StackPanel Orientation="Horizontal" Margin="5,5,5,5" >
+      <Grid Background="White" HorizontalAlignment="Right" VerticalAlignment="Top"  >
+        <!-- overlay with hint text -->
+        <TextBlock Margin="5,2" Height="20"  MinWidth="50" Text="Type to filter library by name..." 
+                   Foreground="LightSteelBlue" Visibility="{Binding ElementName=TextBox_Search, Path=Text.IsEmpty, Converter={StaticResource TextInputToVisibilityConverter}}" />
+        <!-- enter term here -->
+        <TextBox Height="20" MinWidth="50" x:Name="TextBox_Search" Width="200" TextChanged="TextBox_Search_TextChanged"  Background="Transparent" />
+      </Grid>
+      <CheckBox x:Name="CheckBox_Demos" Checked="CheckBox_Demos_Checked" Unchecked="CheckBox_Demos_Checked">Hide Demos?</CheckBox>
+    </StackPanel>
     <DataGrid x:Name="DataGrid_Collection"  Grid.Row="2"
               MaxHeight="2000" MaxWidth="2000" Margin="5,5,5,5" 
               AutoGenerateColumns="False" 
@@ -50,9 +62,7 @@
               <TextBlock FontSize="13" Text="Versions" />
               <ComboBox ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}" SelectionChanged="ComboBox_SelectionChanged">
               </ComboBox>
-              <RadioButton>
-
-              </RadioButton>
+              <RadioButton>Dummy radio button that does nothing</RadioButton>
               <Button x:Name="Button_Download" Click="Button_Download_Click">Download Title</Button>
 
             </StackPanel>

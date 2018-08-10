@@ -17,6 +17,7 @@ using SwitchManager.nx.collection;
 using SwitchManager.nx.cdn;
 using SwitchManager.Properties;
 using System.ComponentModel;
+using System.Globalization;
 
 namespace SwitchManager
 {
@@ -60,6 +61,15 @@ namespace SwitchManager
             downloader.DownloadStarted += Downloader_DownloadStarted;
             downloader.DownloadProgress += Downloader_DownloadProgress;
             downloader.DownloadFinished += Downloader_DownloadFinished;
+
+            // Add a filter to the datagrid based on text filtering and checkboxes
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+            Predicate<object> datagridFilter = (o => {
+                SwitchCollectionItem i = o as SwitchCollectionItem;
+                return (!this.hideDemos || (!i.Title.Name.ToUpper().EndsWith("DEMO"))) &&
+                       (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()));
+            });
+            cv.Filter = datagridFilter;
         }
 
         private void Downloader_DownloadFinished(DownloadTask download)
@@ -145,23 +155,49 @@ namespace SwitchManager
             }
         }
 
+        private string filterText = null;
+        private bool hideDemos = false;
+
         private void TextBox_Search_TextChanged(object sender, TextChangedEventArgs e)
         {
             TextBox searchBox = (TextBox)sender;
             string filterText = searchBox.Text;
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
 
-            if (!string.IsNullOrEmpty(filterText))
+            this.filterText = filterText;
+            cv.Refresh();
+        }
+
+        private void CheckBox_Demos_Checked(object sender, RoutedEventArgs e)
+        {
+            CheckBox cbox = (CheckBox)sender;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+            if (cbox.IsChecked.HasValue)
             {
-                cv.Filter = o => {
-                    SwitchCollectionItem i = o as SwitchCollectionItem;
-                    return (i.Title.Name.ToUpper().Contains(filterText.ToUpper()));
-                };
+                this.hideDemos = cbox.IsChecked.Value;
+                cv.Refresh();
             }
-            else
+        }
+    }
+
+    public class TextInputToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            // Always test MultiValueConverter inputs for non-null 
+            // (to avoid crash bugs for views in the designer) 
+            if (value is bool)
             {
-                cv.Filter = null;
+                bool hasText = !(bool)value;
+                if (hasText)
+                    return Visibility.Collapsed;
             }
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 }
