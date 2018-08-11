@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using SwitchManager.util;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -34,12 +35,7 @@ namespace SwitchManager.nx.cdn
             set
             {
                 if (value.Length != 64) throw new Exception("Coudn't read CNMT Digest from string");
-                this.HashData = new byte[value.Length * 2];
-                for (int n = 0; n < this.HashData.Length; n++)
-                {
-                    string byteValue = value.Substring(n * 2, 2);
-                    this.HashData[n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
-                }
+                this.HashData = Miscellaneous.HexToBytes(value);
             }
         }
 

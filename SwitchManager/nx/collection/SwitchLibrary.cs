@@ -132,7 +132,6 @@ namespace SwitchManager.nx.library
 
                 ci.IsFavorite = item.IsFavorite;
                 ci.RomPath = item.Path;
-                ci.Size = item.Size;
                 ci.State = item.State;
             }
 
@@ -257,7 +256,7 @@ namespace SwitchManager.nx.library
         /// <param name="repack"></param>
         /// <param name="verify"></param>
         /// <returns></returns>
-        public async Task DownloadTitle(SwitchTitle title, uint v, bool repack, bool verify)
+        public async Task<string> DownloadTitle(SwitchTitle title, uint v, bool repack, bool verify)
         {
             if (title == null)
                 throw new Exception($"No title selected for download");
@@ -274,7 +273,7 @@ namespace SwitchManager.nx.library
                 {
                     if (SwitchTitle.IsBaseGameID(title.TitleID))
                     {
-                        await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
+                        return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
                     }
                     else
                         throw new Exception("Don't try to download a game with version greater than 0!");
@@ -286,11 +285,12 @@ namespace SwitchManager.nx.library
                     else if (SwitchTitle.IsDLCID(title.TitleID))
                     {
                         // TODO Handle downloading of DLC
+                        return null;
                     }
                     else
                     {
                         // TODO: Handle downloading of update
-                        await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
+                        return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
                     }
                 }
             }
@@ -301,7 +301,7 @@ namespace SwitchManager.nx.library
             }
         }
 
-        private async Task DoNspDownloadAndRepack(SwitchTitle title, uint version, DirectoryInfo dir, bool repack, bool verify)
+        private async Task<string> DoNspDownloadAndRepack(SwitchTitle title, uint version, DirectoryInfo dir, bool repack, bool verify)
         {
             var nsp = await Loader.DownloadTitle(title, version, dir.FullName, repack, verify).ConfigureAwait(false);
 
@@ -319,7 +319,10 @@ namespace SwitchManager.nx.library
 
                 if (this.RemoveContentAfterRepack)
                     dir.Delete(true);
+
+                return nspPath;
             }
+            return dir.FullName;
         }
 
         /// <summary>
@@ -377,7 +380,9 @@ namespace SwitchManager.nx.library
                 case DownloadOptions.BaseGameOnly:
                 default:
                     v = title.Versions.Last();
-                    await DownloadTitle(title, v, repack, verify);
+                    string romPath = await DownloadTitle(title, v, repack, verify);
+                    titleItem.State = SwitchCollectionState.Owned;
+                    titleItem.RomPath = Path.GetFullPath(romPath);
                     break;
             }
         }

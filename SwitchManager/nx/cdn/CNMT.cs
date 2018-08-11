@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using SwitchManager.nx.library;
+using SwitchManager.util;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -69,16 +70,11 @@ namespace SwitchManager.nx.cdn
         [XmlElement(ElementName = "Digest")]
         public string Digest
         {
-            get { return ToHexString(hash); }
+            get { return Miscellaneous.BytesToHex(hash); }
             set
             {
                 if (value.Length != 64) throw new Exception("Coudn't read CNMT Digest from string");
-                this.hash = new byte[value.Length * 2];
-                for (int n = 0; n < this.hash.Length; n++)
-                {
-                    string byteValue = value.Substring(n * 2, 2);
-                    this.hash[n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
-                }
+                this.hash = Miscellaneous.HexToBytes(value);
             }
         }
 
@@ -243,7 +239,7 @@ namespace SwitchManager.nx.cdn
             {
                 // Parse a content entry
                 br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
-                string NcaId = ToHexString(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
+                string NcaId = Miscellaneous.BytesToHex(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
                 br.ReadBytes(6);
                 NCAType type = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
                 br.ReadByte(); // Unknown, offset 0x37, 1 byte
@@ -283,7 +279,7 @@ namespace SwitchManager.nx.cdn
                 // Parse a content entry
                 var content = new CnmtContentEntry();
                 content.HashData = br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
-                content.Id = ToHexString(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
+                content.Id = Miscellaneous.BytesToHex(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
                 byte[] sizeBuffer = new byte[8];
                 br.Read(sizeBuffer, 0, 6);
                 content.Size = BitConverter.ToInt64(sizeBuffer, 0); // Size, offset 0x30, 6 bytes (8 byte long converted from only 6 bytes)
@@ -302,19 +298,17 @@ namespace SwitchManager.nx.cdn
             return data;
         }
 
-        private string ToHexString(byte[] v)
-        {
-            return BitConverter.ToString(v).Replace("-", "").ToLower();
-        }
-
         public string GenerateXml(string outFile)
         {
-            XmlSerializer SerializerObj = new XmlSerializer(typeof(CNMT));
 
             // Create a new file stream to write the serialized object to a file
-            TextWriter writer = new StreamWriter(outFile);
-            SerializerObj.Serialize(writer, this);
-            writer.Close();
+            using (TextWriter writer = new StreamWriter(outFile))
+            {
+                XmlSerializer xmls = new XmlSerializer(typeof(CNMT));
+                XmlSerializerNamespaces ns = new XmlSerializerNamespaces();
+                ns.Add("", "");
+                xmls.Serialize(writer, this, ns);
+            }
 
             Console.WriteLine("Generated XML file {0}!", Path.GetFileName(outFile));
             return (outFile);

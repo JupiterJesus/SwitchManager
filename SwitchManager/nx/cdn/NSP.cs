@@ -63,20 +63,29 @@ namespace SwitchManager.nx.cdn
 
 
             var hd = GenerateHeader(files);
+            // DEBUGGING NOTES  MY ICONOCLASTS HEADER IS 624 BYTES TOO LONG FIX THIS ASAP
 
             // Use lambda to sum sizes of all files in files array
             long totalSize = hd.Length + files.Sum(s => new FileInfo(s).Length);
+
             FileInfo finfo = new FileInfo(path);
             if (finfo.Exists && finfo.Length == totalSize)
             {
                 Console.WriteLine($"NSP already exists {path}");
                 return true;
             }
-            using (FileStream outfs = File.OpenWrite(path))
+            using (FileStream nspFilestream = File.OpenWrite(path))
             {
-                await outfs.WriteAsync(hd, 0, hd.Length).ConfigureAwait(false);
+                await nspFilestream.WriteAsync(hd, 0, hd.Length).ConfigureAwait(false);
+                // Copy each file to the end of the NSP in sequence. Nothing special here just copy them all.
+                foreach (var file in files)
+                {
+                    using (FileStream fs = File.OpenRead(file))
+                        await fs.CopyToAsync(nspFilestream).ConfigureAwait(false);
+                }
             }
 
+            finfo.Refresh();
             if (finfo.Exists && finfo.Length == totalSize)
             {
                 Console.WriteLine($"Successfully repacked NSP to {path}");
@@ -85,28 +94,6 @@ namespace SwitchManager.nx.cdn
 
             Console.WriteLine($"Failed to repack NSP to {path}");
             return false;
-            /*
-        
-            
-            t = tqdm(total=totSize, unit='B', unit_scale=True, desc=os.path.basename(self.path), leave=False)
-        
-            t.write('\t\tWriting header...')
-            outf = open(self.path, 'wb')
-            outf.write(hd)
-            t.update(len(hd))
-        
-            done = 0
-            for file in self.files:
-                t.write('\t\tAppending %s...' % os.path.basename(file))
-                with open(file, 'rb') as inf:
-                    while True:
-                        buf = inf.read(4096)
-                        if not buf:
-                            break
-                        outf.write(buf)
-                        t.update(len(buf))
-            t.close()
-            */
         }
 
         /// <summary>
@@ -120,7 +107,7 @@ namespace SwitchManager.nx.cdn
             
             // The size of the header is 0x10, plus one 0x18 size entry for each file, plus the size of the string table
             // The string table is all of the file names, terminated by nulls
-            int stringTableSize = files.Sum((s) => s.Length + 1);
+            int stringTableSize = files.Sum((s) => Path.GetFileName(s).Length + 1);
             int headerSize = 0x10 + (nFiles) * 0x18 + stringTableSize;
 
             int remainder = 0x10 - headerSize % 0x10;
@@ -136,12 +123,12 @@ namespace SwitchManager.nx.cdn
                     fileOffsets[i] += fileSizes[j];
 
             // Calculate the filename lengths array (length of file names)
-            var fileNamesLengths = files.Select(f => new FileInfo(f).Name.Length + 1).ToArray(); // fileNamesLengths = [len(os.path.basename(file))+1 for file in self.files] # +1 for the \x00
+            var fileNamesLengths = files.Select(f => Path.GetFileName(f).Length + 1).ToArray(); // fileNamesLengths = [len(os.path.basename(file))+1 for file in self.files] # +1 for the \x00
             
             var stringTableOffsets = new int[nFiles];
             for (int i = 0; i < stringTableOffsets.Length; i++) // = [sum(fileNamesLengths[:n]) for n in range(filesNb)]
                 for (int j = 0; j < i; j++)
-                    stringTableOffsets[i] += files[j].Length+1;
+                    stringTableOffsets[i] += fileNamesLengths[j];
 
             byte[] header = new byte[headerSize]; 
             int n = 0;
@@ -182,7 +169,7 @@ namespace SwitchManager.nx.cdn
             // Encode every string in UTF8, then terminate with a 0
             foreach (var str in files)
             {
-                byte[] strBytes = Encoding.UTF8.GetBytes(str); strBytes.CopyTo(header, n); n += strBytes.Length;
+                byte[] strBytes = Encoding.UTF8.GetBytes(Path.GetFileName(str )); strBytes.CopyTo(header, n); n += strBytes.Length;
                 header[n++] = 0;
             }
             

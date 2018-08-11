@@ -1,6 +1,8 @@
-﻿using System;
+﻿using SwitchManager.util;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -69,12 +71,54 @@ namespace SwitchManager.nx.library
         }
         private bool isFavorite;
 
-        [XmlElement(ElementName = "Size")]
-        public ulong Size { get; set; }
+        [XmlIgnore]
+        public long Size
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(RomPath))
+                    return 0;
+                else if (Directory.Exists(RomPath))
+                    return DirSize(new DirectoryInfo(RomPath));
+                else if (File.Exists(RomPath))
+                    return new FileInfo(RomPath).Length;
+                else
+                    return 0;
+            }
+        }
+
+        [XmlIgnore]
+        public string PrettySize {  get { return Miscellaneous.ToFileSize(Size); } }
+
+        private static long DirSize(DirectoryInfo d)
+        {
+            long size = 0;
+            // Add file sizes.
+            foreach (FileInfo fi in d.EnumerateFiles())
+            {
+                size += fi.Length;
+            }
+            // Add subdirectory sizes.
+            foreach (DirectoryInfo di in d.EnumerateDirectories())
+            {
+                size += DirSize(di);
+            }
+            return size;
+        }
 
         [XmlElement(ElementName = "Path")]
-        public string RomPath { get; set; }
-
+        public string RomPath
+        {
+            get { return romPath; }
+            set
+            {
+                this.romPath = value;
+                NotifyPropertyChanged("RomPath");
+                NotifyPropertyChanged("PrettySize");
+                NotifyPropertyChanged("Size");
+            }
+        }
+        private string romPath;
         /// <summary>
         /// Default constructor. I don't like these but XmlSerializer requires it, even though I have NO NO NO
         /// intention of deserializing into this class  (just serializing). Make sure to populate fields if you call

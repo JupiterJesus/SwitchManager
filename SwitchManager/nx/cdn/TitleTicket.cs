@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SwitchManager.util;
+using System;
 using System.IO;
 
 namespace SwitchManager.nx.cdn
@@ -72,23 +73,13 @@ namespace SwitchManager.nx.cdn
             for (int n = 0; n < 0x10; n++)
             {
                 string byteValue = titleKey.Substring(n * 2, 2);
-                TitleKey[n] = HexToByte(byteValue);
+                TitleKey[n] = Miscellaneous.HexToByte(byteValue);
             }
         }
 
-        private static byte HexToByte(string byteValue)
+        private byte MiscellaneousHexToByte(string byteValue)
         {
-            return byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
-        }
-
-        internal void RightsIdFromString(string rightsID)
-        { 
-            // Copy the rights ID in there too at 0x2A0, also 16 bytes (32 characters) long
-            for (int n = 0; n < 0x10; n++)
-            {
-                string byteValue = rightsID.Substring(n * 2, 2);
-                RightsID[n] = HexToByte(byteValue);
-            }
+            throw new NotImplementedException();
         }
 
         internal void SaveTo(string ticketPath)

@@ -20,6 +20,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using SwitchManager.util;
 
 namespace SwitchManager
 {
@@ -95,48 +96,15 @@ namespace SwitchManager
             // TODO: Turn this into progress bars UI
             // TODO: Add download speed to this and estimated completion
             //System.Diagnostics.Debug.WriteLine("Bytes read: {0}", totalBytesRead);
-            Console.WriteLine($"Downloaded {progress} bytes, {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)} {((double)download.Progress) / download.ExpectedSize:P2} complete, File: '{download.FileName}'.");
+            Console.WriteLine($"Downloaded {progress} bytes, {Miscellaneous.ToFileSize(download.Progress)}/{Miscellaneous.ToFileSize(download.ExpectedSize)} {((double)download.Progress) / download.ExpectedSize:P2} complete, File: '{download.FileName}'.");
         }
 
         private void Downloader_DownloadStarted(DownloadTask download)
         {
             if (download.Progress == 0)
-                Console.WriteLine($"Starting download of size {ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
+                Console.WriteLine($"Starting download of size {Miscellaneous.ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
             else
-                Console.WriteLine($"Resuming download at {ToFileSize(download.Progress)}/{ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
-        }
-
-        public static string ToFileSize(double value)
-        {
-            string[] suffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
-            for (int i = 0; i < suffixes.Length; i++)
-            {
-                if (value <= (Math.Pow(1024, i + 1)))
-                {
-                    return ThreeNonZeroDigits(value / Math.Pow(1024, i)) + " " + suffixes[i];
-                }
-            }
-
-            return ThreeNonZeroDigits(value / Math.Pow(1024, suffixes.Length - 1)) + " " + suffixes[suffixes.Length - 1];
-        }
-
-        private static string ThreeNonZeroDigits(double value)
-        {
-            if (value >= 100)
-            {
-                // No digits after the decimal.
-                return value.ToString("0,0");
-            }
-            else if (value >= 10)
-            {
-                // One digit after the decimal.
-                return value.ToString("0.0");
-            }
-            else
-            {
-                // Two digits after the decimal.
-                return value.ToString("0.00");
-            }
+                Console.WriteLine($"Resuming download at {Miscellaneous.ToFileSize(download.Progress)}/{Miscellaneous.ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
         }
 
         #endregion

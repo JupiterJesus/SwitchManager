@@ -26,9 +26,6 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Favorite")]
         public bool IsFavorite { get; set; }
 
-        [XmlElement(ElementName = "Size")]
-        public ulong Size { get; set; }
-
         [XmlElement(ElementName = "Path")]
         public string Path { get; set; }
     }

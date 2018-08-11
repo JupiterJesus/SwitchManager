@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using System.Collections.ObjectModel;
 using System.Net.Http.Headers;
 using System.Diagnostics;
+using SwitchManager.util;
 
 namespace SwitchManager.nx.cdn
 {
@@ -191,6 +192,7 @@ namespace SwitchManager.nx.cdn
                                 string byteValue = rightsID.Substring(n * 2, 2);
                                 data[0x2A0 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
                             }
+                            Miscellaneous.HexToBytes(rightsID?.Substring(0,32), data, 0x2A0);
                             File.WriteAllBytes(ticketPath, data);
 
                             Console.WriteLine($"Generated ticket {ticketPath}.");
@@ -588,7 +590,7 @@ namespace SwitchManager.nx.cdn
 
             JObject json = JObject.Parse(r);
             IList<JToken> titles = json["titles"].Children().ToList();
-
+             
             var result = new Dictionary<string, uint>();
             foreach (var title in titles)
             {

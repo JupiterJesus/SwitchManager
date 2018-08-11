@@ -54,7 +54,8 @@
               <TextBlock FontSize="13" Text="{Binding Path=Title.TitleKey, Mode=OneWay}"/>
               <TextBlock FontSize="13" Text="{Binding Path=Title.TitleID, Mode=OneWay}" />
               <TextBlock FontSize="13" Text="{Binding Path=Title.Type, Mode=OneWay}" />
-              <TextBlock FontSize="13" Text="{Binding Path=Size, Mode=OneWay}" />
+              <TextBlock FontSize="13" Text="{Binding Path=RomPath, Mode=OneWay}" />
+              <TextBlock FontSize="13" Text="{Binding Path=PrettySize, Mode=OneWay}" />
             </StackPanel>
 
             <StackPanel Width="100" Margin="20,10" Orientation="Vertical">
@@ -79,16 +80,16 @@
             Binding="{Binding Path=Title.Type, Mode=OneWay}" 
             FontSize="20" />
         <DataGridTextColumn 
-            Header="Title ID" 
-            Binding="{Binding Path=Title.TitleID, Mode=OneWay}" 
-            FontSize="12" />
-        <DataGridTextColumn 
-            Header="Title Key"
-            Binding="{Binding Path=Title.TitleKey, Mode=OneWay}" 
-            FontSize="12" />
-        <DataGridTextColumn 
             Header="State" 
             Binding="{Binding Path=StateName, Mode=OneWay}" />
+        <DataGridTextColumn 
+            Header="Size" 
+            Binding="{Binding Path=PrettySize, Mode=OneWay}" 
+            FontSize="12" />
+        <DataGridTextColumn 
+            Header="Rom Path"
+            Binding="{Binding Path=RomPath, Mode=OneWay}" 
+            FontSize="12" />
         <DataGridCheckBoxColumn 
               Header="Favorite ?"  
               Binding="{Binding Path=IsFavorite, Mode=TwoWay}" />
