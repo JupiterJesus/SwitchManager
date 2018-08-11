@@ -27,7 +27,7 @@ namespace SwitchManager.nx.library
     /// any metadata you care to track.
     /// </summary>
     [XmlRoot(ElementName = "Library")]
-    public class SwitchCollection
+    public class SwitchLibrary
     {
         [XmlElement(ElementName = "CollectionItem")]
         public SwitchTitleCollection Collection { get; set; }
@@ -50,19 +50,19 @@ namespace SwitchManager.nx.library
         /// This default constructor is ONLY so that XmlSerializer will stop complaining. Don't use it, unless
         /// you remember to also set the loader, the image path and the rom path!
         /// </summary>
-        public SwitchCollection()
+        public SwitchLibrary()
         {
-
+            this.Collection = new SwitchTitleCollection();
         }
 
-        public SwitchCollection(CDNDownloader loader, string imagesPath, string romsPath)
+        public SwitchLibrary(CDNDownloader loader, string imagesPath, string romsPath) : this()
         {
             this.Loader = loader;
             this.ImagesPath = imagesPath;
             this.RomsPath = romsPath;
         }
 
-        internal SwitchCollectionItem AddGame(SwitchCollectionItem item)
+        internal SwitchCollectionItem AddTitle(SwitchCollectionItem item)
         {
             if (item != null)
             {
@@ -72,7 +72,7 @@ namespace SwitchManager.nx.library
             return item;
         }
 
-        internal SwitchCollectionItem NewGame(string name, string titleid, string titlekey, SwitchCollectionState state = SwitchCollectionState.NotOwned, bool isFavorite = false)
+        internal SwitchCollectionItem NewTitle(string name, string titleid, string titlekey, SwitchCollectionState state = SwitchCollectionState.NotOwned, bool isFavorite = false)
         {
             // Already there, probably because DLC was listed before a title
             if (titlesByID.ContainsKey(titleid))
@@ -91,10 +91,10 @@ namespace SwitchManager.nx.library
             }
         }
 
-        internal SwitchCollectionItem AddGame(string name, string titleid, string titlekey)
+        internal SwitchCollectionItem AddTitle(string name, string titleid, string titlekey)
         {
-            SwitchCollectionItem item = NewGame(name, titleid, titlekey);
-            AddGame(item);
+            SwitchCollectionItem item = NewTitle(name, titleid, titlekey);
+            AddTitle(item);
             return item;
         }
 
@@ -145,11 +145,12 @@ namespace SwitchManager.nx.library
                 path += ".xml";
             path = Path.GetFullPath(path);
 
-            XmlSerializer xml = new XmlSerializer(typeof(SwitchCollection));
+            XmlSerializer xml = new XmlSerializer(typeof(SwitchLibrary));
 
             // Create a new file stream to write the serialized object to a file
-            using (FileStream fs = File.OpenWrite(path))
-                xml.Serialize(fs, this);
+            FileStream fs = File.Exists(path) ? File.Open(path, FileMode.Truncate, FileAccess.Write) : File.Create(path);
+            xml.Serialize(fs, this);
+            fs.Dispose();
 
             Console.WriteLine($"Finished saving library metadata to {path}");
         }
@@ -451,7 +452,6 @@ namespace SwitchManager.nx.library
             var lines = File.ReadLines(filename);
             var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
 
-            var coll = new List<SwitchCollectionItem>();
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
@@ -459,23 +459,16 @@ namespace SwitchManager.nx.library
                 string tkey = split[1]?.Trim()?.Substring(0, 32);
                 string name = split[2]?.Trim();
 
-                LoadTitle(tid, tkey, name, versions, coll);
+                LoadTitle(tid, tkey, name, versions);
             }
-
-
-            this.Collection = new SwitchTitleCollection(coll);
         }
 
         public async Task<ICollection<SwitchCollectionItem>> UpdateTitleKeysFile(string file)
         {
-            if (this.Collection == null)
-                throw new Exception("Do not call this before calling LoadTitleKeysFile!!!");
-
             var lines = File.ReadLines(file);
             var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
 
             var newTitles = new List<SwitchCollectionItem>();
-            var newCollection = new List<SwitchCollectionItem>(this.Collection);
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
@@ -486,19 +479,18 @@ namespace SwitchManager.nx.library
                     // New title!!
                     string tkey = split[1]?.Trim()?.Substring(0, 32);
                     string name = split[2]?.Trim();
-                    item = LoadTitle(tid, tkey, name, versions, newCollection);
+                    item = LoadTitle(tid, tkey, name, versions);
                     item.State = SwitchCollectionState.New;
                     newTitles.Add(item);
                 }
             }
-            this.Collection = new SwitchTitleCollection(newCollection);
 
             return newTitles;
         }
 
-        private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, Dictionary<string,uint> versions, ICollection<SwitchCollectionItem> collection)
+        private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, Dictionary<string,uint> versions)
         {
-            var item = new SwitchCollectionItem(name, tid, tkey);
+            var item = NewTitle(name, tid, tkey);
             var title = item?.Title;
             if (title != null)
             {
@@ -523,7 +515,7 @@ namespace SwitchManager.nx.library
                     title.Type = SwitchTitleType.DLC;
                     try
                     {
-                        AddDLCTitle(baseGameID, title, collection);
+                        AddDLCTitle(baseGameID, title);
                     }
                     catch (Exception)
                     {
@@ -536,7 +528,7 @@ namespace SwitchManager.nx.library
                     title.Type = SwitchTitleType.Game;
                 }
             }
-            collection.Add(item);
+            AddTitle(item);
             return item;
         }
 
@@ -546,11 +538,8 @@ namespace SwitchManager.nx.library
         /// <param name="baseGameID">Title ID of base game.</param>
         /// <param name="dlcID">Title ID of base game's DLC, to add to the game's DLC list.</param>
         /// <returns>The base title that the DLC was attached to.</returns>
-        public SwitchTitle AddDLCTitle(string baseGameID, SwitchTitle dlctitle, ICollection<SwitchCollectionItem> collection = null)
+        public SwitchTitle AddDLCTitle(string baseGameID, SwitchTitle dlctitle)
         {
-            if (collection == null)
-                collection = this.Collection;
-
             SwitchTitle baseTitle = GetTitleByID(baseGameID)?.Title;
             if (baseTitle == null)
             {
@@ -559,8 +548,8 @@ namespace SwitchManager.nx.library
                 // but not the game
                 // If the game ends up being added later, AddGame is able to slide in the proper info over the stub we add here
                 string name = dlctitle.Name.Replace("[DLC] ", "");
-                SwitchCollectionItem item = NewGame(name, baseGameID, null);
-                collection.Add(item);
+                SwitchCollectionItem item = NewTitle(name, baseGameID, null);
+                AddTitle(item);
                 baseTitle = item.Title;
             }
 

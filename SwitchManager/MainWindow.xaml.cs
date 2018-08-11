@@ -28,7 +28,7 @@ namespace SwitchManager
     /// </summary>
     public partial class MainWindow : Window
     {
-        private SwitchCollection gameCollection;
+        private SwitchLibrary gameCollection;
         
         public MainWindow()
         {
@@ -48,7 +48,7 @@ namespace SwitchManager
 
             downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
 
-            gameCollection = new SwitchCollection(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
+            gameCollection = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
 
             gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
 
