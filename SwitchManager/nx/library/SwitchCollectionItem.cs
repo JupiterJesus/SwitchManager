@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 
-namespace SwitchManager.nx.library
+namespace SwitchManager.nx.collection
 {
     /// <summary>
     /// 

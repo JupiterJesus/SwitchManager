@@ -1,5 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
-using SwitchManager.nx.collection;
+using SwitchManager.nx.library;
 using System;
 using System.Collections.Generic;
 using System.IO;

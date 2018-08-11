@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using SwitchManager.nx;
-using SwitchManager.nx.collection;
+using SwitchManager.nx.library;
 using SwitchManager.nx.cdn;
 using SwitchManager.Properties;
 using System.ComponentModel;
@@ -34,7 +34,7 @@ namespace SwitchManager
         {
             InitializeComponent();
             
-            CDNDownloader downloader = new CDNDownloader(Settings.Default.NXclientPath,
+            CDNDownloader downloader = new CDNDownloader(Settings.Default.ClientCertPath,
                                                          Settings.Default.EShopCertPath,
                                                          Settings.Default.TitleCertPath,
                                                          Settings.Default.TitleTicketPath,
@@ -43,8 +43,8 @@ namespace SwitchManager
                                                          Settings.Default.Environment, 
                                                          Settings.Default.Region,
                                                          Settings.Default.ImageCache, 
-                                                         Settings.Default.hactoolPath, 
-                                                         Settings.Default.keysPath);
+                                                         Settings.Default.HactoolPath, 
+                                                         Settings.Default.KeysPath);
 
             downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
 

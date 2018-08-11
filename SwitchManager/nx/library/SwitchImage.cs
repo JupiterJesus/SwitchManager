@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SwitchManager.nx.library
+namespace SwitchManager.nx.collection
 {
     public class SwitchImage : INotifyPropertyChanged
     {

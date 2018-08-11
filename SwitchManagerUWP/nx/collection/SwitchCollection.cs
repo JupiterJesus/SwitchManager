@@ -1,4 +1,4 @@
-﻿using SwitchManager.nx.collection;
+﻿using SwitchManager.nx.library;
 using SwitchManager.nx.cdn;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SwitchManager.nx.collection
+namespace SwitchManager.nx.library
 {
     internal class SwitchCollection
     {

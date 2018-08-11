@@ -86,8 +86,9 @@
     <Compile Include="nx\cdn\TitleType.cs" />
     <Compile Include="nx\collection\DownloadOptions.cs" />
     <Compile Include="nx\collection\LibraryMetadata.cs" />
-    <Compile Include="nx\collection\SwitchCollection.cs" />
+    <Compile Include="nx\collection\SwitchLibrary.cs" />
     <Compile Include="nx\collection\SwitchCollectionItem.cs" />
+    <Compile Include="nx\collection\SwitchTitleCollection.cs" />
     <Compile Include="nx\collection\SwitchTitleType.cs" />
     <Compile Include="nx\collection\SwitchCollectionState.cs" />
     <Compile Include="nx\collection\SwitchTitle.cs" />

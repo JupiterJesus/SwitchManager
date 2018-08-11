@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SwitchManager.nx.collection
+namespace SwitchManager.nx.library
 {
     public enum SwitchCollectionState
     {

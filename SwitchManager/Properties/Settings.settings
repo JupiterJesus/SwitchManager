@@ -20,13 +20,13 @@
     <Setting Name="NspOut" Type="System.String" Scope="Application">
       <Value Profile="(Default)">_NSPOUT</Value>
     </Setting>
-    <Setting Name="hactoolPath" Type="System.String" Scope="Application">
+    <Setting Name="HactoolPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">hactool\hactool.exe</Value>
     </Setting>
-    <Setting Name="keysPath" Type="System.String" Scope="Application">
+    <Setting Name="KeysPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">hactool\keys.txt</Value>
     </Setting>
-    <Setting Name="NXclientPath" Type="System.String" Scope="Application">
+    <Setting Name="ClientCertPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">certs\client.pfx</Value>
     </Setting>
     <Setting Name="EShopCertPath" Type="System.String" Scope="Application">

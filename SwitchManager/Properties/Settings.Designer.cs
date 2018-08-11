@@ -80,27 +80,27 @@ namespace SwitchManager.Properties {
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("hactool\\hactool.exe")]
-        public string hactoolPath {
+        public string HactoolPath {
             get {
-                return ((string)(this["hactoolPath"]));
+                return ((string)(this["HactoolPath"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("hactool\\keys.txt")]
-        public string keysPath {
+        public string KeysPath {
             get {
-                return ((string)(this["keysPath"]));
+                return ((string)(this["KeysPath"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("certs\\client.pfx")]
-        public string NXclientPath {
+        public string ClientCertPath {
             get {
-                return ((string)(this["NXclientPath"]));
+                return ((string)(this["ClientCertPath"]));
             }
         }
         
