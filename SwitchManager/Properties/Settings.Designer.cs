@@ -25,7 +25,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0000000000000000")]
+        [global::System.Configuration.DefaultSettingValueAttribute("6265A5E4140FF804")]
         public string DeviceID {
             get {
                 return ((string)(this["DeviceID"]));
@@ -43,7 +43,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("5.1.0-0")]
+        [global::System.Configuration.DefaultSettingValueAttribute("5.1.0-3.0")]
         public string Firmware {
             get {
                 return ((string)(this["Firmware"]));

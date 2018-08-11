@@ -57,7 +57,6 @@ namespace SwitchManager.nx.library
 
         public SwitchCollection(CDNDownloader loader, string imagesPath, string romsPath)
         {
-            Collection = new SwitchTitleCollection();
             this.Loader = loader;
             this.ImagesPath = imagesPath;
             this.RomsPath = romsPath;
@@ -444,15 +443,15 @@ namespace SwitchManager.nx.library
 
             return null;
         }
-
-
+        
         private static SwitchImage blankImage = new SwitchImage("Images\\blank.jpg");
 
         public async Task LoadTitleKeysFile(string filename)
         {
             var lines = File.ReadLines(filename);
             var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
-            
+
+            var coll = new List<SwitchCollectionItem>();
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
@@ -460,17 +459,23 @@ namespace SwitchManager.nx.library
                 string tkey = split[1]?.Trim()?.Substring(0, 32);
                 string name = split[2]?.Trim();
 
-                LoadTitle(tid, tkey, name, versions);
+                LoadTitle(tid, tkey, name, versions, coll);
             }
+
+
+            this.Collection = new SwitchTitleCollection(coll);
         }
 
-        public async Task<SwitchTitleCollection> UpdateTitleKeysFile(string file)
+        public async Task<ICollection<SwitchCollectionItem>> UpdateTitleKeysFile(string file)
         {
+            if (this.Collection == null)
+                throw new Exception("Do not call this before calling LoadTitleKeysFile!!!");
+
             var lines = File.ReadLines(file);
             var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
 
-            var newTitles = new SwitchTitleCollection();
-            var newCollection = new SwitchTitleCollection(Collection);
+            var newTitles = new List<SwitchCollectionItem>();
+            var newCollection = new List<SwitchCollectionItem>(this.Collection);
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
@@ -486,16 +491,13 @@ namespace SwitchManager.nx.library
                     newTitles.Add(item);
                 }
             }
-            this.Collection = newCollection;
+            this.Collection = new SwitchTitleCollection(newCollection);
 
             return newTitles;
         }
 
-        private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, Dictionary<string,uint> versions, ICollection<SwitchCollectionItem> collection = null)
+        private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, Dictionary<string,uint> versions, ICollection<SwitchCollectionItem> collection)
         {
-            if (collection == null)
-                collection = this.Collection;
-
             var item = new SwitchCollectionItem(name, tid, tkey);
             var title = item?.Title;
             if (title != null)
