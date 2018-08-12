@@ -412,7 +412,7 @@ namespace SwitchManager.nx.library
         /// <param name="title">Title whose icon you wish to load</param>
         /// <param name="downloadRemote">If true, loads the image from nintendo if it isn't found in cache</param>
         /// <returns></returns>
-        private async Task LoadTitleIcon(SwitchTitle title, bool downloadRemote = false)
+        public async Task LoadTitleIcon(SwitchTitle title, bool downloadRemote = false)
         {
             SwitchImage img = GetLocalImage(title.TitleID);
             if (img == null && downloadRemote && SwitchTitle.IsBaseGameID(title.TitleID))
@@ -424,7 +424,7 @@ namespace SwitchManager.nx.library
             // Return cached image, or blank if it couldn't be found
 
             if (img == null)
-                title.Icon = blankImage;
+                title.Icon = BlankImage;
             else
                 title.Icon = img;
         }
@@ -453,7 +453,8 @@ namespace SwitchManager.nx.library
             return null;
         }
         
-        private static SwitchImage blankImage = new SwitchImage("Images\\blank.jpg");
+        public static SwitchImage BlankImage { get { return new SwitchImage("Images\\blank.jpg"); } }
+
 
         public async Task LoadTitleKeysFile(string filename)
         {

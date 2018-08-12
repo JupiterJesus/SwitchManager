@@ -26,5 +26,33 @@ namespace SwitchManager.nx.library
         {
             this.Location = location;
         }
+
+        public override string ToString()
+        {
+            return Location;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+                return false;
+
+            if (!(obj is SwitchImage))
+                return false;
+
+            SwitchImage other = obj as SwitchImage;
+            if (Location == null && other.Location == null)
+                return true;
+
+            if (Location == null || other.Location == null)
+                return false;
+
+            return Location.Equals(other.Location);
+        }
+
+        public override int GetHashCode()
+        {
+            return Location?.GetHashCode() ?? 0;
+        }
     }
 }

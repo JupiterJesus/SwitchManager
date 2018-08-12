@@ -310,6 +310,25 @@ namespace SwitchManager
             Process.Start(new ProcessStartInfo(url));
             e.Handled = true;
         }
+
+        private async void DataGrid_Collection_RowDetailsVisibilityChanged(object sender, DataGridRowDetailsEventArgs e)
+        {
+            if (e.DetailsElement.IsVisible)
+            {
+                ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+                var item = cv?.CurrentItem as SwitchCollectionItem;
+
+                // If anything is null, or the blank image is used, get a new image
+                if (item?.Title?.Icon == null || (item?.Title?.Icon?.Equals(SwitchLibrary.BlankImage)??true))
+                {
+                    await gameCollection.LoadTitleIcon(item?.Title, true);
+                }
+                if (item?.Size == 0)
+                {
+                    // TODO: Calculate size via headers from CDN?
+                }
+            }
+        }
     }
 
     public class TextInputToVisibilityConverter : IValueConverter
