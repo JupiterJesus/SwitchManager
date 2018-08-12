@@ -80,7 +80,7 @@ namespace SwitchManager
             Predicate<object> datagridFilter = (o =>
             {
                 SwitchCollectionItem i = o as SwitchCollectionItem;
-                return ((this.showDemos && (i.Title.Name.ToUpper().EndsWith("DEMO"))) || !i.Title.Name.ToUpper().EndsWith("DEMO")) &&
+                return ((this.showDemos && (i.Title.Name.ToUpper().EndsWith("DEMO"))) || !(i.Title.Name.ToUpper().Contains("DEMO") || i.Title.Name.ToUpper().Contains("TRIAL VER"))) &&
                        ((this.showDLC && (i.Title.Name.ToUpper().StartsWith("[DLC]"))) || !i.Title.Name.StartsWith("[DLC]")) &&
                        (!this.showFavoritesOnly || (i.IsFavorite)) &&
                        ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (i.State == SwitchCollectionState.NotOwned || i.State == SwitchCollectionState.New)) &&
