@@ -108,12 +108,14 @@
               <TextBlock FontSize="13" Text="{Binding Path=PrettySize, Mode=OneWay}" />
             </StackPanel>
 
-            <StackPanel Width="100" Margin="20,10" Orientation="Vertical">
-              <TextBlock FontSize="13" Text="Versions" />
-              <ComboBox ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}" SelectionChanged="ComboBox_SelectionChanged">
+            <StackPanel Width="200" Margin="20,10" Orientation="Vertical">
+              <TextBlock Margin="5" FontSize="13" Text="Versions" />
+              <ComboBox Margin="5" ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}" SelectionChanged="ComboBox_VersionChanged">
               </ComboBox>
-              <RadioButton>Dummy radio button that does nothing</RadioButton>
-              <Button x:Name="Button_Download" Click="Button_Download_Click">Download Title</Button>
+
+              <TextBlock Margin="5">What do you want to download?</TextBlock>
+              <ComboBox Margin="5" SelectionChanged="ComboBox_DownloadOptionChanged" ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:DownloadOptions}}}" SelectedIndex="0"/>
+              <Button Margin="5" x:Name="Button_Download" Click="Button_Download_Click">Download Title</Button>
 
             </StackPanel>
           </StackPanel>

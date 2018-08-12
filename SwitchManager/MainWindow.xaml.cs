@@ -124,17 +124,19 @@ namespace SwitchManager
         #region Buttons and other controls on the datagrid
 
         private uint? SelectedVersion { get; set; }
+        private DownloadOptions? DLOption { get; set; }
 
         private void Button_Download_Click(object sender, RoutedEventArgs e)
         {
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
 
             uint v = SelectedVersion ?? item.Title.Versions.First();
+            DownloadOptions o = DLOption ?? DownloadOptions.BaseGameOnly;
 
-            Task.Run(() => gameCollection.DownloadGame(item, v, DownloadOptions.BaseGameOnly, Settings.Default.NSPRepack, false));
+            Task.Run(() => gameCollection.DownloadGame(item, v, o, Settings.Default.NSPRepack, false));
         }
 
-        private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ComboBox_VersionChanged(object sender, SelectionChangedEventArgs e)
         {
             ComboBox cb = (ComboBox)sender;
 
@@ -142,6 +144,17 @@ namespace SwitchManager
             {
                 uint v = (uint)cb.SelectedValue;
                 SelectedVersion = v;
+            }
+        }
+
+        private void ComboBox_DownloadOptionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = (ComboBox)sender;
+
+            if (cb.SelectedValue != null)
+            {
+                DownloadOptions d = (DownloadOptions)cb.SelectedValue;
+                DLOption = d;
             }
         }
 
@@ -328,6 +341,11 @@ namespace SwitchManager
                     // TODO: Calculate size via headers from CDN?
                 }
             }
+        }
+
+        private void ComboBox_SelectionChanged_1(object sender, SelectionChangedEventArgs e)
+        {
+
         }
     }
 
