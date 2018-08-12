@@ -14,6 +14,7 @@ using System.Collections.ObjectModel;
 using System.Net.Http.Headers;
 using System.Diagnostics;
 using SwitchManager.util;
+using System.Security.Cryptography;
 
 namespace SwitchManager.nx.cdn
 {
@@ -222,24 +223,48 @@ namespace SwitchManager.nx.cdn
                     }
                 }
 
-                List<Task> tasks = new List<Task>();
+                List<Task<bool>> tasks = new List<Task<bool>>();
                 NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFilePath, cnmtXml);
                 foreach (var type in new [] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
                 {
-                    var parsedNCAFiles = cnmt.ParseNCAs(type);
-                    foreach (var ncaID in parsedNCAFiles)
+                    // To verify, we need to parse the CNMT more thoroughly, which is a waste of effort if we aren't verifying
+                    if (verify)
                     {
-                        string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
-                        nsp.AddNCA(type, path);
-                        //DoDownloadNCA(ncaID, path, verify).Wait();
-                        Task t = DoDownloadNCA(ncaID, path, verify);
-                        tasks.Add(t);
+                        var parsedNCAs = cnmt.ParseContent(type);
+                        foreach (var content in parsedNCAs)
+                        {
+                            string ncaID = content.Key;
+                            byte[] hash = content.Value.HashData;
+                            string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
+                            nsp.AddNCA(type, path);
+                            Task<bool> t = DoDownloadNCA(ncaID, path, hash);
+                            tasks.Add(t);
+                        }
                     }
-
+                    else
+                    {
+                        var parsedNCAFiles = cnmt.ParseNCAs(type);
+                        foreach (var ncaID in parsedNCAFiles)
+                        {
+                            string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
+                            nsp.AddNCA(type, path);
+                            Task<bool> t = DoDownloadNCA(ncaID, path, null);
+                            tasks.Add(t);
+                        }
+                    }
                 }
 
-                await Task.WhenAll(tasks);
-
+                bool[] results = await Task.WhenAll(tasks);
+                if (verify)
+                {
+                    foreach (var r in results)
+                    {
+                        if (!r)
+                        {
+                            throw new Exception("At least one NCA failed to verify, NSP repack (if requested) will not continue");
+                        }
+                    }
+                }
                 if (nspRepack)
                 {
                     return nsp;
@@ -249,20 +274,34 @@ namespace SwitchManager.nx.cdn
             return null;
         }
 
-        private async Task DoDownloadNCA(string ncaID, string path, bool verify)
+        private async Task<bool> DoDownloadNCA(string ncaID, string path, byte[] expectedHash)
         {
             Console.WriteLine($"Downloading NCA {ncaID}.");
             await DownloadNCA(ncaID, path).ConfigureAwait(false);
-            if (verify)
+
+            // A null hash means no verification necessary, just return true
+            if (expectedHash != null ) 
             {
-                /*
-                 * 
-                            if calc_sha256(fPath) != CNMT.parse(CNMT.ncaTypes[type])[ncaID][2]:
-                                print('\n\n%s is corrupted, hashes don\'t match!' % os.path.basename(fPath))
-                            else:
-                                print('\nVerified %s...' % os.path.basename(fPath))
-                                */
+                using (FileStream fs = File.OpenRead(path))
+                {
+                    byte[] hash = new SHA256Managed().ComputeHash(fs);
+                    if (expectedHash.Length != hash.Length) // hash has to be 32 bytes = 256 bit
+                    {
+                        Console.WriteLine($"Bad parsed hash file for {ncaID}, not the right length");
+                        return false;
+                    }
+                    for (int i = 0; i < hash.Length; i++)
+                    {
+                        if (hash[i] != expectedHash[i])
+                        {
+                            Console.WriteLine($"Hash of downloaded NCA file does not match expected hash from CNMT content entry!");
+                            return false;
+                        }
+                    }
+                    return true;
+                }
             }
+            return true;
         }
 
         private async Task<string> DownloadNCA(string ncaID, string path)
