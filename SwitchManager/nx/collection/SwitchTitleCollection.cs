@@ -12,8 +12,6 @@ namespace SwitchManager.nx.library
 {
     public class SwitchTitleCollection : List<SwitchCollectionItem>
     {
-        private SynchronizationContext _synchronizationContext = SynchronizationContext.Current;
-
         public SwitchTitleCollection()
         {
         }

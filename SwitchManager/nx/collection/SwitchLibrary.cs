@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using SwitchManager.util;
 
 namespace SwitchManager.nx.library
 {
@@ -307,7 +308,9 @@ namespace SwitchManager.nx.library
 
             if (repack)
             {
-                string nspFile = $"{title.Name} [{title.TitleID}][{version}].nsp";
+                string titleName = Miscellaneous.SanitizeFileName(title.Name);
+
+                string nspFile = $"{titleName} [{title.TitleID}][{version}].nsp";
                 string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
 
                 // Repack the game files into an NSP

@@ -21,6 +21,7 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using SwitchManager.util;
+using System.Diagnostics;
 
 namespace SwitchManager
 {
@@ -30,21 +31,21 @@ namespace SwitchManager
     public partial class MainWindow : Window
     {
         private SwitchLibrary gameCollection;
-        
+
         public MainWindow()
         {
             InitializeComponent();
-            
+
             CDNDownloader downloader = new CDNDownloader(Settings.Default.ClientCertPath,
                                                          Settings.Default.EShopCertPath,
                                                          Settings.Default.TitleCertPath,
                                                          Settings.Default.TitleTicketPath,
-                                                         Settings.Default.DeviceID, 
-                                                         Settings.Default.Firmware, 
-                                                         Settings.Default.Environment, 
+                                                         Settings.Default.DeviceID,
+                                                         Settings.Default.Firmware,
+                                                         Settings.Default.Environment,
                                                          Settings.Default.Region,
-                                                         Settings.Default.ImageCache, 
-                                                         Settings.Default.HactoolPath, 
+                                                         Settings.Default.ImageCache,
+                                                         Settings.Default.HactoolPath,
                                                          Settings.Default.KeysPath);
 
             downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
@@ -76,9 +77,14 @@ namespace SwitchManager
 
             // Add a filter to the datagrid based on text filtering and checkboxes
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
-            Predicate<object> datagridFilter = (o => {
+            Predicate<object> datagridFilter = (o =>
+            {
                 SwitchCollectionItem i = o as SwitchCollectionItem;
-                return (!this.hideDemos || (!i.Title.Name.ToUpper().EndsWith("DEMO"))) &&
+                return ((this.showDemos && (i.Title.Name.ToUpper().EndsWith("DEMO"))) || !i.Title.Name.ToUpper().EndsWith("DEMO")) &&
+                       ((this.showDLC && (i.Title.Name.ToUpper().StartsWith("[DLC]"))) || !i.Title.Name.StartsWith("[DLC]")) &&
+                       (!this.showFavoritesOnly || (i.IsFavorite)) &&
+                       ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (i.State == SwitchCollectionState.NotOwned || i.State == SwitchCollectionState.New)) &&
+                       ((this.showNotOwned && (i.State == SwitchCollectionState.NotOwned || i.State == SwitchCollectionState.New)) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
                        (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()));
             });
             cv.Filter = datagridFilter;
@@ -124,14 +130,14 @@ namespace SwitchManager
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
 
             uint v = SelectedVersion ?? item.Title.Versions.First();
-            
+
             Task.Run(() => gameCollection.DownloadGame(item, v, DownloadOptions.BaseGameOnly, Settings.Default.NSPRepack, false));
         }
 
         private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ComboBox cb = (ComboBox)sender;
-            
+
             if (cb.SelectedValue != null)
             {
                 uint v = (uint)cb.SelectedValue;
@@ -144,13 +150,17 @@ namespace SwitchManager
         #region DataGrid filtering
 
         private string filterText = null;
-        private bool hideDemos = false;
+        private bool showDemos = false;
+        private bool showDLC = false;
+        private bool showFavoritesOnly = false;
+        private bool showOwned = true;
+        private bool showNotOwned = true;
 
         private void TextBox_Search_TextChanged(object sender, TextChangedEventArgs e)
         {
             TextBox searchBox = (TextBox)sender;
             string filterText = searchBox.Text;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
 
             this.filterText = filterText;
             cv.Refresh();
@@ -158,12 +168,66 @@ namespace SwitchManager
 
         private void CheckBox_Demos_Checked(object sender, RoutedEventArgs e)
         {
+            if (DataGrid_Collection == null) return;
+
             CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
             if (cbox.IsChecked.HasValue)
             {
-                this.hideDemos = cbox.IsChecked.Value;
-                cv.Refresh();
+                this.showDemos = cbox.IsChecked.Value;
+                cv?.Refresh();
+            }
+        }
+
+        private void CheckBox_DLC_Checked(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            CheckBox cbox = (CheckBox)sender;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
+            if (cbox.IsChecked.HasValue)
+            {
+                this.showDLC = cbox.IsChecked.Value;
+                cv?.Refresh();
+            }
+        }
+
+        private void CheckBox_Favorites_Checked(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            CheckBox cbox = (CheckBox)sender;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
+            if (cbox.IsChecked.HasValue)
+            {
+                this.showFavoritesOnly = cbox.IsChecked.Value;
+                cv?.Refresh();
+            }
+        }
+
+        private void CheckBox_Owned_Checked(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            CheckBox cbox = (CheckBox)sender;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
+            if (cbox.IsChecked.HasValue)
+            {
+                this.showOwned = cbox.IsChecked.Value;
+                cv?.Refresh();
+            }
+        }
+
+        private void CheckBox_NotOwned_Checked(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            CheckBox cbox = (CheckBox)sender;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
+            if (cbox.IsChecked.HasValue)
+            {
+                this.showNotOwned = cbox.IsChecked.Value;
+                cv?.Refresh();
             }
         }
 
@@ -174,6 +238,11 @@ namespace SwitchManager
         private async void MenuItemUpdate_Click(object sender, RoutedEventArgs e)
         {
             await DownloadTitleKeys();
+        }
+
+        private async void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Not implemented, but this will provide a convenient popup window for pasting in a new device id and selecting the path to a new PEM file, and the app will handle updating the settings and converting the cert to pfx.");
         }
 
         private async Task DownloadTitleKeys()
@@ -213,6 +282,12 @@ namespace SwitchManager
         private void MenuItemScan_Click(object sender, RoutedEventArgs e)
         {
             this.gameCollection.ScanRomsFolder(Settings.Default.NSPDirectory);
+            MessageBox.Show("I have most of the code written for this but it isn't completed or bug tested.");
+        }
+
+        private void MenuItemSelectLocation_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("When implemented this will simply let you choose where downloaded NSPs go. Any NSPs you already scanned into your library will remain indexed.");
         }
 
         private void MenuItemSaveLibrary_Click(object sender, RoutedEventArgs e)
@@ -221,6 +296,20 @@ namespace SwitchManager
         }
 
         #endregion
+
+        /// <summary>
+        /// Navigates to the eshop for the current title
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void IconButton_Click(object sender, RoutedEventArgs e)
+        {
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+            var item = cv.CurrentItem as SwitchCollectionItem;
+            string url = $"https://ec.nintendo.com/apps/{item.TitleId}/{Settings.Default.Region}";
+            Process.Start(new ProcessStartInfo(url));
+            e.Handled = true;
+        }
     }
 
     public class TextInputToVisibilityConverter : IValueConverter

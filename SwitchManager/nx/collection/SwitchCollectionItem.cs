@@ -25,7 +25,10 @@ namespace SwitchManager.nx.library
         private SwitchTitle title;
 
         [XmlElement(ElementName = "Title")]
-        public string TitleId { get { return title?.TitleID; } set {  } }
+        public string TitleId { get { return title?.TitleID; } set { } }
+
+        [XmlElement(ElementName = "Name")]
+        public string TitleName { get { return title?.Name; } set { } }
 
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State
@@ -42,7 +45,6 @@ namespace SwitchManager.nx.library
             {
                 switch (this.State)
                 {
-                    case SwitchCollectionState.Downloaded: return "Downloaded";
                     case SwitchCollectionState.Owned: return "Owned";
                     case SwitchCollectionState.OnSwitch: return "On Switch";
                     case SwitchCollectionState.New: return "New";
@@ -53,7 +55,6 @@ namespace SwitchManager.nx.library
             {
                 switch (value)
                 {
-                    case "Downloaded": this.state = SwitchCollectionState.Downloaded; break;
                     case "Owned": this.state = SwitchCollectionState.Owned; break;
                     case "On Switch": this.state = SwitchCollectionState.OnSwitch; break;
                     case "New": this.state = SwitchCollectionState.New; break;

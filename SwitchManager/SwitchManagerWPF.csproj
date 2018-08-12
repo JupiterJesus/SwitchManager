@@ -63,6 +63,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ui\EnumBindingSource.cs" />
+    <Compile Include="util\EnumDescriptionTypeConverter.cs" />
     <Compile Include="util\Miscellaneous.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>

@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SwitchManager.util;
+using System.ComponentModel;
 
 namespace SwitchManager.nx.cdn
 {
@@ -10,6 +7,7 @@ namespace SwitchManager.nx.cdn
     /// Describes the "type" of an NCA. Every NCA in a game has a type, which is coded into headers and
     /// describes what sort of content it contains.
     /// </summary>
+    [TypeConverter(typeof(EnumDescriptionTypeConverter))]
     public enum NCAType
     {
         Meta, // Unknown to me, but probably some sort of metadata

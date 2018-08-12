@@ -5,23 +5,46 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SwitchManager"
         xmlns:coll="clr-namespace:SwitchManager.nx.library"
+        xmlns:ui="clr-namespace:SwitchManager.ui"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
 
-  <!-- WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN-->
   <Window.Resources>
+    <!-- WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN-->
     <CollectionViewSource x:Key="ItemCollectionViewSource"  CollectionViewType="ListCollectionView"/>
+    
+    <!-- The next two are for overlaying one textbox over another in order to show help text for the datagrid filter -->
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <local:TextInputToVisibilityConverter x:Key="TextInputToVisibilityConverter" />
+    
+    <!-- This style is for displaying an title icon on a button for clicking to go to the eShop url -->
+    <Style TargetType="{x:Type Button}" x:Key="ImageButtonStyle">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type Button}">
+            <ContentPresenter/>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Window.Resources>
 
   <StackPanel Margin="0">
     <DockPanel Grid.Row="0" Margin="0,0,0.333,-0.333" Grid.RowSpan="2">
       <Menu DockPanel.Dock="Top">
         <MenuItem Header="_File">
+          <MenuItem Header="_Import New Credentials (NYI)" Click="MenuItemImportCreds_Click"/>
+        </MenuItem>
+        <MenuItem Header="_Tools">
           <MenuItem Header="_Update Title Keys" Click="MenuItemUpdate_Click"/>
-          <MenuItem Header="_Scan For Games" Click="MenuItemScan_Click"/>
-          <MenuItem Header="Save _Library" Click="MenuItemSaveLibrary_Click"/>
+        </MenuItem>
+        <MenuItem Header="_Library">
+          <MenuItem Header="_Scan For _Games (NYI)" Click="MenuItemScan_Click"/>
+          <MenuItem Header="Select Library Location (NYI)" Click="MenuItemSelectLocation_Click"/>
+          <MenuItem Header="Save Library _Metadata" Click="MenuItemSaveLibrary_Click"/>
+        </MenuItem>
+        <MenuItem Header="_Options">
         </MenuItem>
       </Menu>
       <StackPanel></StackPanel>
@@ -34,7 +57,12 @@
         <!-- enter term here -->
         <TextBox Height="20" MinWidth="50" x:Name="TextBox_Search" Width="200" TextChanged="TextBox_Search_TextChanged"  Background="Transparent" />
       </Grid>
-      <CheckBox x:Name="CheckBox_Demos" Margin="5,5,5,5" Checked="CheckBox_Demos_Checked" Unchecked="CheckBox_Demos_Checked">Hide Demos?</CheckBox>
+      <TextBlock Margin="5" FontWeight="Bold">Filters</TextBlock>
+      <CheckBox x:Name="CheckBox_Demos" Margin="5,5,5,5" Checked="CheckBox_Demos_Checked" Unchecked="CheckBox_Demos_Checked">Demos</CheckBox>
+      <CheckBox x:Name="CheckBox_DLC" Margin="5,5,5,5" Checked="CheckBox_DLC_Checked" Unchecked="CheckBox_DLC_Checked">DLC</CheckBox>
+      <CheckBox x:Name="CheckBox_Owned" Margin="5,5,5,5" Checked="CheckBox_Owned_Checked" Unchecked="CheckBox_Owned_Checked" IsChecked="True">Owned</CheckBox>
+      <CheckBox x:Name="CheckBox_NotOwned" Margin="5,5,5,5" Checked="CheckBox_NotOwned_Checked" Unchecked="CheckBox_NotOwned_Checked" IsChecked="True">Not Owned</CheckBox>
+      <CheckBox x:Name="CheckBox_Favorites" Margin="5,5,5,5" Checked="CheckBox_Favorites_Checked" Unchecked="CheckBox_Favorites_Checked">Favorites (hides non-favorites)</CheckBox>
     </StackPanel>
     <DataGrid x:Name="DataGrid_Collection"  Grid.Row="2"
               MaxHeight="600" Margin="5,5,5,5" 
@@ -44,11 +72,32 @@
               SelectionUnit="FullRow"
               SelectionMode="Single"
               CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeRows="False" CanUserSortColumns="True">
+      <DataGrid.Resources>
+        <!-- The below triggers editing on mouseover, so that once you actually click you are already in editing mode - thus, single click editing -->
+        <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+          <Style.Triggers>
+            <MultiTrigger> 
+              <MultiTrigger.Conditions>
+                <Condition Property="IsMouseOver" Value="True" />
+                <Condition Property="IsReadOnly" Value="False" />
+              </MultiTrigger.Conditions>
+              <MultiTrigger.Setters>
+                <Setter Property="IsEditing" Value="True" />
+              </MultiTrigger.Setters>
+            </MultiTrigger>
+          </Style.Triggers>
+        </Style>
+      </DataGrid.Resources>
       <DataGrid.RowDetailsTemplate>
         <DataTemplate>
           <StackPanel Orientation="Horizontal">
-            <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon.Location,Mode=OneWay}"/>
 
+            <StackPanel Orientation="Vertical">
+              <Button x:Name="IconButton" Margin="5" Style="{StaticResource ImageButtonStyle}" Click="IconButton_Click"  MaxHeight="100" Width="100">
+                <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon.Location,Mode=OneWay}"/>
+              </Button>
+              <TextBlock FontSize="8">Click icon to go to eShop listing</TextBlock>
+            </StackPanel>
             <StackPanel Margin="20,10" Orientation="Vertical" Width="400">
               <TextBlock FontSize="20" Text="{Binding Path=Title.Name, Mode=OneWay}"/>
               <TextBlock FontSize="13" Text="{Binding Path=Title.TitleKey, Mode=OneWay}"/>
@@ -70,29 +119,31 @@
         </DataTemplate>
       </DataGrid.RowDetailsTemplate>
       <DataGrid.Columns>
+        <DataGridCheckBoxColumn 
+              Header="Favorite ?"  
+              Binding="{Binding Path=IsFavorite, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
         <DataGridTextColumn 
             Header="Title Name" 
             MaxWidth="400"
             Binding="{Binding Path=Title.Name, Mode=OneWay}" 
-            FontSize="20" />
+            FontSize="12" />
         <DataGridTextColumn 
             Header="Title Type" 
             Binding="{Binding Path=Title.Type, Mode=OneWay}" 
-            FontSize="20" />
-        <DataGridTextColumn 
-            Header="State" 
-            Binding="{Binding Path=StateName, Mode=OneWay}" />
+            FontSize="12" />
+        <DataGridComboBoxColumn 
+            Header="State"
+            SelectedItemBinding="{Binding Path=State, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+            ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:SwitchCollectionState}}}">
+        </DataGridComboBoxColumn>
         <DataGridTextColumn 
             Header="Size" 
             Binding="{Binding Path=PrettySize, Mode=OneWay}" 
             FontSize="12" />
         <DataGridTextColumn 
             Header="Rom Path"
-            Binding="{Binding Path=RomPath, Mode=OneWay}" 
+            Binding="{Binding Path=RomPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
             FontSize="12" />
-        <DataGridCheckBoxColumn 
-              Header="Favorite ?"  
-              Binding="{Binding Path=IsFavorite, Mode=TwoWay}" />
       </DataGrid.Columns>
     </DataGrid>
   </StackPanel>

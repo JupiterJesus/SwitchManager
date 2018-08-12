@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,6 +9,17 @@ namespace SwitchManager.util
 {
     public static class Miscellaneous
     {
+        public static string SanitizeFileName(string str)
+        {
+            StringBuilder sb = new StringBuilder();
+            // Remove bullshit characters before creating path
+            foreach (char c in str)
+            {
+                if (!Path.GetInvalidFileNameChars().Contains(c))
+                    sb.Append(c);
+            }
+            return sb.ToString();
+        }
 
         public static string ToFileSize(double value)
         {

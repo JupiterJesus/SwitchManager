@@ -1,17 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SwitchManager.util;
+using System.ComponentModel;
 
 namespace SwitchManager.nx.library
 {
+    [TypeConverter(typeof(EnumDescriptionTypeConverter))]
     public enum SwitchCollectionState
     {
+        [Description("Not Owned")]
         NotOwned,
+
+        [Description("Owned")]
         Owned,
-        Downloaded,
+
+        [Description("On Switch")]
         OnSwitch,
+
+        [Description("New Title")]
         New,
     }
 }

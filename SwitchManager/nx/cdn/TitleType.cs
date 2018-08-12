@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SwitchManager.util;
+using System.ComponentModel;
 
 namespace SwitchManager.nx.cdn
 {
@@ -11,6 +8,7 @@ namespace SwitchManager.nx.cdn
     /// It describes what sort of title you are using or downloading, since the CNMT is basically
     /// metadata for the entire title.
     /// </summary>
+    [TypeConverter(typeof(EnumDescriptionTypeConverter))]
     public enum TitleType
     {
         SystemProgram = 0x1, // Built-in system software?

@@ -1,5 +1,9 @@
-﻿namespace SwitchManager.nx.library
+﻿using SwitchManager.util;
+using System.ComponentModel;
+
+namespace SwitchManager.nx.library
 {
+    [TypeConverter(typeof(EnumDescriptionTypeConverter))]
     public enum DownloadOptions
     {
         BaseGameOnly,
