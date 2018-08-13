@@ -336,16 +336,16 @@ namespace SwitchManager
                 {
                     await gameCollection.LoadTitleIcon(item?.Title, true);
                 }
+                
                 if (item?.Size == 0)
                 {
-                    // TODO: Calculate size via headers from CDN?
+                    string titledir = Settings.Default.NSPDirectory + System.IO.Path.DirectorySeparatorChar + item?.TitleId;
+                    if (!Directory.Exists(titledir))
+                        Directory.CreateDirectory(titledir);
+                    var result = await gameCollection.Loader.GetTitleSize(item?.Title, 0, titledir).ConfigureAwait(false);
+                    item.Size = result;
                 }
             }
-        }
-
-        private void ComboBox_SelectionChanged_1(object sender, SelectionChangedEventArgs e)
-        {
-
         }
     }
 

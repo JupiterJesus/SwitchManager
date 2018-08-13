@@ -105,7 +105,7 @@
               <TextBlock FontSize="13" Text="{Binding Path=Title.TitleID, Mode=OneWay}" />
               <TextBlock FontSize="13" Text="{Binding Path=Title.Type, Mode=OneWay}" />
               <TextBlock FontSize="13" Text="{Binding Path=RomPath, Mode=OneWay}" />
-              <TextBlock FontSize="13" Text="{Binding Path=PrettySize, Mode=OneWay}" />
+              <TextBlock FontSize="13" Text="{Binding Path=PrettySize, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
 
             <StackPanel Width="200" Margin="20,10" Orientation="Vertical">
@@ -141,7 +141,7 @@
         </DataGridComboBoxColumn>
         <DataGridTextColumn 
             Header="Size" 
-            Binding="{Binding Path=PrettySize, Mode=OneWay}" 
+            Binding="{Binding Path=PrettySize, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
             FontSize="12" />
         <DataGridTextColumn 
             Header="Rom Path"

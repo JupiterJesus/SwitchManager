@@ -101,7 +101,7 @@ namespace SwitchManager.nx.cdn
         /// See http://switchbrew.org/index.php?title=NCA_Format#PFS0
         /// </summary>
         /// <returns></returns>
-        private static byte[] GenerateHeader(string[] files)
+        public static byte[] GenerateHeader(string[] files)
         {
             int nFiles = files.Length;
             

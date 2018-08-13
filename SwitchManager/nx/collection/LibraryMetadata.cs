@@ -28,5 +28,8 @@ namespace SwitchManager.nx.library
 
         [XmlElement(ElementName = "Path")]
         public string Path { get; set; }
+
+        [XmlElement(ElementName = "Size")]
+        public long Size { get; set; }
     }
 }

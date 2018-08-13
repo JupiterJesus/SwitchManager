@@ -134,6 +134,7 @@ namespace SwitchManager.nx.library
                 ci.IsFavorite = item.IsFavorite;
                 ci.RomPath = item.Path;
                 ci.State = item.State;
+                ci.Size = item.Size;
             }
 
             Console.WriteLine($"Finished loading library metadata from {path}");

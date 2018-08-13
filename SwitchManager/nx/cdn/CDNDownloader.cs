@@ -32,23 +32,25 @@ namespace SwitchManager.nx.cdn
         private string hactoolPath;
         private string keysPath;
         private string clientCertPath;
-        private string eShopCertificate;
+        private string eShopCertPath;
         private string titleCertPath;
         private string titleTicketPath;
 
         public int DownloadBuffer { get; set; }
 
-        public X509Certificate ClientCert { get; }
+        public X509Certificate ClientCert { get; private set; }
+        public X509Certificate EshopCert { get; private set; }
 
         public List<Task> DownloadTasks { get; } = new List<Task>();
 
         public CDNDownloader(string clientCertPath, string eShopCertificate, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath)
         {
             this.clientCertPath = clientCertPath;
-            this.eShopCertificate = eShopCertificate;
+            this.eShopCertPath = eShopCertificate;
             this.titleCertPath = titleCertPath;
             this.titleTicketPath = titleTicketPath;
             this.ClientCert = LoadSSL(clientCertPath);
+            this.EshopCert = LoadSSL(eShopCertPath, "shop");
             this.deviceId = deviceId;
             this.firmware = firmware;
             this.environment = environment;
@@ -58,13 +60,13 @@ namespace SwitchManager.nx.cdn
             this.keysPath = Path.GetFullPath(keysPath);
         }
 
-        private X509Certificate LoadSSL(string path)
+        private X509Certificate LoadSSL(string path, string password = "")
         {
             //string contents = File.ReadAllText(path); 
             //byte[] bytes = GetBytesFromPEM(contents, "CERTIFICATE");
             //byte[] bytes = GetBytesFromPEM(contents, "RSA PRIVATE KEY");
             //var certificate = new X509Certificate2(bytes);
-            var certificate = new X509Certificate2(path, "");
+            var certificate = new X509Certificate2(path, password);
             //var certificate = X509Certificate.CreateFromSignedFile(path);
             //var certificate = X509Certificate.CreateFromCertFile(path);
             return certificate;
@@ -149,7 +151,7 @@ namespace SwitchManager.nx.cdn
             Console.WriteLine($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
 
             var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false);
-            
+
             if (cnmt != null)
             {
                 // Now that the CNMT NCA was downloaded and decrypted, read it f
@@ -175,7 +177,7 @@ namespace SwitchManager.nx.cdn
                             // 0x00010004, which indicates a RSA_2048 SHA256 signature method.
                             // The signature requires 4 bytes for the type, 0x100 for the signature and 0x3C for padding
                             // The total signature is 0x140. That explains the 0x140 mystery bytes at the start.
-                            
+
                             // Copy the 16-byte value of the 32 character hex title key into memory starting at position 0x180
                             for (int n = 0; n < 0x10; n++)
                             {
@@ -183,7 +185,7 @@ namespace SwitchManager.nx.cdn
                                 data[0x180 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
                             }
 
-                            data[0x286] = cnmt.MasterKeyRevision; 
+                            data[0x286] = cnmt.MasterKeyRevision;
                             // switchbrew says this should be at 0x285, not 0x286...
                             // Who's right? Does it even matter?
 
@@ -193,7 +195,7 @@ namespace SwitchManager.nx.cdn
                                 string byteValue = rightsID.Substring(n * 2, 2);
                                 data[0x2A0 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
                             }
-                            Miscellaneous.HexToBytes(rightsID?.Substring(0,32), data, 0x2A0);
+                            Miscellaneous.HexToBytes(rightsID?.Substring(0, 32), data, 0x2A0);
                             File.WriteAllBytes(ticketPath, data);
 
                             Console.WriteLine($"Generated ticket {ticketPath}.");
@@ -225,7 +227,7 @@ namespace SwitchManager.nx.cdn
 
                 List<Task<bool>> tasks = new List<Task<bool>>();
                 NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFilePath, cnmtXml);
-                foreach (var type in new [] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
+                foreach (var type in new[] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
                 {
                     // To verify, we need to parse the CNMT more thoroughly, which is a waste of effort if we aren't verifying
                     if (verify)
@@ -280,7 +282,7 @@ namespace SwitchManager.nx.cdn
             await DownloadNCA(ncaID, path).ConfigureAwait(false);
 
             // A null hash means no verification necessary, just return true
-            if (expectedHash != null ) 
+            if (expectedHash != null)
             {
                 using (FileStream fs = File.OpenRead(path))
                 {
@@ -424,6 +426,13 @@ namespace SwitchManager.nx.cdn
             return true;
         }
 
+        public async Task<long> GetContentLength(string url)
+        {
+            var result = await MakeRequest(HttpMethod.Get, url, null, null, false);
+            long cLength = result.Content.Headers.ContentLength ?? 0;
+            return cLength;
+        }
+
         /// <summary>
         /// Downloads a file from Nintendo and saves it to the specified path.
         /// </summary>
@@ -544,7 +553,7 @@ namespace SwitchManager.nx.cdn
                 {
                     // Read from the web.
                     int n = await remoteStream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-                    
+
                     if (n == 0)
                     {
                         // There is nothing else to read.
@@ -555,7 +564,7 @@ namespace SwitchManager.nx.cdn
                     download.UpdateProgress(n);
 
                     if (DownloadStarted != null) DownloadProgress.Invoke(download, n);
-                    
+
                     // Write to file.
                     fileStream.Write(buffer, 0, n);
                 }
@@ -629,7 +638,7 @@ namespace SwitchManager.nx.cdn
 
             JObject json = JObject.Parse(r);
             IList<JToken> titles = json["titles"].Children().ToList();
-             
+
             var result = new Dictionary<string, uint>();
             foreach (var title in titles)
             {
@@ -671,7 +680,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private async Task<string> GetRequest(string url, X509Certificate cert, Dictionary<string, string> args)
+        private async Task<string> GetRequest(string url, X509Certificate cert, Dictionary<string, string> args = null)
         {
             var response = await MakeRequest(HttpMethod.Get, url, cert, args);
             return await response.Content.ReadAsStringAsync();
@@ -729,9 +738,11 @@ namespace SwitchManager.nx.cdn
                 singletonClient.Timeout = TimeSpan.FromMinutes(30);
             }
 
-            if (cert != null)
-                if (!singletonHandler.ClientCertificates.Contains(cert))
-                    singletonHandler.ClientCertificates.Add(cert);
+            singletonHandler.ClientCertificates.Clear();
+            if (cert == null)
+                cert = this.ClientCert;
+            singletonHandler.ClientCertificates.Add(cert);
+
             return singletonClient;
         }
 
@@ -745,7 +756,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="args"></param>
         private async Task<HttpResponseMessage> MakeRequest(HttpMethod method, string url, X509Certificate cert = null, Dictionary<string, string> args = null, bool waitForContent = true)
         {
-            string userAgent = string.Format($"NintendoSDK Firmware/{firmware} (platform:NX; eid:{environment})");
+            string userAgent = string.Format($"NintendoSDK Firmware/{firmware} (platform:NX; did:{deviceId}; eid:{environment})");
 
             // Create request with method & url, then add headers
             var request = new HttpRequestMessage(method, url);
@@ -808,7 +819,7 @@ namespace SwitchManager.nx.cdn
 
             // Download the CNMT NCA file
             FileInfo cnmtNca = await DownloadCnmt(cnmtid, ncaPath).ConfigureAwait(false);
-            
+
             // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
             // Hactool does the job for us
             DirectoryInfo cnmtDir = DecryptNCA(ncaPath);
@@ -825,6 +836,62 @@ namespace SwitchManager.nx.cdn
             var headerFile = cnmtDir.EnumerateFiles("Header.bin").First();
 
             return new CNMT(extractedCnmt.FullName, headerFile.FullName, cnmtDir.FullName, ncaPath);
+        }
+
+        /// <summary>
+        /// Eshop requests do not work. I suspect it has something to do with sending them a bearer token,
+        /// but I have no idea how to get that, short of trying to log in with my own account and copying the token,
+        /// and I don't want to do that.
+        /// </summary>
+        /// <param name="title"></param>
+        /// <param name="lang"></param>
+        /// <returns></returns>
+        public async Task<object> GetEshopData(SwitchTitle title, string lang)
+        {
+            string url = $"https://bugyo.hac.{environment}.eshop.nintendo.net/shogun/v1/contents/ids?shop_id=4&lang={lang}&country={region}&type=title&title_ids={title.TitleID}";
+
+            var response = await GetRequest(url, EshopCert);
+
+            return response;
+        }
+
+        public async Task<long> GetTitleSize(SwitchTitle title, uint version, string titleDir)
+        {
+            var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false);
+
+            if (cnmt != null)
+            {
+                // Now that the CNMT NCA was downloaded and decrypted, read it f
+                string ticketPath = this.titleTicketPath, certPath = this.titleCertPath;
+                string cnmtXml = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFilePath) + ".xml";
+                cnmt.GenerateXml(cnmtXml);
+
+                List<Task<long>> tasks = new List<Task<long>>();
+
+                NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFilePath, cnmtXml);
+                foreach (var type in new[] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
+                {
+                    // To verify, we need to parse the CNMT more thoroughly, which is a waste of effort if we aren't verifying
+                    
+                    var parsedNCAFiles = cnmt.ParseNCAs(type);
+                    foreach (var ncaID in parsedNCAFiles)
+                    {
+                        string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
+                        Task<long> t = GetContentLength(url);
+                        tasks.Add(t);
+                    }
+                }
+
+                long[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                return new FileInfo(cnmt.CnmtFilePath).Length +
+                    new FileInfo(cnmtXml).Length +
+                    new FileInfo(certPath).Length +
+                    new FileInfo(ticketPath).Length +
+                    NSP.GenerateHeader(nsp.Files.ToArray()).Length +
+                    results.Sum();
+            }
+
+            return 0;
         }
     }
 }

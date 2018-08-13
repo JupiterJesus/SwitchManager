@@ -72,21 +72,23 @@ namespace SwitchManager.nx.library
         }
         private bool isFavorite;
 
-        [XmlIgnore]
+        [XmlElement(ElementName = "Size")]
         public long Size
         {
             get
             {
                 if (string.IsNullOrWhiteSpace(RomPath))
-                    return 0;
+                    return this.size;
                 else if (Directory.Exists(RomPath))
                     return DirSize(new DirectoryInfo(RomPath));
                 else if (File.Exists(RomPath))
                     return new FileInfo(RomPath).Length;
                 else
-                    return 0;
+                    return this.size;
             }
+            set { this.size = value; NotifyPropertyChanged("Size"); NotifyPropertyChanged("PrettySize"); }
         }
+        private long size;
 
         [XmlIgnore]
         public string PrettySize {  get { return Miscellaneous.ToFileSize(Size); } }
