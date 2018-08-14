@@ -308,6 +308,10 @@ namespace SwitchManager
                     var message = string.Join(Environment.NewLine, newTitles);
                     MessageBox.Show(message, "New Title Keys Found!", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
+                else
+                {
+                    MessageBox.Show("NO new titles found... :(", "Nothing new...", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
                 File.Delete(tkeysFile);
                 tempTkeys.MoveTo(tkeysFile);
             }
@@ -321,6 +325,7 @@ namespace SwitchManager
         private void MenuItemScan_Click(object sender, RoutedEventArgs e)
         {
             this.library.ScanRomsFolder(Settings.Default.NSPDirectory);
+            MessageBox.Show("Library scan completed!", "Scan complete", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void MenuItemSelectLocation_Click(object sender, RoutedEventArgs e)
