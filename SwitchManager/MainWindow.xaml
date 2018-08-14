@@ -41,7 +41,7 @@
           <MenuItem Header="_Import New Credentials (NYI)" Click="MenuItemImportCreds_Click"/>
         </MenuItem>
         <MenuItem Header="_Library">
-          <MenuItem Header="_Scan For _Games (NYI)" Click="MenuItemScan_Click"/>
+          <MenuItem Header="_Scan For _Games" Click="MenuItemScan_Click"/>
           <MenuItem Header="Select Library Location (NYI)" Click="MenuItemSelectLocation_Click"/>
           <MenuItem Header="Save Library _Metadata" Click="MenuItemSaveLibrary_Click"/>
         </MenuItem>

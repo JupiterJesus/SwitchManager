@@ -199,7 +199,7 @@ namespace SwitchManager.nx.library
                     }
                     else
                     {
-                        if (name.EndsWith("Demo"))
+                        if (name.ToUpper().Contains("DEMO"))
                         {
                             type = SwitchTitleType.Demo;
                         }
@@ -218,31 +218,44 @@ namespace SwitchManager.nx.library
                     {
                         string verPart = metaParts[1];
                         if (verPart.EndsWith("]"))
-                            version = verPart.Remove(verPart.Length - 1);
+                            verPart = verPart.Remove(verPart.Length - 1);
+                        if (verPart.StartsWith("v"))
+                            verPart = verPart.Remove(0, 1);
+                        version = verPart;
                     }
                     if (metaParts.Length > 0)
                     {
                         string idPart = metaParts[0];
                         if (idPart.StartsWith("["))
-                        {
-                            id = idPart.Remove(0, 1);
-                            if (idPart.EndsWith("]"))
-                                id = idPart.Remove(idPart.Length - 1);
-                        }
+                            idPart = idPart.Remove(0, 1);
+                        if (idPart.EndsWith("]"))
+                            idPart = idPart.Remove(idPart.Length - 1);
+                        id = idPart;
                     }
                 }
 
-                /* TODO Scan Roms
-                var item = GetTitleByID(id);
-                if (item  == null)
+                switch (type)
                 {
-                    item = AddGame(name, id, null);
+                    case SwitchTitleType.DLC:
+                    case SwitchTitleType.Game:
+                    case SwitchTitleType.Demo:
+                        var item = GetTitleByID(id);
+                        if (item != null && id.Equals(item.TitleId)) // GetTitleByID actually looks up base title for DLC and UPD
+                        {
+                            item.RomPath = nspFile.FullName;
+                            item.Title.Type = type;
+
+                            // If you haven't already marked the file as on switch, mark it owned
+                            if (item.State != SwitchCollectionState.OnSwitch)
+                                item.State = SwitchCollectionState.Owned;
+                        }
+                        break;
+                    case SwitchTitleType.Update:
+                        // do anything? Not currently holding updates in library
+                        break;
+                    default:
+                        break;
                 }
-                item.File = nspFile;
-                item.Title.Type = type;
-                if (type == SwitchTitleType.Update)
-                    AddUpdateTitle(id)
-                */
             }
         }
 
@@ -311,7 +324,7 @@ namespace SwitchManager.nx.library
             {
                 string titleName = Miscellaneous.SanitizeFileName(title.Name);
 
-                string nspFile = $"{titleName} [{title.TitleID}][{version}].nsp";
+                string nspFile = $"{titleName} [{title.TitleID}][v{version}].nsp";
                 string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
 
                 // Repack the game files into an NSP

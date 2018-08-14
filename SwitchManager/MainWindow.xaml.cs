@@ -321,7 +321,6 @@ namespace SwitchManager
         private void MenuItemScan_Click(object sender, RoutedEventArgs e)
         {
             this.library.ScanRomsFolder(Settings.Default.NSPDirectory);
-            MessageBox.Show("I have most of the code written for this but it isn't completed or bug tested.");
         }
 
         private void MenuItemSelectLocation_Click(object sender, RoutedEventArgs e)
