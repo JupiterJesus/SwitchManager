@@ -821,7 +821,8 @@ namespace SwitchManager.nx.cdn
             string ncaPath = titleDir + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
 
             // Download the CNMT NCA file
-            FileInfo cnmtNca = await DownloadCnmt(cnmtid, ncaPath).ConfigureAwait(false);
+            bool completed = await DownloadCnmt(cnmtid, ncaPath).ConfigureAwait(false);
+            if (!completed) return null;
 
             // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
             // Hactool does the job for us
