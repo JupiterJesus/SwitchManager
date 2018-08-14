@@ -1,13 +1,14 @@
-﻿using System.IO;
+﻿using System.ComponentModel;
+using System.IO;
 
 namespace SwitchManager.nx.cdn
 {
-    public class DownloadTask
+    public class DownloadTask : INotifyPropertyChanged
     {
         public Stream WebStream { get; set; }
         public FileStream FileStream { get; set; }
         public long ExpectedSize { get; set; }
-        public long Progress { get; set; }
+        public long Progress { get; private set; }
         public string FileName {  get { return FileStream?.Name ?? null; } }
         public DownloadTask(Stream webStream, FileStream fileStream, long expectedSize, long startingSize = 0)
         {
@@ -20,6 +21,15 @@ namespace SwitchManager.nx.cdn
         public void UpdateProgress(int progress)
         {
             this.Progress += progress;
+            NotifyPropertyChanged("Progress");
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+
+        private void NotifyPropertyChanged(string info)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(info));
         }
     }
 }

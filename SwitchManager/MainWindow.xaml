@@ -8,7 +8,7 @@
         xmlns:ui="clr-namespace:SwitchManager.ui"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="Switch Library and CDN Downloader" Height="450" Width="800">
 
   <Window.Resources>
     <!-- WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN-->
@@ -33,11 +33,12 @@
   <StackPanel Margin="0">
     <DockPanel Grid.Row="0" Margin="0,0,0.333,-0.333" Grid.RowSpan="2">
       <Menu DockPanel.Dock="Top">
-        <MenuItem Header="_File">
-          <MenuItem Header="_Import New Credentials (NYI)" Click="MenuItemImportCreds_Click"/>
+        <MenuItem Header="_Downloads">
+          <MenuItem x:Name="MenuItem_ShowDownloads" Header="Show Downloads" Click="MenuItemShowDownloads_Click"/>
         </MenuItem>
         <MenuItem Header="_Tools">
           <MenuItem Header="_Update Title Keys" Click="MenuItemUpdate_Click"/>
+          <MenuItem Header="_Import New Credentials (NYI)" Click="MenuItemImportCreds_Click"/>
         </MenuItem>
         <MenuItem Header="_Library">
           <MenuItem Header="_Scan For _Games (NYI)" Click="MenuItemScan_Click"/>

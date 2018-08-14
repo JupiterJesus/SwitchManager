@@ -30,7 +30,8 @@ namespace SwitchManager
     /// </summary>
     public partial class MainWindow : Window
     {
-        private SwitchLibrary gameCollection;
+        private SwitchLibrary library;
+        private ProgressWindow downloadWindow;
 
         public MainWindow()
         {
@@ -50,30 +51,32 @@ namespace SwitchManager
 
             downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
 
-            gameCollection = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
+            library = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
 
-            gameCollection.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
+            library.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
 
             try
             {
-                gameCollection.LoadMetadata(Settings.Default.MetadataFile);
+                library.LoadMetadata(Settings.Default.MetadataFile);
             }
             catch (Exception)
             {
                 MessageBox.Show("Error reading library metadata file, it will be recreated on exit or when you force save it.");
             }
 
-            Task.Run(() => gameCollection.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages)).ConfigureAwait(false);
+            Task.Run(() => library.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages)).ConfigureAwait(false);
 
             // WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN
             CollectionViewSource itemCollectionViewSource;
             itemCollectionViewSource = (CollectionViewSource)(FindResource("ItemCollectionViewSource"));
-            itemCollectionViewSource.Source = gameCollection.Collection;
+            itemCollectionViewSource.Source = library.Collection;
             //
 
             downloader.DownloadStarted += Downloader_DownloadStarted;
             downloader.DownloadProgress += Downloader_DownloadProgress;
             downloader.DownloadFinished += Downloader_DownloadFinished;
+
+            downloadWindow = new ProgressWindow(library);
 
             // Add a filter to the datagrid based on text filtering and checkboxes
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
@@ -118,7 +121,8 @@ namespace SwitchManager
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             Settings.Default.Save();
-            gameCollection.SaveMetadata(Settings.Default.MetadataFile);
+            library.SaveMetadata(Settings.Default.MetadataFile);
+            downloadWindow.Close();
         }
 
         #region Buttons and other controls on the datagrid
@@ -133,7 +137,11 @@ namespace SwitchManager
             uint v = SelectedVersion ?? item.Title.Versions.First();
             DownloadOptions o = DLOption ?? DownloadOptions.BaseGameOnly;
 
-            Task.Run(() => gameCollection.DownloadGame(item, v, o, Settings.Default.NSPRepack, false));
+            Task.Run(() => library.DownloadGame(item, v, o, Settings.Default.NSPRepack, false));
+
+            // Open the download window if it isn't showing
+            if (!downloadWindow.IsVisible)
+                MenuItem_ShowDownloads.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); ;
         }
 
         private void ComboBox_VersionChanged(object sender, SelectionChangedEventArgs e)
@@ -253,7 +261,25 @@ namespace SwitchManager
             await DownloadTitleKeys();
         }
 
-        private async void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
+        private void MenuItemShowDownloads_Click(object sender, RoutedEventArgs e)
+        {
+            MenuItem mi = (MenuItem)sender;
+            if (this.downloadWindow != null)
+            {
+                if (this.downloadWindow.IsVisible)
+                {
+                    this.downloadWindow.Hide();
+                    mi.Header = "Show Downloads";
+                }
+                else
+                {
+                    this.downloadWindow.Show();
+                    mi.Header = "Hide Downloads";
+                }
+            }
+        }
+
+        private void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
         {
             MessageBox.Show("Not implemented, but this will provide a convenient popup window for pasting in a new device id and selecting the path to a new PEM file, and the app will handle updating the settings and converting the cert to pfx.");
         }
@@ -274,7 +300,7 @@ namespace SwitchManager
             if (tempTkeys.Exists && tempTkeys.Length >= tkeys.Length)
             {
                 Console.WriteLine("Successfully downloaded new title keys file");
-                var newTitles = await gameCollection.UpdateTitleKeysFile(tempTkeysFile);
+                var newTitles = await library.UpdateTitleKeysFile(tempTkeysFile);
 
                 if (newTitles.Count > 0)
                 {
@@ -294,7 +320,7 @@ namespace SwitchManager
 
         private void MenuItemScan_Click(object sender, RoutedEventArgs e)
         {
-            this.gameCollection.ScanRomsFolder(Settings.Default.NSPDirectory);
+            this.library.ScanRomsFolder(Settings.Default.NSPDirectory);
             MessageBox.Show("I have most of the code written for this but it isn't completed or bug tested.");
         }
 
@@ -305,7 +331,7 @@ namespace SwitchManager
 
         private void MenuItemSaveLibrary_Click(object sender, RoutedEventArgs e)
         {
-            this.gameCollection.SaveMetadata(Settings.Default.MetadataFile);
+            this.library.SaveMetadata(Settings.Default.MetadataFile);
         }
 
         #endregion
@@ -334,7 +360,7 @@ namespace SwitchManager
                 // If anything is null, or the blank image is used, get a new image
                 if (item?.Title?.Icon == null || (item?.Title?.Icon?.Equals(SwitchLibrary.BlankImage)??true))
                 {
-                    await gameCollection.LoadTitleIcon(item?.Title, true);
+                    await library.LoadTitleIcon(item?.Title, true);
                 }
                 
                 if (item?.Size == 0)
@@ -342,7 +368,7 @@ namespace SwitchManager
                     string titledir = Settings.Default.NSPDirectory + System.IO.Path.DirectorySeparatorChar + item?.TitleId;
                     if (!Directory.Exists(titledir))
                         Directory.CreateDirectory(titledir);
-                    var result = await gameCollection.Loader.GetTitleSize(item?.Title, 0, titledir).ConfigureAwait(false);
+                    var result = await library.Loader.GetTitleSize(item?.Title, 0, titledir).ConfigureAwait(false);
                     item.Size = result;
                 }
             }
