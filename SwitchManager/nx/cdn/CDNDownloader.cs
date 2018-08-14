@@ -121,15 +121,16 @@ namespace SwitchManager.nx.cdn
 
                 string ncaID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
                 string fpath = gamePath + Path.DirectorySeparatorChar + "control.nca";
-                await DownloadNCA(ncaID, fpath).ConfigureAwait(false);
+                if (await DownloadNCA(ncaID, fpath).ConfigureAwait(false))
+                {
+                    var controlDir = DecryptNCA(fpath);
 
-                var controlDir = DecryptNCA(fpath);
+                    DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
 
-                DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
-
-                var iconFile = imageDir.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
-                iconFile.MoveTo(imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg");
-                gameDir.Delete(true);
+                    var iconFile = imageDir.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
+                    iconFile.MoveTo(imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg");
+                    gameDir.Delete(true);
+                }
             }
             else
             {
@@ -257,16 +258,23 @@ namespace SwitchManager.nx.cdn
                 }
 
                 bool[] results = await Task.WhenAll(tasks);
-                if (verify)
+                foreach (var r in results)
                 {
-                    foreach (var r in results)
+                    if (verify && !r)
                     {
-                        if (!r)
-                        {
-                            throw new Exception("At least one NCA failed to verify, NSP repack (if requested) will not continue");
-                        }
+                        throw new Exception("At least one NCA failed to verify, NSP repack (if requested) will not continue");
+                    }
+                    else if (!r)
+                    {
+                        // Chances are all this means is that it was cancelled
+                        // Unfortunately I did cancelling via returning false instead of true,
+                        // when really I should have thrown a cancelled exception
+                        // Perhaps I will update it some day.
+                        Console.WriteLine("Download didn't complete. It may have been cancelled. NSPs will not be repacked, and you should try the download again later");
+                        return null;
                     }
                 }
+
                 if (nspRepack)
                 {
                     return nsp;
@@ -279,7 +287,8 @@ namespace SwitchManager.nx.cdn
         private async Task<bool> DoDownloadNCA(string ncaID, string path, byte[] expectedHash)
         {
             Console.WriteLine($"Downloading NCA {ncaID}.");
-            await DownloadNCA(ncaID, path).ConfigureAwait(false);
+            bool completed = await DownloadNCA(ncaID, path).ConfigureAwait(false);
+            if (!completed) return false;
 
             // A null hash means no verification necessary, just return true
             if (expectedHash != null)
@@ -306,13 +315,11 @@ namespace SwitchManager.nx.cdn
             return true;
         }
 
-        private async Task<string> DownloadNCA(string ncaID, string path)
+        private async Task<bool> DownloadNCA(string ncaID, string path)
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
 
-            await DownloadFile(url, path).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
-
-            return path;
+            return await DownloadFile(url, path).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
         }
 
         /// <summary>
@@ -438,7 +445,7 @@ namespace SwitchManager.nx.cdn
         /// </summary>
         /// <param name="url"></param>
         /// <param name="fpath"></param>
-        public async Task DownloadFile(string url, string fpath)
+        public async Task<bool> DownloadFile(string url, string fpath)
         {
             var finfo = new FileInfo(fpath);
             long downloaded = 0;
@@ -455,7 +462,7 @@ namespace SwitchManager.nx.cdn
                 if (!result.Headers.Server.First().ToString().Equals("openresty/1.9.7.4")) // Completed download
                 {
                     Console.WriteLine("Download complete, skipping: " + fpath);
-                    return;
+                    return true;
                 }
                 else if (result.Content.Headers.ContentRange == null) // CDN doesn't return a range if request >= filesize
                 {
@@ -471,7 +478,7 @@ namespace SwitchManager.nx.cdn
                 if (downloaded == expectedSize)
                 {
                     Console.WriteLine("Download complete, skipping: " + fpath);
-                    return;
+                    return true;
                 }
                 else if (downloaded < expectedSize)
                 {
@@ -508,22 +515,18 @@ namespace SwitchManager.nx.cdn
             // The thing that calls DownloadFile either uses "await" to wait for it to finish or it can 
             // collect tasks somewhere until they're done. Right? I don't actually know
 
-            await StartDownload(fs, result, expectedSize, downloaded).ConfigureAwait(false);
+            bool completed = await StartDownload(fs, result, expectedSize, downloaded).ConfigureAwait(false);
 
             fs.Dispose();
             result.Dispose();
 
             var newFile = new FileInfo(fpath);
-            if (expectedSize != 0 && newFile.Length != expectedSize)
+            if (completed && expectedSize != 0 && newFile.Length != expectedSize)
             {
                 throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
             }
 
-            // The next thing to figure out is how to get updates on the task
-            // Like, after a task is done I want to remove it from the downloads list
-            // and while it is downloading I want to update progress.
-            // For downloading an image I will probably just await, but bigger files should have some kind of callback
-            // for handling progress and task end. Time for some more research!
+            return completed;
         }
 
         public delegate void DownloadDelegate(DownloadTask download);
@@ -539,8 +542,8 @@ namespace SwitchManager.nx.cdn
         /// <param name="fileStream"></param>
         /// <param name="result"></param>
         /// <param name="expectedSize"></param>
-        /// <returns></returns>
-        private async Task StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize, long startingSize = 0)
+        /// <returns>true if the download completed and false if it was cancelled</returns>
+        private async Task<bool> StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize, long startingSize = 0)
         {
             using (Stream remoteStream = await result.Content.ReadAsStreamAsync().ConfigureAwait(false))
             {
@@ -554,7 +557,7 @@ namespace SwitchManager.nx.cdn
                     // Read from the web.
                     int n = await remoteStream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
 
-                    if (n == 0)
+                    if (n == 0 || download.IsCanceled)
                     {
                         // There is nothing else to read.
                         break;
@@ -570,6 +573,8 @@ namespace SwitchManager.nx.cdn
                 }
                 if (DownloadFinished != null) DownloadFinished.Invoke(download);
                 fileStream.Flush();
+
+                return !download.IsCanceled;
             }
         }
 
@@ -579,7 +584,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="rightsID"></param>
         /// <param name="fpath"></param>
         /// <returns></returns>
-        private async Task DownloadCETK(string rightsID, string fpath)
+        private async Task<bool> DownloadCETK(string rightsID, string fpath)
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/r/t/{rightsID}?device_id={deviceId}";
             var head = await HeadRequest(url, null, null).ConfigureAwait(false);
@@ -587,7 +592,7 @@ namespace SwitchManager.nx.cdn
             string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
 
             url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/t/{cnmtid}?device_id={deviceId}";
-            await DownloadFile(url, fpath).ConfigureAwait(false);
+            return await DownloadFile(url, fpath).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -798,13 +803,11 @@ namespace SwitchManager.nx.cdn
         /// <param name="cnmtid">ID of the CNMT. Use GetCnmtId to find it.</param>
         /// <param name="path">Path of the downloaded file. This is where it will be once this function is completed.</param>
         /// <returns>FileInfo for the downloaded CNMT NCA.</returns>
-        private async Task<FileInfo> DownloadCnmt(string cnmtid, string path)
+        private async Task<bool> DownloadCnmt(string cnmtid, string path)
         {
             // Download cnmt file, async
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/a/{cnmtid}?device_id={deviceId}";
-            await DownloadFile(url, path).ConfigureAwait(false);
-
-            return new FileInfo(path);
+            return await DownloadFile(url, path).ConfigureAwait(false);
         }
 
         private async Task<CNMT> DownloadAndDecryptCnmt(SwitchTitle title, uint version, string titleDir)

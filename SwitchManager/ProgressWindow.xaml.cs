@@ -68,6 +68,7 @@ namespace SwitchManager
                             Mode = BindingMode.OneWay,
                             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
                         });
+                    bar.MouseDoubleClick += (s, a) => download.Cancel();
 
                     TextBlock t = new TextBlock
                     {
@@ -144,12 +145,11 @@ namespace SwitchManager
                 double remainingSeconds = left / speed;
 
                 DateTime time = DateTime.Now.AddSeconds(remainingSeconds);
-                this.Clock.Restart();
-                return $"{filename}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(expected)}  -  {Miscellaneous.ToFileSize(speed)} / sec - Complete on {time.ToShortTimeString()}";    
+                return $"{filename}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(expected)}  -  {Miscellaneous.ToFileSize(speed)} / sec - Complete on {time.ToShortTimeString()}\nDouble-click progress bar to cancel";    
             }
             else
             {
-                return $"{filename}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(expected)}";
+                return $"{filename}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(expected)}\nDouble-click progress bar to cancel";
             }
 
         }

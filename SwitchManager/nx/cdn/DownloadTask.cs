@@ -10,6 +10,8 @@ namespace SwitchManager.nx.cdn
         public long ExpectedSize { get; set; }
         public long Progress { get; private set; }
         public string FileName {  get { return FileStream?.Name ?? null; } }
+        public bool IsCanceled { get; private set; } = false;
+
         public DownloadTask(Stream webStream, FileStream fileStream, long expectedSize, long startingSize = 0)
         {
             this.WebStream = webStream;
@@ -22,6 +24,11 @@ namespace SwitchManager.nx.cdn
         {
             this.Progress += progress;
             NotifyPropertyChanged("Progress");
+        }
+
+        public void Cancel()
+        {
+            this.IsCanceled = true;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
