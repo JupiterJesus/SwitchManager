@@ -38,8 +38,8 @@ namespace SwitchManager.nx.library
             }
         }
 
-        public ObservableCollection<string> DLC { get; set; }
-        public ObservableCollection<string> Updates { get; set;  }
+        public ObservableCollection<SwitchTitle> DLC { get; set; }
+        public ObservableCollection<SwitchTitle> Updates { get; set;  }
         public ObservableCollection<uint> Versions { get; set; }
 
         internal SwitchTitle(string name, string titleid, string titlekey)

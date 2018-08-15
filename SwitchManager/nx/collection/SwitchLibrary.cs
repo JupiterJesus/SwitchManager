@@ -135,6 +135,13 @@ namespace SwitchManager.nx.library
                 ci.RomPath = item.Path;
                 ci.State = item.State;
                 ci.Size = item.Size;
+                ci.Title.Name = item.Name;
+                ci.Title.TitleKey = item.TitleKey;
+
+                foreach (var update in item.Updates)
+                {
+                    AddUpdateTitle(update.TitleID, update.Version, update.TitleKey);
+                }
             }
 
             Console.WriteLine($"Finished loading library metadata from {path}");
@@ -153,6 +160,7 @@ namespace SwitchManager.nx.library
             xml.Serialize(fs, this);
             fs.Dispose();
 
+            // TODO: Save updates to metadata, even though updates are inside the base title instead of in the main collection
             Console.WriteLine($"Finished saving library metadata to {path}");
         }
 
@@ -240,7 +248,7 @@ namespace SwitchManager.nx.library
                     case SwitchTitleType.Game:
                     case SwitchTitleType.Demo:
                         var item = GetTitleByID(id);
-                        if (item != null && id.Equals(item.TitleId)) // GetTitleByID actually looks up base title for DLC and UPD
+                        if (item != null && id.Equals(item.TitleId))
                         {
                             item.RomPath = nspFile.FullName;
                             item.Title.Type = type;
@@ -251,12 +259,40 @@ namespace SwitchManager.nx.library
                         }
                         break;
                     case SwitchTitleType.Update:
-                        // do anything? Not currently holding updates in library
+                        AddUpdateTitle(id, version, null);
+
                         break;
                     default:
                         break;
                 }
             }
+        }
+
+        private SwitchTitle AddUpdateTitle(string id, string version, string titlekey)
+        {
+            SwitchTitle update = new SwitchTitle(version, id, titlekey);
+            return AddUpdateTitle(update);
+        }
+
+        private SwitchTitle AddUpdateTitle(SwitchTitle update)
+        {
+            var baseT = GetBaseTitleByID(update.TitleID); // Let's try adding this to the base game's list
+            if (baseT == null)
+            {
+                Console.WriteLine("WARNING: Found an update for a game that doesn't exist.");
+                return null;
+            }
+            else if (baseT.Title == null)
+            {
+                Console.WriteLine("WARNING: Found a collection item in the library with a null title.");
+                return null;
+            }
+            else if (baseT.Title.Updates == null)
+                baseT.Title.Updates = new ObservableCollection<SwitchTitle>();
+
+            baseT.Title.Updates.Add(update);
+
+            return update;
         }
 
         /// <summary>
@@ -376,9 +412,9 @@ namespace SwitchManager.nx.library
                     }
                     else if (title.Type == SwitchTitleType.Game && title.DLC != null && title.DLC.Count > 0)
                     {
-                        foreach (var dlcId in title.DLC)
+                        foreach (var t in title.DLC)
                         {
-                            SwitchCollectionItem dlcTitle = GetTitleByID(dlcId);
+                            SwitchCollectionItem dlcTitle = GetTitleByID(t?.TitleID);
                             string dlcPath = await DownloadTitle(dlcTitle?.Title, title.Versions.Last(), repack, verify);
                             dlcTitle.State = SwitchCollectionState.Owned;
                             dlcTitle.RomPath = Path.GetFullPath(dlcPath);
@@ -402,6 +438,7 @@ namespace SwitchManager.nx.library
                     {
                         SwitchTitle update = SwitchTitle.IsUpdateTitleID(title.TitleID) ? title : title.GetUpdateTitle(v);
                         string updatePath = await DownloadTitle(update, v, repack, verify);
+                        AddUpdateTitle(update);
                         v -= 0x10000;
                     }
 
@@ -598,9 +635,9 @@ namespace SwitchManager.nx.library
                 baseTitle = item.Title;
             }
 
-            if (baseTitle.DLC == null) baseTitle.DLC = new ObservableCollection<string>();
+            if (baseTitle.DLC == null) baseTitle.DLC = new ObservableCollection<SwitchTitle>();
 
-            baseTitle.DLC.Add(dlctitle.TitleID);
+            baseTitle.DLC.Add(dlctitle);
             return baseTitle;
         }
 

@@ -27,6 +27,9 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Title")]
         public string TitleId { get { return title?.TitleID; } set { } }
 
+        [XmlElement(ElementName = "Key")]
+        public string TitleKey { get { return title?.TitleKey; } set { } }
+
         [XmlElement(ElementName = "Name")]
         public string TitleName { get { return title?.Name; } set { } }
 
@@ -122,6 +125,28 @@ namespace SwitchManager.nx.library
             }
         }
         private string romPath;
+
+        [XmlElement(ElementName = "Updates")]
+        public List<UpdateMetadataItem> Updates
+        {
+            get
+            {
+                List<UpdateMetadataItem> updates = new List<UpdateMetadataItem>(this.title?.Updates?.Count ?? 0);
+                if (this.title?.Updates != null)
+                {
+                    foreach (var update in this.title.Updates)
+                    {
+                        var meta = new UpdateMetadataItem();
+                        meta.TitleID = update.TitleID;
+                        meta.TitleKey = update.TitleKey;
+                        meta.Version = update.Name;
+                        updates.Add(meta);
+                    }
+                }
+                return updates;
+            }
+        }
+
         /// <summary>
         /// Default constructor. I don't like these but XmlSerializer requires it, even though I have NO NO NO
         /// intention of deserializing into this class  (just serializing). Make sure to populate fields if you call

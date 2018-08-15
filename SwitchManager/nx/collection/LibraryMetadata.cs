@@ -20,6 +20,12 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Title")]
         public string TitleID { get; set; }
 
+        [XmlElement(ElementName = "Key")]
+        public string TitleKey { get; set; }
+
+        [XmlElement(ElementName = "Name")]
+        public string Name { get; set; }
+
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State { get; set; }
 
@@ -31,5 +37,21 @@ namespace SwitchManager.nx.library
 
         [XmlElement(ElementName = "Size")]
         public long Size { get; set; }
+
+        [XmlElement(ElementName = "Updates")]
+        public List<UpdateMetadataItem> Updates { get; set; }
+    }
+
+    [XmlRoot(ElementName = "UpdateItem")]
+    public class UpdateMetadataItem
+    {
+        [XmlElement(ElementName = "Title")]
+        public string TitleID { get; set; }
+
+        [XmlElement(ElementName = "Key")]
+        public string TitleKey { get; set; }
+
+        [XmlElement(ElementName = "Version")]
+        public string Version { get; set; }
     }
 }
