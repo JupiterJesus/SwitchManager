@@ -290,18 +290,19 @@ namespace SwitchManager.nx.library
                     {
                         return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
                     }
+                    else if (SwitchTitle.IsDLCID(title.TitleID))
+                    {
+                        return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
+                    }
                     else
-                        throw new Exception("Don't try to download a game with version greater than 0!");
+                        throw new Exception("Don't try to download an update with version 0!");
                 }
                 else
                 {
                     if (SwitchTitle.IsBaseGameID(title.TitleID))
                         throw new Exception("Don't try to download an update using base game's ID!");
                     else if (SwitchTitle.IsDLCID(title.TitleID))
-                    {
-                        // TODO Handle downloading of DLC
-                        return null;
-                    }
+                        throw new Exception("Don't try to download an update using a DLC ID!");
                     else
                     {
                         return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
@@ -324,12 +325,12 @@ namespace SwitchManager.nx.library
                 string titleName = Miscellaneous.SanitizeFileName(title.Name);
 
                 // format is
-                // [DLC] at the start, plus space, if it is DLC
+                // [DLC] at the start, plus space, if it is DLC - this is already party of the name for DLC, typically
                 // title name
                 // [UPD] if it is an update
                 // [titleid]
                 // [vXXXXXX], where XXXXXX is the version number in decimal
-                string nspFile = (title.Type == SwitchTitleType.DLC?"[DLC] ":"") + titleName + (title.Type == SwitchTitleType.Update?" [UPD]":" ") + $"[{title.TitleID}][v{version}].nsp";
+                string nspFile = (title.Type == SwitchTitleType.DLC && !titleName.StartsWith("[DLC]") ? "[DLC] " : "") + titleName + (title.Type == SwitchTitleType.Update?" [UPD]":" ") + $"[{title.TitleID}][v{version}].nsp";
                 string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
 
                 // Repack the game files into an NSP
@@ -367,25 +368,32 @@ namespace SwitchManager.nx.library
             switch (options)
             {
                 case DownloadOptions.AllDLC:
-                    break;
-                case DownloadOptions.UpdateAndDLC:
-                    break;
-                case DownloadOptions.BaseGameAndUpdateAndDLC:
-                    
-                case DownloadOptions.BaseGameAndUpdate:
-
-                    // Get the base game version first
-                    uint baseVersion = title.Versions.Last();
-                    await DownloadTitle(title, baseVersion, repack, verify);
-                    
-                    // If a version greater than 0 is selected, download it and every version below it
-                    while (v > 0)
+                    if (SwitchTitle.IsDLCID(title.TitleID))
                     {
-                        SwitchTitle update = title.GetUpdateTitle(v);
-                        await DownloadTitle(update, v, repack, verify);
-                        v -= 0x10000;
+                        string dlcPath = await DownloadTitle(title, title.Versions.Last(), repack, verify);
+                        titleItem.State = SwitchCollectionState.Owned;
+                        titleItem.RomPath = Path.GetFullPath(dlcPath);
+                    }
+                    else if (title.Type == SwitchTitleType.Game && title.DLC != null && title.DLC.Count > 0)
+                    {
+                        foreach (var dlcId in title.DLC)
+                        {
+                            SwitchCollectionItem dlcTitle = GetTitleByID(dlcId);
+                            string dlcPath = await DownloadTitle(dlcTitle?.Title, title.Versions.Last(), repack, verify);
+                            dlcTitle.State = SwitchCollectionState.Owned;
+                            dlcTitle.RomPath = Path.GetFullPath(dlcPath);
+                        }
                     }
                     break;
+                case DownloadOptions.UpdateAndDLC:
+                    goto case DownloadOptions.UpdateOnly;
+
+                case DownloadOptions.BaseGameAndUpdateAndDLC:
+                    goto case DownloadOptions.BaseGameOnly;
+
+                case DownloadOptions.BaseGameAndUpdate:
+                    goto case DownloadOptions.BaseGameOnly;
+                    
                 case DownloadOptions.UpdateOnly:
                     if (v == 0) return;
 
@@ -396,15 +404,24 @@ namespace SwitchManager.nx.library
                         string updatePath = await DownloadTitle(update, v, repack, verify);
                         v -= 0x10000;
                     }
+
+                    if (options == DownloadOptions.UpdateAndDLC || options == DownloadOptions.BaseGameAndUpdateAndDLC)
+                        goto case DownloadOptions.AllDLC;
                     break;
+
                 case DownloadOptions.BaseGameAndDLC:
-                    break;
+                    goto case DownloadOptions.BaseGameOnly;
+
                 case DownloadOptions.BaseGameOnly:
                 default:
-                    v = title.Versions.Last();
-                    string romPath = await DownloadTitle(title, v, repack, verify);
+                    string romPath = await DownloadTitle(title, title.Versions.Last(), repack, verify);
                     titleItem.State = SwitchCollectionState.Owned;
                     titleItem.RomPath = Path.GetFullPath(romPath);
+
+                    if (options == DownloadOptions.BaseGameAndUpdate || options == DownloadOptions.BaseGameAndUpdateAndDLC)
+                        goto case DownloadOptions.UpdateOnly;
+                    else if (options == DownloadOptions.BaseGameAndDLC)
+                        goto case DownloadOptions.AllDLC;
                     break;
             }
         }
@@ -547,7 +564,7 @@ namespace SwitchManager.nx.library
                     }
                     catch (Exception)
                     {
-                        if (GetTitleByID(baseGameID) == null)
+                        if (GetBaseTitleByID(baseGameID) == null)
                             Console.WriteLine($"WARNING: Couldn't find base game ID {baseGameID} for DLC {title.Name}");
                     }
                 }
@@ -568,7 +585,7 @@ namespace SwitchManager.nx.library
         /// <returns>The base title that the DLC was attached to.</returns>
         public SwitchTitle AddDLCTitle(string baseGameID, SwitchTitle dlctitle)
         {
-            SwitchTitle baseTitle = GetTitleByID(baseGameID)?.Title;
+            SwitchTitle baseTitle = GetBaseTitleByID(baseGameID)?.Title;
             if (baseTitle == null)
             {
                 // This can happen if you put the DLC before the title, or if your titlekeys file has DLC for
@@ -592,13 +609,21 @@ namespace SwitchManager.nx.library
             if (titleID == null || titleID.Length != 16)
                 return null;
 
+            return titlesByID.TryGetValue(titleID, out SwitchCollectionItem returnValue) ? returnValue : null;
+        }
+
+        public SwitchCollectionItem GetBaseTitleByID(string titleID)
+        {
+            if (titleID == null || titleID.Length != 16)
+                return null;
+
             // In case someone tries to look up by UPDATE TID, convert to base game TID
             if (SwitchTitle.IsUpdateTitleID(titleID))
                 titleID = SwitchTitle.GetBaseGameIDFromUpdate(titleID);
             else if (SwitchTitle.IsDLCID(titleID))
                 titleID = SwitchTitle.GetBaseGameIDFromDLC(titleID);
 
-            return titlesByID.TryGetValue(titleID, out SwitchCollectionItem returnValue) ? returnValue : null;
+            return GetTitleByID(titleID);
         }
     }
 }
