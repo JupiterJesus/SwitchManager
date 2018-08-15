@@ -304,7 +304,6 @@ namespace SwitchManager.nx.library
                     }
                     else
                     {
-                        // TODO: Handle downloading of update
                         return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
                     }
                 }
@@ -324,7 +323,13 @@ namespace SwitchManager.nx.library
             {
                 string titleName = Miscellaneous.SanitizeFileName(title.Name);
 
-                string nspFile = $"{titleName} [{title.TitleID}][v{version}].nsp";
+                // format is
+                // [DLC] at the start, plus space, if it is DLC
+                // title name
+                // [UPD] if it is an update
+                // [titleid]
+                // [vXXXXXX], where XXXXXX is the version number in decimal
+                string nspFile = (title.Type == SwitchTitleType.DLC?"[DLC] ":"") + titleName + (title.Type == SwitchTitleType.Update?" [UPD]":" ") + $"[{title.TitleID}][v{version}].nsp";
                 string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
 
                 // Repack the game files into an NSP
@@ -388,7 +393,7 @@ namespace SwitchManager.nx.library
                     while (v > 0)
                     {
                         SwitchTitle update = SwitchTitle.IsUpdateTitleID(title.TitleID) ? title : title.GetUpdateTitle(v);
-                        await DownloadTitle(update, v, repack, verify);
+                        string updatePath = await DownloadTitle(update, v, repack, verify);
                         v -= 0x10000;
                     }
                     break;

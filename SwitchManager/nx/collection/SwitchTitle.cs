@@ -116,7 +116,9 @@ namespace SwitchManager.nx.library
 
         internal SwitchTitle GetUpdateTitle(uint v)
         {
-            SwitchTitle title = new SwitchTitle(this.name + "[v" + v + "]", GetUpdateIDFromBaseGame(this.TitleID), null);
+            SwitchTitle title = new SwitchTitle(this.name, GetUpdateIDFromBaseGame(this.TitleID), null);
+            title.Type = SwitchTitleType.Update;
+            
             return title;
         }
 

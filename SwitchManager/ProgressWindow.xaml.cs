@@ -49,6 +49,7 @@ namespace SwitchManager
         private void Downloader_DownloadStarted(DownloadTask download)
         {
             Download dl = new Download();
+            dl.Task = download;
             downloads.Add(download.FileName, dl);
             if (Application.Current != null)
                 Application.Current.Dispatcher.Invoke((Action)delegate 
@@ -72,7 +73,7 @@ namespace SwitchManager
 
                     TextBlock t = new TextBlock
                     {
-                        Name = $"ProgressLable_{downloads.Count - 1}",
+                        Name = $"ProgressLabel_{downloads.Count - 1}",
                     };
                     t.SetBinding(TextBlock.TextProperty,
                         new Binding("Progress")
@@ -87,7 +88,7 @@ namespace SwitchManager
                     dl.Container.Children.Add(bar);
                     dl.Container.Children.Add(t);
                     dl.Container.UpdateLayout();
-                    DownloadsPanel.Children.Add(dl.Container);
+                    DownloadsPanel.Children.Insert(1, dl.Container);
                     DownloadsPanel.UpdateLayout();
                 });
 
@@ -158,7 +159,7 @@ namespace SwitchManager
 
             if (progress == expected)
             {
-                if (this.completed == null)
+                if (this.completed == default(DateTime)) // bugfix, it cant be null it is a value type apparently, so always would say min-value 1/1/0001 if you check against null
                     this.completed = DateTime.Now;
 
                 return $"{filename}\nCompleted on {this.completed.ToLongDateString()}";

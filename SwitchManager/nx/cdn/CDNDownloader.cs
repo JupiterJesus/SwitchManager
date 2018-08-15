@@ -139,13 +139,13 @@ namespace SwitchManager.nx.cdn
         }
 
         /// <summary>
-        /// TODO Implement DownloadTitle
+        /// Downloads a title + version from the CDN and repacks it if desired. Verification of downloaded files optional.
         /// </summary>
-        /// <param name="title"></param>
-        /// <param name="version"></param>
-        /// <param name="nspRepack"></param>
-        /// <param name="verify"></param>
-        /// <param name="pathDir"></param>
+        /// <param name="title">Title to download (must include titleid and titlekey)</param>
+        /// <param name="version">Title version (only applicable to updates, must be a multiple of 0x10000)</param>
+        /// <param name="nspRepack">true to pack all downloaded title files into an NSP for later installation</param>
+        /// <param name="verify">true to verify the SHA256 of each file with the expected hash and fail if the hashes don't match</param>
+        /// <param name="titleDir">Directory to download everything to.</param>
         /// <returns></returns>
         public async Task<NSP> DownloadTitle(SwitchTitle title, uint version, string titleDir, bool nspRepack = false, bool verify = false)
         {
@@ -204,25 +204,36 @@ namespace SwitchManager.nx.cdn
                     }
                     else if (cnmt.Type == TitleType.Patch)
                     {
-                        // TODO: Patch type CNMT
-                        /*
-                            print('\nDownloading cetk...')
+                        // We have to download the CETK file and get the ticket and the certificate from it
 
-                            with open(download_cetk(rightsID, os.path.join(gameDir, '%s.cetk' % rightsID)), 'rb') as cetk:
-                                cetk.seek(0x180)
-                                tkey = hx(cetk.read(0x10)).decode()
-                                print('\nTitlekey: %s' % tkey)
+                        string cetkPath = $"{titleDir}{Path.DirectorySeparatorChar}{rightsID}.cetk";
+                        bool completed = await DownloadCETK(rightsID, cetkPath);
+                        if (completed)
+                        {
+                            using (var cetkStream = File.OpenRead(cetkPath))
+                            {
+                                cetkStream.Seek(0x180, SeekOrigin.Begin);
+                                byte[] tkeyBytes = new byte[0x10];
+                                cetkStream.Read(tkeyBytes, 0, 0x10);
+                                title.TitleKey = Miscellaneous.BytesToHex(tkeyBytes);
 
-                                with open(tikPath, 'wb') as tik:
-                                    cetk.seek(0x0)
-                                    tik.write(cetk.read(0x2C0))
+                                using (var tikStream = File.OpenWrite(ticketPath))
+                                {
+                                    cetkStream.Seek(0, SeekOrigin.Begin);
+                                    byte[] tikBytes = new byte[0x2C0];
+                                    cetkStream.Read(tikBytes, 0, 0x2C0);
+                                    tikStream.Write(tikBytes, 0, 0x2C0);
+                                }
 
-                                with open(certPath, 'wb') as cert:
-                                    cetk.seek(0x2C0)
-                                    cert.write(cetk.read(0x700))
-
-                            print('\nExtracted %s and %s from cetk!' % (os.path.basename(certPath), os.path.basename(tikPath)))
-                        */
+                                using (var certStream = File.OpenWrite(certPath))
+                                {
+                                    cetkStream.Seek(0x2C0, SeekOrigin.Begin);
+                                    byte[] certBytes = new byte[0x700];
+                                    cetkStream.Read(certBytes, 0, 0x700);
+                                    certStream.Write(certBytes, 0, 0x700);
+                                }
+                            }
+                        }
                     }
                 }
 
