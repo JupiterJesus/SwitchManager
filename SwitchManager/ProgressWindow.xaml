@@ -14,9 +14,8 @@
   </Window.Resources>
 
   <Grid Margin="0">
-    <StackPanel x:Name="DownloadsPanel" Margin="25" 
-            Height="Auto"
-            Width="Auto">
+    <Button x:Name="Button_Clear" Click="Button_Clear_Click" Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" Grid.ColumnSpan="1">Clear Completed Downloads</Button>
+    <StackPanel x:Name="DownloadsPanel" Margin="25" Height="Auto" Width="Auto" Grid.Row="1" Grid.Column="0" Grid.RowSpan="5">
     </StackPanel>
   </Grid>
 </Window>

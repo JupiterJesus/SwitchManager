@@ -99,21 +99,21 @@ namespace SwitchManager
 
         private void Downloader_DownloadFinished(DownloadTask download)
         {
-            Download dl = downloads[download.FileName];
-            downloads.Remove(download.FileName);
+            //Download dl = downloads[download.FileName];
+            //downloads.Remove(download.FileName);
 
-            if (Application.Current != null)
-                Application.Current.Dispatcher.Invoke((Action)delegate
-                {
-                    DownloadsPanel.Children.Remove(dl.Container);
-                });
+            //if (Application.Current != null)
+            //    Application.Current.Dispatcher.Invoke((Action)delegate
+            //    {
+            //        //DownloadsPanel.Children.Remove(dl.Container);
+           //     });
 
-            Console.WriteLine($"Finished download, File: '{download.FileName}'.");
+            //Console.WriteLine($"Finished download, File: '{download.FileName}'.");
         }
 
         private void Downloader_DownloadProgress(DownloadTask download, int progressSinceLast)
         {
-            Download dl = downloads[download.FileName];
+            //Download dl = downloads[download.FileName];
         }
 
         #endregion
@@ -123,29 +123,54 @@ namespace SwitchManager
             internal Panel Container { get; set; }
         }
 
+        private void Button_Clear_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var d in downloads)
+            {
+                if (d.Value.Task.IsComplete)
+                {
+                    downloads.Remove(d.Key);
+                    if (Application.Current != null && d.Value.Container != null)
+                        Application.Current.Dispatcher.Invoke((Action)delegate
+                        {
+                             DownloadsPanel.Children.Remove(d.Value.Container);
+                        });
+                }
+            }
+        }
     }
     public class DownloadProgressTextConverter : IValueConverter
     {
-        private long expected;
-        private string filename;
-        private Stopwatch Clock { get; set; } = new Stopwatch();
+        private readonly long expected;
+        private readonly string filename;
+        private Stopwatch clock = new Stopwatch();
+        private DateTime completed;
+
         public DownloadProgressTextConverter(long expected, string filename)
         {
             this.expected = expected;
             this.filename = filename;
-            this.Clock.Restart();
+            this.clock.Restart();
         }
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             long progress = (long)value; 
-            if (progress > 0)
+
+            if (progress == expected)
             {
-                double speed = ((double)progress / Clock.Elapsed.TotalSeconds);
+                if (this.completed == null)
+                    this.completed = DateTime.Now;
+
+                return $"{filename}\nCompleted on {this.completed.ToLongDateString()}";
+            }
+            else if (progress > 0)
+            {
+                double speed = ((double)progress / clock.Elapsed.TotalSeconds);
                 long left = expected - progress;
                 double remainingSeconds = left / speed;
 
                 DateTime time = DateTime.Now.AddSeconds(remainingSeconds);
-                return $"{filename}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(expected)}  -  {Miscellaneous.ToFileSize(speed)} / sec - Complete on {time.ToShortTimeString()}\nDouble-click progress bar to cancel";    
+                return $"{filename}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(expected)}  -  {Miscellaneous.ToFileSize(speed)} / sec (avg) - Complete on {time.ToLongTimeString()}\nDouble-click progress bar to cancel";    
             }
             else
             {

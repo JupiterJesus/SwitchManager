@@ -11,6 +11,7 @@ namespace SwitchManager.nx.cdn
         public long Progress { get; private set; }
         public string FileName {  get { return FileStream?.Name ?? null; } }
         public bool IsCanceled { get; private set; } = false;
+        public bool IsComplete { get { return Progress == ExpectedSize; } }
 
         public DownloadTask(Stream webStream, FileStream fileStream, long expectedSize, long startingSize = 0)
         {

@@ -83,9 +83,10 @@ namespace SwitchManager
             Predicate<object> datagridFilter = (o =>
             {
                 SwitchCollectionItem i = o as SwitchCollectionItem;
-                return ((this.showDemos && (i.Title.Name.ToUpper().EndsWith("DEMO"))) || !(i.Title.Name.ToUpper().Contains("DEMO") || i.Title.Name.ToUpper().Contains("TRIAL VER"))) &&
-                       ((this.showDLC && (i.Title.Name.ToUpper().StartsWith("[DLC]"))) || !i.Title.Name.StartsWith("[DLC]")) &&
+                return ((this.showDemos && (i.Title.Type == SwitchTitleType.Demo || i.Title.Name.ToUpper().Contains("DEMO") || i.Title.Name.ToUpper().Contains("TRIAL VER"))) || !(i.Title.Name.ToUpper().Contains("DEMO") || i.Title.Name.ToUpper().Contains("TRIAL VER"))) &&
+                       ((this.showDLC && (i.Title.Type == SwitchTitleType.DLC || i.Title.Name.ToUpper().StartsWith("[DLC]"))) || !(i.Title.Type == SwitchTitleType.DLC || i.Title.Name.StartsWith("[DLC]"))) &&
                        (!this.showFavoritesOnly || (i.IsFavorite)) &&
+                       (!this.showNewOnly || (i.State == SwitchCollectionState.New)) &&
                        ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (i.State == SwitchCollectionState.NotOwned || i.State == SwitchCollectionState.New)) &&
                        ((this.showNotOwned && (i.State == SwitchCollectionState.NotOwned || i.State == SwitchCollectionState.New)) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
                        (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()));
@@ -174,6 +175,7 @@ namespace SwitchManager
         private bool showDemos = false;
         private bool showDLC = false;
         private bool showFavoritesOnly = false;
+        private bool showNewOnly = false;
         private bool showOwned = true;
         private bool showNotOwned = true;
 
@@ -222,6 +224,19 @@ namespace SwitchManager
             if (cbox.IsChecked.HasValue)
             {
                 this.showFavoritesOnly = cbox.IsChecked.Value;
+                cv?.Refresh();
+            }
+        }
+
+        private void CheckBox_New_Checked(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            CheckBox cbox = (CheckBox)sender;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
+            if (cbox.IsChecked.HasValue)
+            {
+                this.showNewOnly = cbox.IsChecked.Value;
                 cv?.Refresh();
             }
         }
