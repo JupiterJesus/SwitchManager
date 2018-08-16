@@ -50,7 +50,7 @@ namespace SwitchManager.nx.cdn
             this.titleCertPath = titleCertPath;
             this.titleTicketPath = titleTicketPath;
             this.ClientCert = LoadSSL(clientCertPath);
-            this.EshopCert = LoadSSL(eShopCertPath, "shop");
+            this.EshopCert = LoadSSL(eShopCertPath);
             this.deviceId = deviceId;
             this.firmware = firmware;
             this.environment = environment;
@@ -60,13 +60,13 @@ namespace SwitchManager.nx.cdn
             this.keysPath = Path.GetFullPath(keysPath);
         }
 
-        private X509Certificate LoadSSL(string path, string password = "")
+        private X509Certificate LoadSSL(string path, string password = null)
         {
             //string contents = File.ReadAllText(path); 
             //byte[] bytes = GetBytesFromPEM(contents, "CERTIFICATE");
             //byte[] bytes = GetBytesFromPEM(contents, "RSA PRIVATE KEY");
             //var certificate = new X509Certificate2(bytes);
-            var certificate = new X509Certificate2(path, password);
+            var certificate = password == null ? new X509Certificate2(path) : new X509Certificate2(path, password);
             //var certificate = X509Certificate.CreateFromSignedFile(path);
             //var certificate = X509Certificate.CreateFromCertFile(path);
             return certificate;

@@ -70,15 +70,6 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("_NSPOUT")]
-        public string NspOut {
-            get {
-                return ((string)(this["NspOut"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("hactool\\hactool.exe")]
         public string HactoolPath {
             get {
@@ -106,7 +97,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("certs\\ShopN.pem")]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\eshop-cert.cert")]
         public string EShopCertPath {
             get {
                 return ((string)(this["EShopCertPath"]));
@@ -169,7 +160,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("nsp")]
+        [global::System.Configuration.DefaultSettingValueAttribute("E:\\Emulation\\nws\\roms\\nsp")]
         public string NSPDirectory {
             get {
                 return ((string)(this["NSPDirectory"]));

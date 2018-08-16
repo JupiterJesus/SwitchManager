@@ -17,9 +17,6 @@
     <Setting Name="TitleKeysURL" Type="System.String" Scope="Application">
       <Value Profile="(Default)">http://snip.li/newkeydb</Value>
     </Setting>
-    <Setting Name="NspOut" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">_NSPOUT</Value>
-    </Setting>
     <Setting Name="HactoolPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">hactool\hactool.exe</Value>
     </Setting>
@@ -30,7 +27,7 @@
       <Value Profile="(Default)">certs\client.pfx</Value>
     </Setting>
     <Setting Name="EShopCertPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\ShopN.pem</Value>
+      <Value Profile="(Default)">certs\eshop-cert.cert</Value>
     </Setting>
     <Setting Name="MetadataFile" Type="System.String" Scope="Application">
       <Value Profile="(Default)">library</Value>
@@ -51,7 +48,7 @@
       <Value Profile="(Default)">certs\Ticket.tik</Value>
     </Setting>
     <Setting Name="NSPDirectory" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">nsp</Value>
+      <Value Profile="(Default)">E:\Emulation\nws\roms\nsp</Value>
     </Setting>
     <Setting Name="NSPRepack" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">True</Value>
