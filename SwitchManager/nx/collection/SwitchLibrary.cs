@@ -18,14 +18,7 @@ namespace SwitchManager.nx.library
     /// is much easier to serialize this class a a copycat of the LibraryMetadata class, but the LibraryMetadata class
     /// is the one to use for loading/deserializing data, which should then be copied into the appropriate collection items.
     /// 
-    /// If one were to deserialize a SwitchCollection from the library metadata, they would have to rewrite the loading of title keys to modify the existing
-    /// collection instead of building it from the ground up. I do think that the existing AddGame functions know how to
-    /// handle a collection item already existing and modifying it with relevant data, but you might have to write
-    /// a new LoadTitleKeys method that ensure all of the data is correctly loaded. Maybe not, it is possible that I wrote
-    /// everything so awesomely that it just works even in this unintended situation.
-    /// 
-    /// Anyway, the intended use is to call LoadTitleKeys first to populate the collection, THEN modify the collection with
-    /// any metadata you care to track.
+    /// The library should be populated before use by loading from a title keys file or from library metadata, or both.
     /// </summary>
     [XmlRoot(ElementName = "Library")]
     public class SwitchLibrary
@@ -103,7 +96,7 @@ namespace SwitchManager.nx.library
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal void LoadMetadata(string path)
+        internal async Task LoadMetadata(string path)
         {
             if (!path.EndsWith(".xml"))
                 path += ".xml";
@@ -122,31 +115,37 @@ namespace SwitchManager.nx.library
             using (FileStream fs = File.OpenRead(path))
                 metadata = xml.Deserialize(fs) as LibraryMetadata;
 
-            foreach (var item in metadata.Items)
+            if (metadata?.Items != null)
             {
-                SwitchCollectionItem ci = GetTitleByID(item.TitleID);
-                if (ci == null)
+                var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+                foreach (var item in metadata.Items)
                 {
-                    Console.WriteLine("Found metadata for a title that doesn't exist: " + ci);
-                    continue;
+                    SwitchCollectionItem ci = GetTitleByID(item.TitleID);
+                    if (ci == null)
+                    {
+                        ci = LoadTitle(item.TitleID, item.TitleKey, item.Name, versions);
+                    }
+                    else
+                    {
+                        if (item.Name != null) ci.Title.Name = item.Name;
+                        if (item.TitleKey != null) ci.Title.TitleKey = item.TitleKey;
+                    }
+                    ci.IsFavorite = item.IsFavorite;
+                    ci.RomPath = item.Path;
+                    ci.State = item.State;
+                    ci.Size = item.Size;
+
+                    foreach (var update in item.Updates)
+                    {
+                        AddUpdateTitle(update.TitleID, update.Version, update.TitleKey);
+                    }
                 }
 
-                ci.IsFavorite = item.IsFavorite;
-                ci.RomPath = item.Path;
-                ci.State = item.State;
-                ci.Size = item.Size;
-                ci.Title.Name = item.Name;
-                ci.Title.TitleKey = item.TitleKey;
-
-                foreach (var update in item.Updates)
-                {
-                    AddUpdateTitle(update.TitleID, update.Version, update.TitleKey);
-                }
             }
 
             Console.WriteLine($"Finished loading library metadata from {path}");
         }
-
+        
         internal void SaveMetadata(string path)
         {
             if (!path.EndsWith(".xml"))
@@ -570,6 +569,16 @@ namespace SwitchManager.nx.library
             return newTitles;
         }
 
+        /// <summary>
+        /// Loads a title into the collection. Whether the collection is being populated by a titlekeys file or by
+        /// the library metadata, you'll want to call this for each item to make sure all the right logic gets executed
+        /// for adding a game (or DLC, or update) to the library.
+        /// </summary>
+        /// <param name="tid">16-digit hex Title ID</param>
+        /// <param name="tkey">32-digit hex Title Key</param>
+        /// <param name="name">The name of game or DLC</param>
+        /// <param name="versions">The dictionary of all the latest versions for every game. Get this via the CDN.</param>
+        /// <returns></returns>
         private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, Dictionary<string,uint> versions)
         {
             var item = NewTitle(name, tid, tkey);

@@ -53,15 +53,15 @@ namespace SwitchManager
 
             library = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
 
-            library.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
+            //library.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
 
             try
             {
-                library.LoadMetadata(Settings.Default.MetadataFile);
+                library.LoadMetadata(Settings.Default.MetadataFile).Wait();
             }
             catch (Exception)
             {
-                MessageBox.Show("Error reading library metadata file, it will be recreated on exit or when you force save it.");
+                MessageBox.Show("Error reading library metadata file, it will be recreated on exit or when you force save it.\nIf your library is empty, make sure to update title keys and scan your library to get a fresh start.");
             }
 
             Task.Run(() => library.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages)).ConfigureAwait(false);
