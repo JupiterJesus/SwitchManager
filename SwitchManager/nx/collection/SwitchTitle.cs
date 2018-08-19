@@ -9,44 +9,81 @@ using System.Threading.Tasks;
 
 namespace SwitchManager.nx.library
 {
-    public class SwitchTitle : INotifyPropertyChanged
+    public abstract class SwitchTitle : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void NotifyPropertyChanged(string p)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
+        }
 
         private string name;
         public string Name
         {
             get { return this.name; }
-            set
+            set { this.name = value; NotifyPropertyChanged("Name"); }
+        }
+
+        private string titlekey;
+        public string TitleKey
+        {
+            get { return titlekey; }
+            set { this.titlekey = value; NotifyPropertyChanged("TitleKey"); }
+        }
+
+        private string titleId;
+        public string TitleID
+        {
+            get { return titleId; }
+            set { this.titleId = value; NotifyPropertyChanged("TitleID"); }
+        }
+        
+        public SwitchTitleType Type
+        {
+            get
             {
-                this.name = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Name"));
+                if (IsDemo) return SwitchTitleType.Demo;
+                else if (IsDLC) return SwitchTitleType.DLC;
+                else if (IsUpdate) return SwitchTitleType.Update;
+                else if (IsGame) return SwitchTitleType.Game;
+                else return SwitchTitleType.Unknown;
             }
         }
-        public string TitleKey { get; set; }
-        public string TitleID { get; set; }
-        public SwitchTitleType Type { get; set; }
 
         public SwitchImage icon;
         public SwitchImage Icon
         {
             get { return this.icon; }
-            set
-            {
-                this.icon = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Icon"));
-            }
+            set { this.icon = value; NotifyPropertyChanged("Icon"); }
         }
 
-        public ObservableCollection<SwitchTitle> DLC { get; set; }
-        public ObservableCollection<SwitchTitle> Updates { get; set;  }
-        public ObservableCollection<uint> Versions { get; set; }
+        public uint BaseVersion { get { return 0; } }
+
+        private uint latestVersion;
+        private ObservableCollection<uint> versions = new ObservableCollection<uint>();
+        public uint LatestVersion 
+        {
+            get { return latestVersion; }
+            set { this.versions.Clear(); GetAllVersions(this.latestVersion, this.versions); NotifyPropertyChanged("LatestVersion"); NotifyPropertyChanged("Versions"); }
+        }
+
+        public Collection<uint> Versions
+        {
+            get { return this.versions.Count > 0 ? versions : new ObservableCollection<uint> { 0 }; }
+        }
+
+        public abstract bool IsGame { get; }
+        public abstract bool IsDLC { get; }
+        public abstract bool IsUpdate { get; }
+        public abstract bool IsDemo { get; }
 
         internal SwitchTitle(string name, string titleid, string titlekey)
         {
             Name = name;
             TitleID = titleid;
             TitleKey = titlekey;
+            LatestVersion = 0;
         }
 
         /// <summary>
@@ -114,12 +151,38 @@ namespace SwitchManager.nx.library
             return titleID.Substring(0, 13) + "800";
         }
 
-        internal SwitchTitle GetUpdateTitle(uint v)
+        internal virtual SwitchUpdate GetUpdateTitle(uint version, string titlekey = null)
         {
-            SwitchTitle title = new SwitchTitle(this.name, GetUpdateIDFromBaseGame(this.TitleID), null);
-            title.Type = SwitchTitleType.Update;
+            SwitchUpdate title = new SwitchUpdate(this.name, this.TitleID, version, titlekey);
             
             return title;
+        }
+
+        /// <summary>
+        /// Converts a single version number into a list of all available versions.
+        /// </summary>
+        /// <param name="versionNo"></param>
+        /// <returns></returns>
+        public static Collection<uint> GetAllVersions(uint versionNo)
+        {
+            var versions = new ObservableCollection<uint>();
+            GetAllVersions(versionNo, versions);
+            return versions;
+        }
+
+        /// <summary>
+        /// Converts a single version number into a list of all available versions.
+        /// </summary>
+        /// <param name="versionNo"></param>
+        /// <returns></returns>
+        public static void GetAllVersions(uint versionNo, Collection<uint> versions)
+        {
+            for (uint v = versionNo; v > 0; v -= 0x10000)
+            {
+                versions.Add(v);
+            }
+
+            versions.Add(0);
         }
 
         public override string ToString()

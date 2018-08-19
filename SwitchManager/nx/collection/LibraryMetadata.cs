@@ -52,6 +52,6 @@ namespace SwitchManager.nx.library
         public string TitleKey { get; set; }
 
         [XmlElement(ElementName = "Version")]
-        public string Version { get; set; }
+        public uint Version { get; set; }
     }
 }

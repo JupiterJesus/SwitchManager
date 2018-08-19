@@ -63,6 +63,7 @@
       <CheckBox x:Name="CheckBox_DLC" Margin="5,5,5,5" Checked="CheckBox_DLC_Checked" Unchecked="CheckBox_DLC_Checked">DLC</CheckBox>
       <CheckBox x:Name="CheckBox_Owned" Margin="5,5,5,5" Checked="CheckBox_Owned_Checked" Unchecked="CheckBox_Owned_Checked" IsChecked="True">Owned</CheckBox>
       <CheckBox x:Name="CheckBox_NotOwned" Margin="5,5,5,5" Checked="CheckBox_NotOwned_Checked" Unchecked="CheckBox_NotOwned_Checked" IsChecked="True">Not Owned</CheckBox>
+      <CheckBox x:Name="CheckBox_Hidden" Margin="5,5,5,5" Checked="CheckBox_Hidden_Checked" Unchecked="CheckBox_Hidden_Checked">Hidden</CheckBox>
       <CheckBox x:Name="CheckBox_Favorites" Margin="5,5,5,5" Checked="CheckBox_Favorites_Checked" Unchecked="CheckBox_Favorites_Checked">Favorites (hides non-favorites)</CheckBox>
       <CheckBox x:Name="CheckBox_New" Margin="5,5,5,5" Checked="CheckBox_New_Checked" Unchecked="CheckBox_New_Checked">New (hides non-new)</CheckBox>
     </StackPanel>

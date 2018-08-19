@@ -140,6 +140,7 @@ namespace SwitchManager
             }
         }
     }
+
     public class DownloadProgressTextConverter : IValueConverter
     {
         private readonly long expected;

@@ -18,7 +18,7 @@ namespace SwitchManager.nx.cdn
     /// </summary>
     [Serializable]
     [XmlRootAttribute("ContentMeta", Namespace = null, IsNullable = false)]
-    public class CNMT
+    public class CNMT : IDisposable
     {
         // below are XML attributes
         [XmlElement(ElementName = "Type")]
@@ -312,6 +312,12 @@ namespace SwitchManager.nx.cdn
 
             Console.WriteLine("Generated XML file {0}!", Path.GetFileName(outFile));
             return (outFile);
+        }
+
+        public void Dispose()
+        {
+            if (this.CnmtDirectory != null)
+                Directory.Delete(this.CnmtDirectory, true);
         }
     }
 }

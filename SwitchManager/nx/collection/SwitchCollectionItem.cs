@@ -131,15 +131,18 @@ namespace SwitchManager.nx.library
         {
             get
             {
-                List<UpdateMetadataItem> updates = new List<UpdateMetadataItem>(this.title?.Updates?.Count ?? 0);
-                if (this.title?.Updates != null)
+                if (this.title?.Type != SwitchTitleType.Game) return null;
+
+                SwitchGame game = this.title as SwitchGame;
+                List<UpdateMetadataItem> updates = new List<UpdateMetadataItem>(game?.Updates?.Count ?? 0);
+                if (game?.Updates != null)
                 {
-                    foreach (var update in this.title.Updates)
+                    foreach (var update in game.Updates)
                     {
                         var meta = new UpdateMetadataItem();
                         meta.TitleID = update.TitleID;
                         meta.TitleKey = update.TitleKey;
-                        meta.Version = update.Name;
+                        meta.Version = update.Version;
                         updates.Add(meta);
                     }
                 }
@@ -157,24 +160,23 @@ namespace SwitchManager.nx.library
 
         }
 
-        public SwitchCollectionItem(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
+        public SwitchCollectionItem(SwitchTitle title, SwitchCollectionState state, bool isFavorite)
         {
-            Title = new SwitchTitle(name, titleid, titlekey);
+            this.title = title;
             State = state;
             IsFavorite = isFavorite;
         }
 
-        public SwitchCollectionItem(string name, string titleid, string titlekey, bool isFavorite) : this(name, titleid, titlekey, SwitchCollectionState.NotOwned, isFavorite)
+        public SwitchCollectionItem(SwitchTitle title) : this(title, SwitchCollectionState.NotOwned, false)
+        {
+        }
+
+        public SwitchCollectionItem(SwitchTitle title, bool isFavorite) : this(title, SwitchCollectionState.NotOwned, isFavorite)
         {
 
         }
 
-        public SwitchCollectionItem(string name, string titleid, string titlekey, SwitchCollectionState state) : this(name, titleid, titlekey, state, false)
-        {
-
-        }
-
-        public SwitchCollectionItem(string name, string titleid, string titlekey) : this(name, titleid, titlekey, SwitchCollectionState.NotOwned, false)
+        public SwitchCollectionItem(SwitchTitle title, SwitchCollectionState state) : this(title, state, false)
         {
 
         }

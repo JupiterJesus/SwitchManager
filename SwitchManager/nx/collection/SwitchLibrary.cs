@@ -66,7 +66,17 @@ namespace SwitchManager.nx.library
             return item;
         }
 
-        internal SwitchCollectionItem NewTitle(string name, string titleid, string titlekey, SwitchCollectionState state = SwitchCollectionState.NotOwned, bool isFavorite = false)
+        internal SwitchCollectionItem AddGame(SwitchGame game)
+        {
+            if (game != null)
+            {
+                var item = new SwitchCollectionItem(game);
+                return AddTitle(item);
+            }
+            return null;
+        }
+
+        internal SwitchCollectionItem NewGame(string name, string titleid, string titlekey, SwitchCollectionState state = SwitchCollectionState.NotOwned, bool isFavorite = false)
         {
             // Already there, probably because DLC was listed before a title
             if (titlesByID.ContainsKey(titleid))
@@ -80,14 +90,15 @@ namespace SwitchManager.nx.library
             }
             else
             {
-                SwitchCollectionItem item = new SwitchCollectionItem(name, titleid, titlekey, state, isFavorite);
+                SwitchGame game = new SwitchGame(name, titleid, titlekey);
+                SwitchCollectionItem item = new SwitchCollectionItem(game, state, isFavorite);
                 return item;
             }
         }
 
-        internal SwitchCollectionItem AddTitle(string name, string titleid, string titlekey)
+        internal SwitchCollectionItem AddTitle(SwitchTitle title)
         {
-            SwitchCollectionItem item = NewTitle(name, titleid, titlekey);
+            SwitchCollectionItem item = new SwitchCollectionItem(title);
             AddTitle(item);
             return item;
         }
@@ -137,7 +148,7 @@ namespace SwitchManager.nx.library
 
                     foreach (var update in item.Updates)
                     {
-                        AddUpdateTitle(update.TitleID, update.Version, update.TitleKey);
+                        AddUpdateTitle(update.TitleID, item.TitleID, item.Name, update.Version, update.TitleKey);
                     }
                 }
 
@@ -250,7 +261,6 @@ namespace SwitchManager.nx.library
                         if (item != null && id.Equals(item.TitleId))
                         {
                             item.RomPath = nspFile.FullName;
-                            item.Title.Type = type;
 
                             // If you haven't already marked the file as on switch, mark it owned
                             if (item.State != SwitchCollectionState.OnSwitch)
@@ -258,7 +268,7 @@ namespace SwitchManager.nx.library
                         }
                         break;
                     case SwitchTitleType.Update:
-                        AddUpdateTitle(id, version, null);
+                        AddUpdateTitle(id, null, name, uint.Parse(version), null);
 
                         break;
                     default:
@@ -267,15 +277,20 @@ namespace SwitchManager.nx.library
             }
         }
 
-        private SwitchTitle AddUpdateTitle(string id, string version, string titlekey)
+        private SwitchUpdate AddUpdateTitle(string updateid, string gameid, string name, uint version, string titlekey)
         {
-            SwitchTitle update = new SwitchTitle(version, id, titlekey);
-            return AddUpdateTitle(update);
+            string id = gameid ?? (updateid == null ? null : SwitchTitle.GetBaseGameIDFromUpdate(updateid));
+            if (id != null)
+            {
+                SwitchUpdate update = new SwitchUpdate(name, gameid, version, titlekey);
+                return AddUpdateTitle(update);
+            }
+            return null;
         }
 
-        private SwitchTitle AddUpdateTitle(SwitchTitle update)
+        private SwitchUpdate AddUpdateTitle(SwitchUpdate update)
         {
-            var baseT = GetBaseTitleByID(update.TitleID); // Let's try adding this to the base game's list
+            var baseT = GetTitleByID(update.GameID); // Let's try adding this to the base game's list
             if (baseT == null)
             {
                 Console.WriteLine("WARNING: Found an update for a game that doesn't exist.");
@@ -286,11 +301,14 @@ namespace SwitchManager.nx.library
                 Console.WriteLine("WARNING: Found a collection item in the library with a null title.");
                 return null;
             }
-            else if (baseT.Title.Updates == null)
-                baseT.Title.Updates = new ObservableCollection<SwitchTitle>();
+            else if (baseT.Title.IsGame)
+            {
+                SwitchGame game = baseT.Title as SwitchGame;
+                if (game.Updates == null)
+                    game.Updates = new ObservableCollection<SwitchUpdate>();
 
-            baseT.Title.Updates.Add(update);
-
+                game.Updates.Add(update);
+            }
             return update;
         }
 
@@ -409,9 +427,11 @@ namespace SwitchManager.nx.library
                         titleItem.State = SwitchCollectionState.Owned;
                         titleItem.RomPath = Path.GetFullPath(dlcPath);
                     }
-                    else if (title.Type == SwitchTitleType.Game && title.DLC != null && title.DLC.Count > 0)
+                    else if (title.IsGame)
                     {
-                        foreach (var t in title.DLC)
+                        SwitchGame game = title as SwitchGame;
+                        if (game.DLC != null && game.DLC.Count > 0)
+                        foreach (var t in game.DLC)
                         {
                             SwitchCollectionItem dlcTitle = GetTitleByID(t?.TitleID);
                             string dlcPath = await DownloadTitle(dlcTitle?.Title, title.Versions.Last(), repack, verify);
@@ -435,7 +455,7 @@ namespace SwitchManager.nx.library
                     // If a version greater than 0 is selected, download it and every version below it
                     while (v > 0)
                     {
-                        SwitchTitle update = SwitchTitle.IsUpdateTitleID(title.TitleID) ? title : title.GetUpdateTitle(v);
+                        SwitchUpdate update = title.GetUpdateTitle(v);
                         string updatePath = await DownloadTitle(update, v, repack, verify);
                         AddUpdateTitle(update);
                         v -= 0x10000;
@@ -581,46 +601,40 @@ namespace SwitchManager.nx.library
         /// <returns></returns>
         private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, Dictionary<string,uint> versions)
         {
-            var item = NewTitle(name, tid, tkey);
-            var title = item?.Title;
-            if (title != null)
+            if (SwitchTitle.IsBaseGameID(tid))
             {
-                if (versions.ContainsKey(title.TitleID))
+                var item = NewGame(name, tid, tkey);
+                var game = item?.Title as SwitchGame;
+                if (versions.ContainsKey(game.TitleID))
                 {
-                    uint v = versions[title.TitleID];
-                    title.Versions = Loader.GetAllVersions(v);
-                }
-                else
-                {
-                    // The database does NOT contain data for any game whose update is 0, which is to say there is no update
-                    // So just give it an updates list of 0
-                    title.Versions = new ObservableCollection<uint> { 0 };
+                    uint v = versions[game.TitleID];
+                    game.LatestVersion = v;
                 }
 
-                if (title.Name.EndsWith("Demo"))
-                    title.Type = SwitchTitleType.Demo;
-                else if (title.Name.StartsWith("[DLC]"))
+                AddTitle(item);
+                return item;
+            }
+            else if (name.StartsWith("[DLC]") || SwitchTitle.IsDLCID(tid))
+            {
+                // basetid = '%s%s000' % (tid[:-4], str(int(tid[-4], 16) - 1))
+                string baseGameID = SwitchTitle.GetBaseGameIDFromDLC(tid);
+
+                var dlc = new SwitchDLC(name, tid, baseGameID, tkey);
+                try
                 {
-                    // basetid = '%s%s000' % (tid[:-4], str(int(tid[-4], 16) - 1))
-                    string baseGameID = SwitchTitle.GetBaseGameIDFromDLC(title.TitleID);
-                    title.Type = SwitchTitleType.DLC;
-                    try
-                    {
-                        AddDLCTitle(baseGameID, title);
-                    }
-                    catch (Exception)
-                    {
-                        if (GetBaseTitleByID(baseGameID) == null)
-                            Console.WriteLine($"WARNING: Couldn't find base game ID {baseGameID} for DLC {title.Name}");
-                    }
+                    return AddDLCTitle(baseGameID, dlc);
                 }
-                else
+                catch (Exception)
                 {
-                    title.Type = SwitchTitleType.Game;
+                    if (GetBaseTitleByID(baseGameID) == null)
+                        Console.WriteLine($"WARNING: Couldn't find base game ID {baseGameID} for DLC {dlc.Name}");
                 }
             }
-            AddTitle(item);
-            return item;
+            else
+            {
+                // ?? huh ??
+            }
+            return null;
         }
 
         /// <summary>
@@ -629,25 +643,28 @@ namespace SwitchManager.nx.library
         /// <param name="baseGameID">Title ID of base game.</param>
         /// <param name="dlcID">Title ID of base game's DLC, to add to the game's DLC list.</param>
         /// <returns>The base title that the DLC was attached to.</returns>
-        public SwitchTitle AddDLCTitle(string baseGameID, SwitchTitle dlctitle)
+        public SwitchCollectionItem AddDLCTitle(string baseGameID, SwitchDLC dlc)
         {
-            SwitchTitle baseTitle = GetBaseTitleByID(baseGameID)?.Title;
-            if (baseTitle == null)
+            SwitchGame baseGame = GetBaseTitleByID(baseGameID)?.Title as SwitchGame;
+            if (baseGame == null)
             {
                 // This can happen if you put the DLC before the title, or if your titlekeys file has DLC for
                 // titles that aren't in it. The one I'm using, for example, has fire emblem warriors JP dlc,
                 // but not the game
                 // If the game ends up being added later, AddGame is able to slide in the proper info over the stub we add here
-                string name = dlctitle.Name.Replace("[DLC] ", "");
-                SwitchCollectionItem item = NewTitle(name, baseGameID, null);
-                AddTitle(item);
-                baseTitle = item.Title;
+                string name = dlc.Name.Replace("[DLC] ", "");
+                baseGame = new SwitchGame(name, baseGameID, null);
+                AddTitle(baseGame);
             }
 
-            if (baseTitle.DLC == null) baseTitle.DLC = new ObservableCollection<SwitchTitle>();
+            if (baseGame.IsGame)
+            {
+                SwitchGame game = baseGame as SwitchGame;
+                if (game.DLC == null) game.DLC = new ObservableCollection<SwitchDLC>();
 
-            baseTitle.DLC.Add(dlctitle);
-            return baseTitle;
+                game.DLC.Add(dlc);
+            }
+            return AddTitle(dlc);
         }
 
         public SwitchCollectionItem GetTitleByID(string titleID)
@@ -670,6 +687,11 @@ namespace SwitchManager.nx.library
                 titleID = SwitchTitle.GetBaseGameIDFromDLC(titleID);
 
             return GetTitleByID(titleID);
+        }
+
+        public SwitchGame GetBaseGameByID(string baseGameID)
+        {
+            return GetBaseTitleByID(baseGameID)?.Title as SwitchGame;
         }
     }
 }

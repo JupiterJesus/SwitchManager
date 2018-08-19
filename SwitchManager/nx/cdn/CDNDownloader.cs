@@ -6,11 +6,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Collections.ObjectModel;
 using System.Net.Http.Headers;
 using System.Diagnostics;
 using SwitchManager.util;
@@ -20,21 +17,19 @@ namespace SwitchManager.nx.cdn
 {
     public class CDNDownloader
     {
-        // THIS IS ALL CONFIG
-        // TO BE GOTTEN FROM A FILE, PROBABLY
-        private string environment;
-        private string firmware;
+        private readonly string environment;
+        private readonly string firmware;
 
-        private string deviceId;
-        private string region;
+        private readonly string deviceId;
+        private readonly string region;
 
-        private string imagesPath;
-        private string hactoolPath;
-        private string keysPath;
-        private string clientCertPath;
-        private string eShopCertPath;
-        private string titleCertPath;
-        private string titleTicketPath;
+        private readonly string imagesPath;
+        private readonly string hactoolPath;
+        private readonly string keysPath;
+        private readonly string clientCertPath;
+        private readonly string eShopCertPath;
+        private readonly string titleCertPath;
+        private readonly string titleTicketPath;
 
         public int DownloadBuffer { get; set; }
 
@@ -286,6 +281,20 @@ namespace SwitchManager.nx.cdn
                     }
                 }
 
+                string controlID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
+                string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
+                var controlDir = DecryptNCA(controlPath);
+                DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
+
+                foreach (var image in imageDir.EnumerateFiles("icon_*.dat"))
+                {
+                    string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
+                    if (!File.Exists(destFile))
+                        image.MoveTo(destFile);
+                    nsp.AddImage(destFile);
+                }
+                controlDir.Delete(true);
+                
                 if (nspRepack)
                 {
                     return nsp;
@@ -334,8 +343,7 @@ namespace SwitchManager.nx.cdn
         }
 
         /// <summary>
-        /// 
-        /// TODO Implement DecryptNCA
+        /// Decrypts the NCA specified by ncaPath and spits it out into the provided directory, or into a directory named after the base file name if no output directory is provided.
         /// </summary>
         /// <param name="fpath"></param>
         /// <returns></returns>
@@ -611,7 +619,7 @@ namespace SwitchManager.nx.cdn
         /// </summary>
         /// <param name="game"></param>
         /// <returns></returns>
-        public async Task<ObservableCollection<uint>> GetVersions(SwitchTitle game)
+        public async Task<uint> GetLatestVersion(SwitchTitle game)
         {
             //string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", env);
             string url = string.Format("https://superfly.hac.{0}.d4c.nintendo.net/v1/t/{1}/dv", environment, game.TitleID);
@@ -620,24 +628,7 @@ namespace SwitchManager.nx.cdn
             JObject json = JObject.Parse(r);
             uint latestVersion = json?.Value<uint>("version") ?? 0;
 
-            return GetAllVersions(latestVersion); ;
-        }
-
-        /// <summary>
-        /// Converts a single version number into a list of all available versions.
-        /// </summary>
-        /// <param name="versionNo"></param>
-        /// <returns></returns>
-        public ObservableCollection<uint> GetAllVersions(uint versionNo)
-        {
-            var versions = new ObservableCollection<uint>();
-            for (uint v = versionNo; v > 0; v -= 0x10000)
-            {
-                versions.Add(v);
-            }
-
-            versions.Add(0);
-            return versions;
+            return latestVersion;
         }
 
         /// <summary>

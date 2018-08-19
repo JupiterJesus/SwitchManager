@@ -30,6 +30,8 @@ namespace SwitchManager.nx.cdn
                 if (NCAs.ContainsKey(NCAType.Control))
                     files.AddRange(NCAs[NCAType.Control]);
 
+                files.AddRange(this.IconFiles);
+
                 return files;
             }
         }
@@ -39,6 +41,7 @@ namespace SwitchManager.nx.cdn
         public string Ticket { get; private set; }
         public string CnmtNCA { get; private set; }
         public string CnmtXML { get; private set; }
+        public List<string> IconFiles { get; private set; } = new List<string>();
 
         public NSP(SwitchTitle title, string certificate, string ticket, string cnmtNca, string cnmtXml)
         {
@@ -185,6 +188,11 @@ namespace SwitchManager.nx.cdn
                 NCAs.Add(type, new List<string>());
 
             NCAs[type].Add(path);
+        }
+
+        internal void AddImage(string destFile)
+        {
+            this.IconFiles.Add(destFile);
         }
     }
 }

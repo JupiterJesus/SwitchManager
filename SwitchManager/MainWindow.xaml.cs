@@ -77,18 +77,20 @@ namespace SwitchManager
             downloader.DownloadFinished += Downloader_DownloadFinished;
 
             downloadWindow = new ProgressWindow(library);
+            downloadWindow.Closing += this.Downloads_Closing;
 
             // Add a filter to the datagrid based on text filtering and checkboxes
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
             Predicate<object> datagridFilter = (o =>
             {
                 SwitchCollectionItem i = o as SwitchCollectionItem;
-                return ((this.showDemos && (i.Title.Type == SwitchTitleType.Demo || i.Title.Name.ToUpper().Contains("DEMO") || i.Title.Name.ToUpper().Contains("TRIAL VER"))) || !(i.Title.Name.ToUpper().Contains("DEMO") || i.Title.Name.ToUpper().Contains("TRIAL VER"))) &&
-                       ((this.showDLC && (i.Title.Type == SwitchTitleType.DLC || i.Title.Name.ToUpper().StartsWith("[DLC]"))) || !(i.Title.Type == SwitchTitleType.DLC || i.Title.Name.StartsWith("[DLC]"))) &&
+                return ((this.showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
+                       ((this.showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
                        (!this.showFavoritesOnly || (i.IsFavorite)) &&
                        (!this.showNewOnly || (i.State == SwitchCollectionState.New)) &&
-                       ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (i.State == SwitchCollectionState.NotOwned || i.State == SwitchCollectionState.New)) &&
-                       ((this.showNotOwned && (i.State == SwitchCollectionState.NotOwned || i.State == SwitchCollectionState.New)) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
+                       ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
+                       ((this.showNotOwned && (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
+                       ((this.showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
                        (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()));
             });
             cv.Filter = datagridFilter;
@@ -126,6 +128,23 @@ namespace SwitchManager
             downloadWindow.Close();
         }
 
+        /// <summary>
+        /// Replaces the window close with a hide, but only if the main app is still open. Otherwise, it is impossible
+        /// to close since the download window always cancels the close and it is hidden. If I don't cancel the close,
+        /// the window is closed and disposed and a new one must be created every time, losing your download history.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Downloads_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (this.IsVisible)
+            {
+            //    e.Cancel = true;
+            //    downloadWindow.Hide();
+            //    MenuItem_ShowDownloads.Header = "Show Downloads";
+            }
+        }
+
         #region Buttons and other controls on the datagrid
 
         private uint? SelectedVersion { get; set; }
@@ -135,7 +154,7 @@ namespace SwitchManager
         {
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
 
-            uint v = SelectedVersion ?? item.Title.Versions.First();
+            uint v = SelectedVersion ?? item.Title.BaseVersion;
             DownloadOptions o = DLOption ?? DownloadOptions.BaseGameOnly;
 
             Task.Run(() => library.DownloadGame(item, v, o, Settings.Default.NSPRepack, false));
@@ -178,6 +197,7 @@ namespace SwitchManager
         private bool showNewOnly = false;
         private bool showOwned = true;
         private bool showNotOwned = true;
+        private bool showHidden = false;
 
         private void TextBox_Search_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -263,6 +283,19 @@ namespace SwitchManager
             if (cbox.IsChecked.HasValue)
             {
                 this.showNotOwned = cbox.IsChecked.Value;
+                cv?.Refresh();
+            }
+        }
+
+        private void CheckBox_Hidden_Checked(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            CheckBox cbox = (CheckBox)sender;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
+            if (cbox.IsChecked.HasValue)
+            {
+                this.showHidden = cbox.IsChecked.Value;
                 cv?.Refresh();
             }
         }

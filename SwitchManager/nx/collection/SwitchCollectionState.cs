@@ -17,5 +17,8 @@ namespace SwitchManager.nx.library
 
         [Description("New Title")]
         New,
+
+        [Description("Hidden")]
+        Hidden,
     }
 }
