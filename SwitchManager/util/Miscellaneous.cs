@@ -9,6 +9,7 @@ namespace SwitchManager.util
 {
     public static class Miscellaneous
     {
+
         public static string SanitizeFileName(string str)
         {
             StringBuilder sb = new StringBuilder();
@@ -97,6 +98,19 @@ namespace SwitchManager.util
                 string byteValue = hex.Substring(n * 2, 2);
                 bytes[offset + n] = HexToByte(byteValue);
             }
+        }
+
+        internal static long? GetFileSystemSize(string romPath)
+        {
+            if (string.IsNullOrWhiteSpace(romPath))
+                return null;
+
+            if (File.Exists(romPath))
+                return new FileInfo(romPath).Length;
+            else if (Directory.Exists(romPath))
+                return new DirectoryInfo(romPath).GetSize();
+            else
+                return null;
         }
     }
 }

@@ -76,10 +76,11 @@ namespace SwitchManager.nx.library
         private bool isFavorite;
 
         [XmlElement(ElementName = "Size")]
-        public long Size
+        public long? Size
         {
             get
             {
+                /*
                 if (string.IsNullOrWhiteSpace(RomPath))
                     return this.size;
                 else if (Directory.Exists(RomPath))
@@ -87,30 +88,12 @@ namespace SwitchManager.nx.library
                 else if (File.Exists(RomPath))
                     return new FileInfo(RomPath).Length;
                 else
-                    return this.size;
+                */
+                return this.size;
             }
-            set { this.size = value; NotifyPropertyChanged("Size"); NotifyPropertyChanged("PrettySize"); }
+            set { this.size = value; NotifyPropertyChanged("Size"); }
         }
-        private long size;
-
-        [XmlIgnore]
-        public string PrettySize {  get { return Miscellaneous.ToFileSize(Size); } }
-
-        private static long DirSize(DirectoryInfo d)
-        {
-            long size = 0;
-            // Add file sizes.
-            foreach (FileInfo fi in d.EnumerateFiles())
-            {
-                size += fi.Length;
-            }
-            // Add subdirectory sizes.
-            foreach (DirectoryInfo di in d.EnumerateDirectories())
-            {
-                size += DirSize(di);
-            }
-            return size;
-        }
+        private long? size;
 
         [XmlElement(ElementName = "Path")]
         public string RomPath

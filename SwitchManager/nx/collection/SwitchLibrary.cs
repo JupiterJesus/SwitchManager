@@ -109,8 +109,6 @@ namespace SwitchManager.nx.library
         /// <param name="filename"></param>
         internal async Task LoadMetadata(string path)
         {
-            if (!path.EndsWith(".xml"))
-                path += ".xml";
             path = Path.GetFullPath(path);
 
             XmlSerializer xml = new XmlSerializer(typeof(LibraryMetadata));
@@ -128,7 +126,17 @@ namespace SwitchManager.nx.library
 
             if (metadata?.Items != null)
             {
-                var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+                bool certDenied = false;
+                Dictionary<string, uint> versions = null;
+                try
+                {
+                    versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+                }
+                catch (CertificateDeniedException)
+                {
+                    certDenied = true;
+                }
+
                 foreach (var item in metadata.Items)
                 {
                     SwitchCollectionItem ci = GetTitleByID(item.TitleID);
@@ -152,6 +160,7 @@ namespace SwitchManager.nx.library
                     }
                 }
 
+                if (certDenied) throw new CertificateDeniedException();
             }
 
             Console.WriteLine($"Finished loading library metadata from {path}");
@@ -159,8 +168,6 @@ namespace SwitchManager.nx.library
         
         internal void SaveMetadata(string path)
         {
-            if (!path.EndsWith(".xml"))
-                path += ".xml";
             path = Path.GetFullPath(path);
 
             XmlSerializer xml = new XmlSerializer(typeof(SwitchLibrary));
@@ -198,6 +205,7 @@ namespace SwitchManager.nx.library
                 string name = null;
                 string id = null;
                 string version = null;
+                long size = nspFile.Length;
 
                 // Lets parse the file name to get name, id and version
                 // Also check for [DLC] and [UPD] signifiers
@@ -265,11 +273,14 @@ namespace SwitchManager.nx.library
                             // If you haven't already marked the file as on switch, mark it owned
                             if (item.State != SwitchCollectionState.OnSwitch)
                                 item.State = SwitchCollectionState.Owned;
+
+                            item.Size = size;
                         }
                         break;
                     case SwitchTitleType.Update:
-                        AddUpdateTitle(id, null, name, uint.Parse(version), null);
-
+                        SwitchUpdate u = AddUpdateTitle(id, null, name, uint.Parse(version), null);
+                        // No size... right now updates don't have a size, because size is associated with collection items,
+                        // and updates don't have their own collection item.
                         break;
                     default:
                         break;
@@ -426,6 +437,7 @@ namespace SwitchManager.nx.library
                         string dlcPath = await DownloadTitle(title, title.Versions.Last(), repack, verify);
                         titleItem.State = SwitchCollectionState.Owned;
                         titleItem.RomPath = Path.GetFullPath(dlcPath);
+                        titleItem.Size = Miscellaneous.GetFileSystemSize(dlcPath);
                     }
                     else if (title.IsGame)
                     {
@@ -437,6 +449,7 @@ namespace SwitchManager.nx.library
                             string dlcPath = await DownloadTitle(dlcTitle?.Title, title.Versions.Last(), repack, verify);
                             dlcTitle.State = SwitchCollectionState.Owned;
                             dlcTitle.RomPath = Path.GetFullPath(dlcPath);
+                            dlcTitle.Size = Miscellaneous.GetFileSystemSize(dlcPath);
                         }
                     }
                     break;
@@ -473,6 +486,7 @@ namespace SwitchManager.nx.library
                     string romPath = await DownloadTitle(title, title.Versions.Last(), repack, verify);
                     titleItem.State = SwitchCollectionState.Owned;
                     titleItem.RomPath = Path.GetFullPath(romPath);
+                    titleItem.Size = Miscellaneous.GetFileSystemSize(romPath);
 
                     if (options == DownloadOptions.BaseGameAndUpdate || options == DownloadOptions.BaseGameAndUpdateAndDLC)
                         goto case DownloadOptions.UpdateOnly;
@@ -551,7 +565,17 @@ namespace SwitchManager.nx.library
         public async Task LoadTitleKeysFile(string filename)
         {
             var lines = File.ReadLines(filename);
-            var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+            bool certDenied = false;
+
+            Dictionary<string, uint> versions = null;
+            try
+            {
+                versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+            }
+            catch (CertificateDeniedException)
+            {
+                certDenied = true;
+            }
 
             foreach (var line in lines)
             {
@@ -562,6 +586,8 @@ namespace SwitchManager.nx.library
 
                 LoadTitle(tid, tkey, name, versions);
             }
+
+            if (certDenied) throw new CertificateDeniedException();
         }
 
         public async Task<ICollection<SwitchCollectionItem>> UpdateTitleKeysFile(string file)
@@ -605,7 +631,7 @@ namespace SwitchManager.nx.library
             {
                 var item = NewGame(name, tid, tkey);
                 var game = item?.Title as SwitchGame;
-                if (versions.ContainsKey(game.TitleID))
+                if (versions != null && versions.ContainsKey(game.TitleID))
                 {
                     uint v = versions[game.TitleID];
                     game.LatestVersion = v;

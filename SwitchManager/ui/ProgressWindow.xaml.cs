@@ -23,7 +23,7 @@ using System.Net;
 using SwitchManager.util;
 using System.Diagnostics;
 
-namespace SwitchManager
+namespace SwitchManager.ui
 {
     /// <summary>
     /// Interaction logic for ProgressWindow.xaml

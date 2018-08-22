@@ -644,6 +644,7 @@ namespace SwitchManager.nx.cdn
             string r = await GetRequest(url).ConfigureAwait(false);
 
             JObject json = JObject.Parse(r);
+            
             IList<JToken> titles = json["titles"].Children().ToList();
 
             var result = new Dictionary<string, uint>();
@@ -704,7 +705,8 @@ namespace SwitchManager.nx.cdn
         {
             var response = await MakeRequest(HttpMethod.Get, url, null, null).ConfigureAwait(false);
             string result = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
+            if (result.Contains("Access Denied"))
+                throw new CertificateDeniedException();
             return result;
         }
 
@@ -795,6 +797,7 @@ namespace SwitchManager.nx.cdn
             var head = await HeadRequest(url, null, null).ConfigureAwait(false);
 
             string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
+            if (cnmtid == null) throw new CertificateDeniedException();
 
             return cnmtid;
         }

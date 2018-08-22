@@ -29,7 +29,12 @@ namespace SwitchManager.nx.library
         public override bool IsUpdate => true;
         public override bool IsDemo => false;
 
-        internal SwitchUpdate(string name, string gameid, uint version, string titlekey) : base(name, GetUpdateIDFromBaseGame(gameid), titlekey)
+        internal SwitchUpdate(string name, string gameid, uint version, string titlekey) : this(name, GetUpdateIDFromBaseGame(gameid), gameid, version, titlekey)
+        {
+
+        }
+
+        internal SwitchUpdate(string name, string titleid, string gameid, uint version, string titlekey) : base(name, titleid, titlekey)
         {
             this.gameid = gameid;
             this.version = version;

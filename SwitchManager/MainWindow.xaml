@@ -16,8 +16,9 @@
     
     <!-- The next two are for overlaying one textbox over another in order to show help text for the datagrid filter -->
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-    <local:TextInputToVisibilityConverter x:Key="TextInputToVisibilityConverter" />
-    
+    <ui:TextInputToVisibilityConverter x:Key="TextInputToVisibilityConverter" />
+    <ui:FileSizeConverter x:Key="FileSizeConverter" />
+                             
     <!-- This style is for displaying an title icon on a button for clicking to go to the eShop url -->
     <Style TargetType="{x:Type Button}" x:Key="ImageButtonStyle">
       <Setter Property="Template">
@@ -34,15 +35,21 @@
     <DockPanel Grid.Row="0" Margin="0,0,0.333,-0.333" Grid.RowSpan="2">
       <Menu DockPanel.Dock="Top">
         <MenuItem Header="_Downloads">
-          <MenuItem x:Name="MenuItem_ShowDownloads" Header="Show Downloads" Click="MenuItemShowDownloads_Click"/>
+          <MenuItem x:Name="MenuItem_ShowDownloads" Header="Show _Downloads" Click="MenuItemShowDownloads_Click"/>
+          <MenuItem x:Name="MenuItem_DownloadAlpha" Header="Download All Favorites (alphabetically) (NYI)" ToolTip="Downloads all of your unowned Favorites in alphabetical order." Click="MenuItemDownloadAlpha_Click"/>
+          <MenuItem x:Name="MenuItem_DownloadSize" Header="Download All Favorites (by size) (NYI)" ToolTip="Download all of your unowned Favorites in order of increasing size." Click="MenuItemDownloadSize_Click"/>
+          <MenuItem x:Name="MenuItem_DownloadSmallest" Header="Download Smallest Favorites (NYI)" ToolTip="Download all of your unowned Favorites that are under a specific size, in order of increasing size. For example, download all of my Favorites under 2 GB." Click="MenuItemDownloadSmallest_Click"/>
+          <MenuItem x:Name="MenuItem_DownloadLimited" Header="Download Some Favorites (limited by total download size) (NYI)" ToolTip="Downloads favorites by increasing size until you've download a certain total amount of data. Use this if you have a data cap and you want to download as many games as possible without hitting your cap. For example, download Favorites until I've downloaded 10 GB worth of data." Click="MenuItemDownloadLimited_Click"/>
         </MenuItem>
         <MenuItem Header="_Tools">
-          <MenuItem Header="_Update Title Keys" Click="MenuItemUpdate_Click"/>
-          <MenuItem Header="_Import New Credentials (NYI)" Click="MenuItemImportCreds_Click"/>
+          <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials (NYI)" Click="MenuItemImportCreds_Click"/>
         </MenuItem>
         <MenuItem Header="_Library">
-          <MenuItem Header="_Scan For _Games" Click="MenuItemScan_Click"/>
-          <MenuItem Header="Select Library Location (NYI)" Click="MenuItemSelectLocation_Click"/>
+          <MenuItem Header="_Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="MenuItemScan_Click"/>
+          <MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game Sizes" ToolTip="Attempts to estimate the file size of every game, if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/>
+          <MenuItem Header="Select Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="MenuItemSelectLocation_Click"/>
+          <MenuItem x:Name="MenuItem_Update" Header="Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
+          <MenuItem x:Name="MenuItem_LoadKeys" Header="Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
           <MenuItem Header="Save Library _Metadata" Click="MenuItemSaveLibrary_Click"/>
         </MenuItem>
         <MenuItem Header="_Options">
@@ -108,7 +115,8 @@
               <TextBlock FontSize="13" Text="{Binding Path=Title.TitleID, Mode=OneWay}" />
               <TextBlock FontSize="13" Text="{Binding Path=Title.Type, Mode=OneWay}" />
               <TextBlock FontSize="13" Text="{Binding Path=RomPath, Mode=OneWay}" />
-              <TextBlock FontSize="13" Text="{Binding Path=PrettySize, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock FontSize="13" Text="{Binding Path=Size, Converter={StaticResource FileSizeConverter}, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
 
             <StackPanel Width="200" Margin="20,10" Orientation="Vertical">
@@ -144,7 +152,7 @@
         </DataGridComboBoxColumn>
         <DataGridTextColumn 
             Header="Size" 
-            Binding="{Binding Path=PrettySize, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
+            Binding="{Binding Path=Size, Converter={StaticResource FileSizeConverter}, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
             FontSize="12" />
         <DataGridTextColumn 
             Header="Rom Path"

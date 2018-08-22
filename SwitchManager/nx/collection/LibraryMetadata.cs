@@ -36,7 +36,7 @@ namespace SwitchManager.nx.library
         public string Path { get; set; }
 
         [XmlElement(ElementName = "Size")]
-        public long Size { get; set; }
+        public long? Size { get; set; }
 
         [XmlElement(ElementName = "Updates")]
         public List<UpdateMetadataItem> Updates { get; set; }

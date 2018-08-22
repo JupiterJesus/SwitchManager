@@ -104,39 +104,51 @@ namespace SwitchManager.Properties {
             }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("library")]
         public string MetadataFile {
             get {
                 return ((string)(this["MetadataFile"]));
             }
+            set {
+                this["MetadataFile"] = value;
+            }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("titlekeys.txt")]
         public string TitleKeysFile {
             get {
                 return ((string)(this["TitleKeysFile"]));
             }
+            set {
+                this["TitleKeysFile"] = value;
+            }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("Images")]
         public string ImageCache {
             get {
                 return ((string)(this["ImageCache"]));
             }
+            set {
+                this["ImageCache"] = value;
+            }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool PreloadImages {
             get {
                 return ((bool)(this["PreloadImages"]));
+            }
+            set {
+                this["PreloadImages"] = value;
             }
         }
         
@@ -158,21 +170,27 @@ namespace SwitchManager.Properties {
             }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("E:\\Emulation\\nws\\roms\\nsp")]
         public string NSPDirectory {
             get {
                 return ((string)(this["NSPDirectory"]));
             }
+            set {
+                this["NSPDirectory"] = value;
+            }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]
         public bool NSPRepack {
             get {
                 return ((bool)(this["NSPRepack"]));
+            }
+            set {
+                this["NSPRepack"] = value;
             }
         }
         
@@ -182,6 +200,18 @@ namespace SwitchManager.Properties {
         public int DownloadBufferSize {
             get {
                 return ((int)(this["DownloadBufferSize"]));
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public int NumMetadataBackups {
+            get {
+                return ((int)(this["NumMetadataBackups"]));
+            }
+            set {
+                this["NumMetadataBackups"] = value;
             }
         }
     }
