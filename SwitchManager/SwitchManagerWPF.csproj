@@ -37,11 +37,32 @@
     <StartupObject>SwitchManager.App</StartupObject>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="BespokeFusion, Version=1.0.1.10, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MaterialMessageBox.1.0.0.11\lib\BespokeFusion.dll</HintPath>
+    </Reference>
+    <Reference Include="BouncyCastle.Crypto, Version=1.8.2.0, Culture=neutral, PublicKeyToken=0e99375e54769942">
+      <HintPath>..\packages\BouncyCastle.1.8.2\lib\BouncyCastle.Crypto.dll</HintPath>
+    </Reference>
+    <Reference Include="MahApps.Metro, Version=1.2.4.0, Culture=neutral, PublicKeyToken=f4fb5a3c4d1e5b4f, processorArchitecture=MSIL">
+      <HintPath>..\packages\MahApps.Metro.1.2.4.0\lib\net45\MahApps.Metro.dll</HintPath>
+    </Reference>
+    <Reference Include="MaterialDesignColors, Version=1.1.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MaterialDesignColors.1.1.2\lib\net45\MaterialDesignColors.dll</HintPath>
+    </Reference>
+    <Reference Include="MaterialDesignThemes.Wpf, Version=2.0.0.638, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MaterialDesignThemes.2.0.0.638\lib\net45\MaterialDesignThemes.Wpf.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="Ookii.Dialogs.Wpf, Version=1.0.0.0, Culture=neutral, PublicKeyToken=0c15020868fd6249, processorArchitecture=MSIL">
+      <HintPath>..\packages\Ookii.Dialogs.1.0\lib\net35\Ookii.Dialogs.Wpf.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Windows.Interactivity, Version=4.5.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\MahApps.Metro.1.2.4.0\lib\net45\System.Windows.Interactivity.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -63,9 +84,27 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="nx\cdn\CertificateDeniedException.cs" />
+    <Compile Include="nx\cdn\EshopToken.cs" />
+    <Compile Include="nx\system\NACP.cs" />
+    <Compile Include="nx\system\SwitchLanguage.cs" />
+    <Compile Include="nx\library\SwitchDLC.cs" />
+    <Compile Include="nx\library\SwitchUpdate.cs" />
+    <Compile Include="nx\library\SwitchGame.cs" />
+    <Compile Include="ui\EnumDescriptionTypeConverter.cs" />
+    <Compile Include="ui\ProgressWindow.xaml.cs">
+      <DependentUpon>ProgressWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ui\EnumBindingSource.cs" />
-    <Compile Include="util\EnumDescriptionTypeConverter.cs" />
+    <Compile Include="ui\FileSizeConverter.cs" />
+    <Compile Include="ui\TextInputToVisibilityConverter.cs" />
+    <Compile Include="util\Crypto.cs" />
+    <Compile Include="util\Extensions.cs" />
     <Compile Include="util\Miscellaneous.cs" />
+    <Page Include="ui\ProgressWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -80,24 +119,24 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="nx\cdn\CNMTContentEntry.cs" />
-    <Compile Include="nx\cdn\CNMTMetaEntry.cs" />
+    <Compile Include="nx\system\CNMTContentEntry.cs" />
+    <Compile Include="nx\system\CNMTMetaEntry.cs" />
     <Compile Include="nx\cdn\DownloadTask.cs" />
-    <Compile Include="nx\cdn\NCAType.cs" />
-    <Compile Include="nx\cdn\NSP.cs" />
-    <Compile Include="nx\cdn\TitleTicket.cs" />
-    <Compile Include="nx\cdn\TitleType.cs" />
-    <Compile Include="nx\collection\DownloadOptions.cs" />
-    <Compile Include="nx\collection\LibraryMetadata.cs" />
-    <Compile Include="nx\collection\SwitchLibrary.cs" />
-    <Compile Include="nx\collection\SwitchCollectionItem.cs" />
-    <Compile Include="nx\collection\SwitchTitleCollection.cs" />
-    <Compile Include="nx\collection\SwitchTitleType.cs" />
-    <Compile Include="nx\collection\SwitchCollectionState.cs" />
-    <Compile Include="nx\collection\SwitchTitle.cs" />
-    <Compile Include="nx\collection\SwitchImage.cs" />
-    <Compile Include="nx\cdn\CDNDownloader.cs" />
-    <Compile Include="nx\cdn\CNMT.cs" />
+    <Compile Include="nx\system\NCAType.cs" />
+    <Compile Include="nx\system\NSP.cs" />
+    <Compile Include="nx\system\TitleTicket.cs" />
+    <Compile Include="nx\system\TitleType.cs" />
+    <Compile Include="nx\library\DownloadOptions.cs" />
+    <Compile Include="nx\library\LibraryMetadata.cs" />
+    <Compile Include="nx\library\SwitchLibrary.cs" />
+    <Compile Include="nx\library\SwitchCollectionItem.cs" />
+    <Compile Include="nx\library\SwitchTitleCollection.cs" />
+    <Compile Include="nx\library\SwitchTitleType.cs" />
+    <Compile Include="nx\library\SwitchCollectionState.cs" />
+    <Compile Include="nx\library\SwitchTitle.cs" />
+    <Compile Include="nx\library\SwitchImage.cs" />
+    <Compile Include="nx\cdn\EshopDownloader.cs" />
+    <Compile Include="nx\system\CNMT.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -120,15 +159,17 @@
     <None Include="certs\client-cert.cert" />
     <None Include="certs\client-pkey.pem" />
     <None Include="certs\client.pfx" />
+    <None Include="certs\eshop.pfx" />
     <None Include="certs\nx_tls_client_cert.pem" />
+    <None Include="certs\eshop-pkey.pem" />
+    <None Include="certs\ShopN.p12" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
-    <None Include="certs\ShopN.pem" />
+    <None Include="certs\eshop-cert.cert" />
     <None Include="certs\Ticket.tik" />
-    <None Include="update_titlekeys.bat" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
@@ -137,6 +178,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="hactool\hactool.exe" />
+    <Resource Include="TODO.txt" />
     <None Include="library.xml" />
     <Content Include="nx\cdn\Shogun.Designer.vb" />
     <Content Include="nx\cdn\Shogun.vb" />
@@ -898,7 +940,6 @@
     <Content Include="hactool\libmbedx509.dll" />
     <Content Include="hactool\Newtonsoft.Json.dll" />
     <Resource Include="hactool\Newtonsoft.Json.xml" />
-    <Resource Include="titlekeys.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -12,10 +12,12 @@ using System.Net.Http.Headers;
 using System.Diagnostics;
 using SwitchManager.util;
 using System.Security.Cryptography;
+using SwitchManager.nx.system;
+using System.Text;
 
 namespace SwitchManager.nx.cdn
 {
-    public class CDNDownloader
+    public class EshopDownloader
     {
         private readonly string environment;
         private readonly string firmware;
@@ -30,6 +32,7 @@ namespace SwitchManager.nx.cdn
         private readonly string eShopCertPath;
         private readonly string titleCertPath;
         private readonly string titleTicketPath;
+        private string CDNUserAgent { get; set; }
 
         public int DownloadBuffer { get; set; }
 
@@ -38,14 +41,12 @@ namespace SwitchManager.nx.cdn
 
         public List<Task> DownloadTasks { get; } = new List<Task>();
 
-        public CDNDownloader(string clientCertPath, string eShopCertificate, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath)
+        public EshopDownloader(string clientCertPath, string eShopCertificate, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath)
         {
             this.clientCertPath = clientCertPath;
             this.eShopCertPath = eShopCertificate;
             this.titleCertPath = titleCertPath;
             this.titleTicketPath = titleTicketPath;
-            this.ClientCert = LoadSSL(clientCertPath);
-            this.EshopCert = LoadSSL(eShopCertPath);
             this.deviceId = deviceId;
             this.firmware = firmware;
             this.environment = environment;
@@ -53,36 +54,10 @@ namespace SwitchManager.nx.cdn
             this.imagesPath = Path.GetFullPath(imagesPath);
             this.hactoolPath = Path.GetFullPath(hactoolPath);
             this.keysPath = Path.GetFullPath(keysPath);
-        }
+            this.CDNUserAgent = $"NintendoSDK Firmware/{firmware} (platform:NX; did:{deviceId}; eid:{environment})";
 
-        private X509Certificate LoadSSL(string path, string password = null)
-        {
-            //string contents = File.ReadAllText(path); 
-            //byte[] bytes = GetBytesFromPEM(contents, "CERTIFICATE");
-            //byte[] bytes = GetBytesFromPEM(contents, "RSA PRIVATE KEY");
-            //var certificate = new X509Certificate2(bytes);
-            var certificate = password == null ? new X509Certificate2(path) : new X509Certificate2(path, password);
-            //var certificate = X509Certificate.CreateFromSignedFile(path);
-            //var certificate = X509Certificate.CreateFromCertFile(path);
-            return certificate;
-        }
-
-        byte[] GetBytesFromPEM(string pemString, string section)
-        {
-            var header = String.Format("-----BEGIN {0}-----", section);
-            var footer = String.Format("-----END {0}-----", section);
-
-            var start = pemString.IndexOf(header, StringComparison.Ordinal);
-            if (start < 0)
-                return null;
-
-            start += header.Length;
-            var end = pemString.IndexOf(footer, start, StringComparison.Ordinal) - start;
-
-            if (end < 0)
-                return null;
-
-            return Convert.FromBase64String(pemString.Substring(start, end));
+            UpdateClientCert(clientCertPath);
+            UpdateEshopCert(eShopCertPath);
         }
 
         /// <summary>
@@ -294,7 +269,7 @@ namespace SwitchManager.nx.cdn
                     nsp.AddImage(destFile);
                 }
                 controlDir.Delete(true);
-                
+
                 if (nspRepack)
                 {
                     return nsp;
@@ -407,6 +382,16 @@ namespace SwitchManager.nx.cdn
             return outDirInfo;
         }
 
+        internal void UpdateClientCert(string clientCertPath)
+        {
+            this.ClientCert = Crypto.LoadCertificate(clientCertPath);
+        }
+
+        internal void UpdateEshopCert(string clientCertPath)
+        {
+            this.EshopCert = Crypto.LoadCertificate(eShopCertPath);
+        }
+
         private bool VerifyNCA(string ncaPath, SwitchTitle title)
         {
             string hactoolExe = (this.hactoolPath);
@@ -454,7 +439,7 @@ namespace SwitchManager.nx.cdn
 
         public async Task<long> GetContentLength(string url)
         {
-            var result = await MakeRequest(HttpMethod.Get, url, null, null, false);
+            var result = await CDNRequest(HttpMethod.Get, url, null, false);
             long cLength = result.Content.Headers.ContentLength ?? 0;
             return cLength;
         }
@@ -476,7 +461,7 @@ namespace SwitchManager.nx.cdn
             {
                 downloaded = finfo.Length;
 
-                result = await MakeRequest(HttpMethod.Get, url, null, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }, false).ConfigureAwait(false);
+                result = await CDNRequest(HttpMethod.Get, url, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }, false).ConfigureAwait(false);
 
                 if (!result.Headers.Server.First().ToString().Equals("openresty/1.9.7.4")) // Completed download
                 {
@@ -517,7 +502,7 @@ namespace SwitchManager.nx.cdn
                 fs = File.Create(fpath);
                 downloaded = 0;
 
-                result = await MakeRequest(HttpMethod.Get, url, null, null, false);
+                result = await CDNRequest(HttpMethod.Get, url, null, false);
                 long cLength = result.Content.Headers.ContentLength ?? 0;
                 expectedSize = cLength;
             }
@@ -598,7 +583,7 @@ namespace SwitchManager.nx.cdn
         }
 
         /// <summary>
-        /// TODO: Figure out what CETK is
+        /// Gets the CETK (perhaps content entry title key?). It contains the title key for updates.
         /// </summary>
         /// <param name="rightsID"></param>
         /// <param name="fpath"></param>
@@ -606,7 +591,7 @@ namespace SwitchManager.nx.cdn
         private async Task<bool> DownloadCETK(string rightsID, string fpath)
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/r/t/{rightsID}?device_id={deviceId}";
-            var head = await HeadRequest(url, null, null).ConfigureAwait(false);
+            var head = await CDNHead(url).ConfigureAwait(false);
 
             string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
 
@@ -623,7 +608,7 @@ namespace SwitchManager.nx.cdn
         {
             //string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", env);
             string url = string.Format("https://superfly.hac.{0}.d4c.nintendo.net/v1/t/{1}/dv", environment, game.TitleID);
-            string r = await GetRequest(url);
+            string r = await CDNGet(url);
 
             JObject json = JObject.Parse(r);
             uint latestVersion = json?.Value<uint>("version") ?? 0;
@@ -641,10 +626,10 @@ namespace SwitchManager.nx.cdn
         public async Task<Dictionary<string, uint>> GetLatestVersions()
         {
             string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", environment);
-            string r = await GetRequest(url).ConfigureAwait(false);
+            string r = await CDNGet(url).ConfigureAwait(false);
 
             JObject json = JObject.Parse(r);
-            
+
             IList<JToken> titles = json["titles"].Children().ToList();
 
             var result = new Dictionary<string, uint>();
@@ -682,28 +667,15 @@ namespace SwitchManager.nx.cdn
         }
 
         /// <summary>
-        /// Makes a request to Ninty's server, but we only care about getting back the content as a string.
-        /// Always a GET request.
-        /// /// </summary>
-        /// <param name="url"></param>
-        /// <param name="cert"></param>
-        /// <param name="args"></param>
-        private async Task<string> GetRequest(string url, X509Certificate cert, Dictionary<string, string> args = null)
-        {
-            var response = await MakeRequest(HttpMethod.Get, url, cert, args);
-            return await response.Content.ReadAsStringAsync();
-        }
-
-        /// <summary>
         /// Makes a simple reqeust to Ninty's server, using the default client cert and no special headers.
         /// Always a GET request and returns content body as a string.
         /// /// </summary>
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private async Task<string> GetRequest(string url)
+        private async Task<string> CDNGet(string url, bool waitForContent = true, Dictionary<string, string> args = null)
         {
-            var response = await MakeRequest(HttpMethod.Get, url, null, null).ConfigureAwait(false);
+            var response = await CDNRequest(HttpMethod.Get, url, args, waitForContent).ConfigureAwait(false);
             string result = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (result.Contains("Access Denied"))
                 throw new CertificateDeniedException();
@@ -716,10 +688,40 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private async Task<HttpResponseHeaders> HeadRequest(string url, X509Certificate cert = null, Dictionary<string, string> args = null)
+        private async Task<HttpResponseHeaders> CDNHead(string url, Dictionary<string, string> args = null)
         {
-            var response = await MakeRequest(HttpMethod.Head, url, cert, args);
+            var response = await CDNRequest(HttpMethod.Head, url, args);
             return response.Headers;
+        }
+
+        /// <summary>
+        /// Makes a POST request to Ninty's server.
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="cert"></param>
+        /// <param name="args"></param>
+        private async Task<HttpResponseMessage> EshopPost(string url, HttpContent payload, Dictionary<string, string> args = null)
+        {
+            payload.Headers.Add("Host", $"dauth-{environment}.ndas.srv.nintendo.net");
+            payload.Headers.Add("User-Agent", "libcurl (nnDauth; 789f928b - 138e-4b2f - afeb - 1acae821d897; SDK 5.3.0.0; Add - on 5.3.0.0)");
+            payload.Headers.Add("Accept", "*/*");
+            if (args != null) args.ToList().ForEach(x => payload.Headers.Add(x.Key, x.Value));
+
+            var client = GetSingletonClient(ClientCert);
+            return await client.PostAsync(url, payload).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Makes a POST request to Ninty's server.
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="cert"></param>
+        /// <param name="args"></param>
+        private async Task<HttpResponseMessage> EshopPost(string url, Dictionary<string, string> payload, Dictionary<string, string> args = null)
+        {
+            var content = new FormUrlEncodedContent(payload);
+
+            return await EshopPost(url, content, args).ConfigureAwait(false);
         }
 
         private HttpClientHandler singletonHandler;
@@ -728,9 +730,6 @@ namespace SwitchManager.nx.cdn
         {
             if (singletonClient == null)
             {
-                string userAgent = string.Format($"NintendoSDK Firmware/{firmware} (platform:NX; eid:{environment})");
-
-
                 // Add the client certificate
                 singletonHandler = new HttpClientHandler
                 {
@@ -738,7 +737,6 @@ namespace SwitchManager.nx.cdn
                     //SslProtocols = SslProtocols.Tls12,
                     AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 };
-                singletonHandler.ClientCertificates.Add(this.ClientCert);
                 ServicePointManager.ServerCertificateValidationCallback += (o, c, ch, er) => true;
                 ServicePointManager.DefaultConnectionLimit = 1000;
 
@@ -748,8 +746,6 @@ namespace SwitchManager.nx.cdn
             }
 
             singletonHandler.ClientCertificates.Clear();
-            if (cert == null)
-                cert = this.ClientCert;
             singletonHandler.ClientCertificates.Add(cert);
 
             return singletonClient;
@@ -763,17 +759,31 @@ namespace SwitchManager.nx.cdn
         /// <param name="url"></param>
         /// <param name="cert"></param>
         /// <param name="args"></param>
-        private async Task<HttpResponseMessage> MakeRequest(HttpMethod method, string url, X509Certificate cert = null, Dictionary<string, string> args = null, bool waitForContent = true)
+        private async Task<HttpResponseMessage> CDNRequest(HttpMethod method, string url, Dictionary<string, string> args = null, bool waitForContent = true)
         {
-            string userAgent = string.Format($"NintendoSDK Firmware/{firmware} (platform:NX; did:{deviceId}; eid:{environment})");
+            var headers = new Dictionary<string, string>()
+            {
+                { "User-Agent", CDNUserAgent },
+                { "Accept-Encoding", "gzip, deflate" },
+                { "Accept", "*/*" },
+                { "Connection", "keep-alive" },
+            };
+            if (args != null) args.ToList().ForEach(x => headers.Add(x.Key, x.Value));
+            return await WebRequest(method, url, ClientCert, headers, waitForContent).ConfigureAwait(false);
+        }
 
+        /// <summary>
+        /// Makes a request to Ninty's server. Gets back the entire response.
+        /// WHY THE FUCK IS THIS SO COMPLICATED???? JUST LET ME SEND A REQUEST
+        /// </summary>
+        /// <param name="method"></param>
+        /// <param name="url"></param>
+        /// <param name="cert"></param>
+        /// <param name="args"></param>
+        private async Task<HttpResponseMessage> WebRequest(HttpMethod method, string url, X509Certificate cert, Dictionary<string, string> args = null, bool waitForContent = true)
+        {
             // Create request with method & url, then add headers
             var request = new HttpRequestMessage(method, url);
-            request.Headers.Add("User-Agent", userAgent);
-            request.Headers.Add("Accept-Encoding", "gzip, deflate");
-            request.Headers.Add("Accept", "*/*");
-            request.Headers.Add("Connection", "keep-alive");
-
             // Add any additional parameters passed into the method
             if (args != null) args.ToList().ForEach(x => request.Headers.Add(x.Key, x.Value));
 
@@ -794,7 +804,7 @@ namespace SwitchManager.nx.cdn
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/t/a/{title.TitleID}/{version}?device_id={deviceId}";
 
-            var head = await HeadRequest(url, null, null).ConfigureAwait(false);
+            var head = await CDNHead(url).ConfigureAwait(false);
 
             string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
             if (cnmtid == null) throw new CertificateDeniedException();
@@ -855,49 +865,133 @@ namespace SwitchManager.nx.cdn
         /// <param name="title"></param>
         /// <param name="lang"></param>
         /// <returns></returns>
-        public async Task<object> GetEshopData(SwitchTitle title, string lang)
+        public async Task<object> GetEshopData(EshopLogin token, SwitchTitle title, string lang)
         {
             string url = $"https://bugyo.hac.{environment}.eshop.nintendo.net/shogun/v1/contents/ids?shop_id=4&lang={lang}&country={region}&type=title&title_ids={title.TitleID}";
 
-            var response = await GetRequest(url, EshopCert);
+            var response = await WebRequest(HttpMethod.Get, url, EshopCert);
 
             return response;
         }
 
+        private static byte[] MasterKey = { 0xCF, 0xA2, 0x17, 0x67, 0x90, 0xA5, 0x3F, 0xF7, 0x49, 0x74, 0xBF, 0xF2, 0xAF, 0x18, 0x09, 0x21 };
+        private static byte[] AESUseSrc = { 0x4D, 0x87, 0x09, 0x86, 0xC4, 0x5D, 0x20, 0x72, 0x2F, 0xBA, 0x10, 0x53, 0xDA, 0x92, 0xE8, 0xA9 };
+        private static byte[] DAuth_KEK = { 0x8B, 0xE4, 0x5A, 0xBC, 0xF9, 0x87, 0x02, 0x15, 0x23, 0xCA, 0x4F, 0x5E, 0x23, 0x00, 0xDB, 0xF0 };
+        private static byte[] DAuth_Src = { 0xDE, 0xD2, 0x4C, 0x35, 0xA5, 0xD8, 0xC0, 0xD7, 0x6C, 0xB8, 0xD7, 0x8C, 0xA0, 0xA5, 0xA5, 0x22 };
+        public static string SysDigest = "gW93A#00050100#29uVhARHOdeTZmfdPnP785egrfRbPUW5n3IAACuHoPw=";
+
+        public async Task<EshopLogin> EshopLogin()
+        {
+            string clientId = "93af0acb26258de9"; // whats this? device id or different?
+            string clientId2 = "81333c548b2e876d";
+
+            string challengeUrl = $"https://dauth-{environment}.ndas.srv.nintendo.net/v3-59ed5fa1c25bb2aea8c4d73d74b919a94d89ed48d6865b728f63547943b17404/challenge";
+            string deviceAuthTokenUrl = $"https://dauth-{environment}.ndas.srv.nintendo.net/v3-59ed5fa1c25bb2aea8c4d73d74b919a94d89ed48d6865b728f63547943b17404/device_auth_token";
+
+            var response = await EshopPost(challengeUrl, new Dictionary<string, string>() { { "key_generation", "5" } }).ConfigureAwait(false);
+            string text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            JObject json = JObject.Parse(text);
+
+            string base64data = json?.Value<string>("data");
+            string challenge = json?.Value<string>("challenge");
+
+            byte[] keySource = Crypto.DecodeBase64(base64data);
+            var kek = Crypto.GenerateAESKek(MasterKey, AESUseSrc, DAuth_KEK, keySource);
+
+            string req = $"challenge={Uri.EscapeDataString(challenge)}&client_id={Uri.EscapeDataString(clientId)}&key_generation=5&system_version={Uri.EscapeDataString(SysDigest)}";
+
+            byte[] cmacData = Crypto.AESCMAC(kek, Encoding.UTF8.GetBytes(req));
+            string base64Cmac = Crypto.EncodeBase64(cmacData);
+            string mac = base64Cmac.Replace("+", "-").Replace("/", "_").Replace("=", "");
+            req += $"&mac={Uri.EscapeDataString(mac)}";
+
+            /*
+            Dictionary<string, string> payload = new Dictionary<string, string>();
+            payload.Add("challenge", challenge);
+            payload.Add("client_id", clientId);
+            payload.Add("key_generation", "5");
+            payload.Add("system_version", "gW93A#00050100#29uVhARHOdeTZmfdPnP785egrfRbPUW5n3IAACuHoPw=");
+
+            var content = new FormUrlEncodedContent(payload);
+            */
+            var content = new StringContent(req);
+            response = await EshopPost(deviceAuthTokenUrl, content).ConfigureAwait(false);
+            text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            json = JObject.Parse(text);
+            string token = json?.Value<string>("device_auth_token");
+            EshopLogin l = new EshopLogin();
+            l.Token = token;
+            return l;
+        }
+
+        /// <summary>
+        /// Gets the estimated size of a title. The only file downloaded is the CNMT. All of the files that would go
+        /// into the NSP are summed up, using all available information (including the sizes in the CNMT). This requires
+        /// generating the CNMT xml file.
+        /// </summary>
+        /// <param name="title"></param>
+        /// <param name="version"></param>
+        /// <param name="titleDir"></param>
+        /// <returns></returns>
         public async Task<long> GetTitleSize(SwitchTitle title, uint version, string titleDir)
         {
             var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false);
 
             if (cnmt != null)
             {
-                // Now that the CNMT NCA was downloaded and decrypted, read it f
+                var cnmtSize = Miscellaneous.GetFileSystemSize(cnmt.CnmtFilePath) ?? 0;
+                
                 string ticketPath = this.titleTicketPath, certPath = this.titleCertPath;
+                var ticketSize = Miscellaneous.GetFileSystemSize(ticketPath) ?? 0;
+                var certSize = Miscellaneous.GetFileSystemSize(certPath) ?? 0;
+
                 string cnmtXml = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFilePath) + ".xml";
                 cnmt.GenerateXml(cnmtXml);
+                var cnmtXmlSize = Miscellaneous.GetFileSystemSize(cnmtXml) ?? 0;
+                
+                var parsedNCAFiles = cnmt.ParseContent();
+                var files = new List<string>();
+                var sizes = new List<long>();
+                string controlID = null;
+                string controlPath = null;
 
-                List<Task<long>> tasks = new List<Task<long>>();
-
-                NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFilePath, cnmtXml);
-                foreach (var type in new[] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
+                // The size of an NSP includes all of the above files, but also the NCAs and the header
+                // that lists the NCAs (and other files). The list of files must be compiled to generate an accurate header,
+                // and the list of sizes is needed both to generate the header and to sum up to the total
+                foreach (var nca in parsedNCAFiles)
                 {
-                    // To verify, we need to parse the CNMT more thoroughly, which is a waste of effort if we aren't verifying
-                    
-                    var parsedNCAFiles = cnmt.ParseNCAs(type);
-                    foreach (var ncaID in parsedNCAFiles)
+                    files.Add(titleDir + Path.DirectorySeparatorChar + nca.Key + ".nca");
+                    sizes.Add(nca.Value.Size);
+                    if (nca.Value.Type == NCAType.Control)
                     {
-                        string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
-                        Task<long> t = GetContentLength(url);
-                        tasks.Add(t);
+                        controlID = nca.Key;
+                        controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
+                        await DownloadNCA(controlID, controlPath).ConfigureAwait(false);
                     }
                 }
 
-                long[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
-                return new FileInfo(cnmt.CnmtFilePath).Length +
-                    new FileInfo(cnmtXml).Length +
-                    new FileInfo(certPath).Length +
-                    new FileInfo(ticketPath).Length +
-                    NSP.GenerateHeader(nsp.Files.ToArray()).Length +
-                    results.Sum();
+                files.Add(cnmt.CnmtFilePath); sizes.Add(cnmtSize);
+                files.Add(cnmtXml); sizes.Add(cnmtXmlSize);
+                files.Add(certPath); sizes.Add(certSize);
+                files.Add(ticketPath); sizes.Add(ticketSize);
+                
+                // Extract the images and add their file names and sizes
+                var controlDir = DecryptNCA(controlPath);
+                var romfs = controlDir.EnumerateDirectories("romfs");
+                if (romfs.Count() == 1)
+                {
+                    // Check for directory named romfs and, if it exists, there is only one and it is the first
+                    foreach (var image in romfs.First().EnumerateFiles("icon_*.dat"))
+                    {
+                        string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
+                        files.Add(destFile);
+                        sizes.Add(Miscellaneous.GetFileSystemSize(destFile) ?? 0);
+                    }
+                }
+                controlDir.Delete(true);
+
+                // Add up the sizes of all the files plus the NSP header
+                return sizes.Sum() + NSP.GenerateHeader(files.ToArray(), sizes.ToArray()).Length;
             }
 
             return 0;

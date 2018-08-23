@@ -14,7 +14,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using SwitchManager.nx;
 using SwitchManager.nx.library;
-using SwitchManager.nx.cdn;
+using SwitchManager.nx.system;
 using SwitchManager.Properties;
 using System.ComponentModel;
 using System.Globalization;
@@ -22,6 +22,7 @@ using System.IO;
 using System.Net;
 using SwitchManager.util;
 using System.Diagnostics;
+using SwitchManager.nx.cdn;
 
 namespace SwitchManager.ui
 {
@@ -52,7 +53,7 @@ namespace SwitchManager.ui
             dl.Task = download;
             downloads.Add(download.FileName, dl);
             if (Application.Current != null)
-                Application.Current.Dispatcher.Invoke((Action)delegate 
+                Application.Current.Dispatcher.Invoke(delegate 
                 {
                     // New progress bar
                     ProgressBar bar = new ProgressBar
@@ -104,7 +105,7 @@ namespace SwitchManager.ui
             //downloads.Remove(download.FileName);
 
             //if (Application.Current != null)
-            //    Application.Current.Dispatcher.Invoke((Action)delegate
+            //    Application.Current.Dispatcher.Invoke(delegate
             //    {
             //        //DownloadsPanel.Children.Remove(dl.Container);
            //     });
@@ -132,7 +133,7 @@ namespace SwitchManager.ui
                 {
                     downloads.Remove(d.Key);
                     if (Application.Current != null && d.Value.Container != null)
-                        Application.Current.Dispatcher.Invoke((Action)delegate
+                        Application.Current.Dispatcher.Invoke(delegate
                         {
                              DownloadsPanel.Children.Remove(d.Value.Container);
                         });

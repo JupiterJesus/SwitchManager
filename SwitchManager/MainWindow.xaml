@@ -35,21 +35,22 @@
     <DockPanel Grid.Row="0" Margin="0,0,0.333,-0.333" Grid.RowSpan="2">
       <Menu DockPanel.Dock="Top">
         <MenuItem Header="_Downloads">
-          <MenuItem x:Name="MenuItem_ShowDownloads" Header="Show _Downloads" Click="MenuItemShowDownloads_Click"/>
-          <MenuItem x:Name="MenuItem_DownloadAlpha" Header="Download All Favorites (alphabetically) (NYI)" ToolTip="Downloads all of your unowned Favorites in alphabetical order." Click="MenuItemDownloadAlpha_Click"/>
-          <MenuItem x:Name="MenuItem_DownloadSize" Header="Download All Favorites (by size) (NYI)" ToolTip="Download all of your unowned Favorites in order of increasing size." Click="MenuItemDownloadSize_Click"/>
+          <MenuItem x:Name="MenuItem_ShowDownloads" Header="_Show Downloads" Click="MenuItemShowDownloads_Click"/>
+          <MenuItem x:Name="MenuItem_DownloadAlpha" Header="Download All Favorites (_alphabetically) (NYI)" ToolTip="Downloads all of your unowned Favorites in alphabetical order." Click="MenuItemDownloadAlpha_Click"/>
+          <MenuItem x:Name="MenuItem_DownloadSize" Header="Download All Favorites (by _size) (NYI)" ToolTip="Download all of your unowned Favorites in order of increasing size." Click="MenuItemDownloadSize_Click"/>
           <MenuItem x:Name="MenuItem_DownloadSmallest" Header="Download Smallest Favorites (NYI)" ToolTip="Download all of your unowned Favorites that are under a specific size, in order of increasing size. For example, download all of my Favorites under 2 GB." Click="MenuItemDownloadSmallest_Click"/>
-          <MenuItem x:Name="MenuItem_DownloadLimited" Header="Download Some Favorites (limited by total download size) (NYI)" ToolTip="Downloads favorites by increasing size until you've download a certain total amount of data. Use this if you have a data cap and you want to download as many games as possible without hitting your cap. For example, download Favorites until I've downloaded 10 GB worth of data." Click="MenuItemDownloadLimited_Click"/>
+          <MenuItem x:Name="MenuItem_DownloadLimited" Header="Download Some Favorites (_limited by total download size) (NYI)" ToolTip="Downloads favorites by increasing size until you've download a certain total amount of data. Use this if you have a data cap and you want to download as many games as possible without hitting your cap. For example, download Favorites until I've downloaded 10 GB worth of data." Click="MenuItemDownloadLimited_Click"/>
         </MenuItem>
         <MenuItem Header="_Tools">
-          <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials (NYI)" Click="MenuItemImportCreds_Click"/>
+          <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
+          <MenuItem x:Name="MenuItem_LoadKeys" Header="_Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
+          <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials" ToolTip="Imports a PEM certificate (used by CDNSP) into SwitchManager by converting it to a PKCS12 (PFX) file." Click="MenuItemImportCreds_Click"/>
+          <!--MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game _Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own, but only if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/-->
+          <MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/>
         </MenuItem>
         <MenuItem Header="_Library">
-          <MenuItem Header="_Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="MenuItemScan_Click"/>
-          <MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game Sizes" ToolTip="Attempts to estimate the file size of every game, if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/>
-          <MenuItem Header="Select Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="MenuItemSelectLocation_Click"/>
-          <MenuItem x:Name="MenuItem_Update" Header="Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
-          <MenuItem x:Name="MenuItem_LoadKeys" Header="Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
+          <MenuItem Header="Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="MenuItemScan_Click"/>
+          <MenuItem Header="Select _Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="MenuItemSelectLocation_Click"/>
           <MenuItem Header="Save Library _Metadata" Click="MenuItemSaveLibrary_Click"/>
         </MenuItem>
         <MenuItem Header="_Options">
@@ -61,7 +62,7 @@
       <Grid Background="White" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5">
         <!-- overlay with hint text -->
         <TextBlock Margin="5,2" Height="20"  MinWidth="50" Text="Type to filter library by name..." 
-                   Foreground="LightSteelBlue" Visibility="{Binding ElementName=TextBox_Search, Path=Text.IsEmpty, Converter={StaticResource TextInputToVisibilityConverter}}" />
+                   Foreground="LightSteelBlue" Visibility="{Binding ElementName=TextBox_Search, Path=Text, Converter={StaticResource TextInputToVisibilityConverter}}" />
         <!-- enter term here -->
         <TextBox Height="20" MinWidth="50" x:Name="TextBox_Search" Width="200" TextChanged="TextBox_Search_TextChanged"  Background="Transparent" />
       </Grid>

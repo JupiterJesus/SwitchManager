@@ -1,12 +1,14 @@
-﻿using System;
+﻿using SwitchManager.util;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 
-namespace SwitchManager.nx.collection
+namespace SwitchManager.nx.library
 {
     /// <summary>
     /// 
@@ -23,7 +25,13 @@ namespace SwitchManager.nx.collection
         private SwitchTitle title;
 
         [XmlElement(ElementName = "Title")]
-        public string TitleId { get { return title?.TitleID; } set {  } }
+        public string TitleId { get { return title?.TitleID; } set { } }
+
+        [XmlElement(ElementName = "Key")]
+        public string TitleKey { get { return title?.TitleKey; } set { } }
+
+        [XmlElement(ElementName = "Name")]
+        public string TitleName { get { return title?.Name; } set { } }
 
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State
@@ -40,7 +48,6 @@ namespace SwitchManager.nx.collection
             {
                 switch (this.State)
                 {
-                    case SwitchCollectionState.Downloaded: return "Downloaded";
                     case SwitchCollectionState.Owned: return "Owned";
                     case SwitchCollectionState.OnSwitch: return "On Switch";
                     case SwitchCollectionState.New: return "New";
@@ -51,7 +58,6 @@ namespace SwitchManager.nx.collection
             {
                 switch (value)
                 {
-                    case "Downloaded": this.state = SwitchCollectionState.Downloaded; break;
                     case "Owned": this.state = SwitchCollectionState.Owned; break;
                     case "On Switch": this.state = SwitchCollectionState.OnSwitch; break;
                     case "New": this.state = SwitchCollectionState.New; break;
@@ -70,10 +76,62 @@ namespace SwitchManager.nx.collection
         private bool isFavorite;
 
         [XmlElement(ElementName = "Size")]
-        public ulong Size { get; set; }
+        public long? Size
+        {
+            get
+            {
+                /*
+                if (string.IsNullOrWhiteSpace(RomPath))
+                    return this.size;
+                else if (Directory.Exists(RomPath))
+                    return DirSize(new DirectoryInfo(RomPath));
+                else if (File.Exists(RomPath))
+                    return new FileInfo(RomPath).Length;
+                else
+                */
+                return this.size;
+            }
+            set { this.size = value; NotifyPropertyChanged("Size"); }
+        }
+        private long? size;
 
         [XmlElement(ElementName = "Path")]
-        public string RomPath { get; set; }
+        public string RomPath
+        {
+            get { return romPath; }
+            set
+            {
+                this.romPath = value;
+                NotifyPropertyChanged("RomPath");
+                NotifyPropertyChanged("PrettySize");
+                NotifyPropertyChanged("Size");
+            }
+        }
+        private string romPath;
+
+        [XmlElement(ElementName = "Updates")]
+        public List<UpdateMetadataItem> Updates
+        {
+            get
+            {
+                if (this.title?.Type != SwitchTitleType.Game) return null;
+
+                SwitchGame game = this.title as SwitchGame;
+                List<UpdateMetadataItem> updates = new List<UpdateMetadataItem>(game?.Updates?.Count ?? 0);
+                if (game?.Updates != null)
+                {
+                    foreach (var update in game.Updates)
+                    {
+                        var meta = new UpdateMetadataItem();
+                        meta.TitleID = update.TitleID;
+                        meta.TitleKey = update.TitleKey;
+                        meta.Version = update.Version;
+                        updates.Add(meta);
+                    }
+                }
+                return updates;
+            }
+        }
 
         /// <summary>
         /// Default constructor. I don't like these but XmlSerializer requires it, even though I have NO NO NO
@@ -85,24 +143,23 @@ namespace SwitchManager.nx.collection
 
         }
 
-        public SwitchCollectionItem(string name, string titleid, string titlekey, SwitchCollectionState state, bool isFavorite)
+        public SwitchCollectionItem(SwitchTitle title, SwitchCollectionState state, bool isFavorite)
         {
-            Title = new SwitchTitle(name, titleid, titlekey);
+            this.title = title;
             State = state;
             IsFavorite = isFavorite;
         }
 
-        public SwitchCollectionItem(string name, string titleid, string titlekey, bool isFavorite) : this(name, titleid, titlekey, SwitchCollectionState.NotOwned, isFavorite)
+        public SwitchCollectionItem(SwitchTitle title) : this(title, SwitchCollectionState.NotOwned, false)
+        {
+        }
+
+        public SwitchCollectionItem(SwitchTitle title, bool isFavorite) : this(title, SwitchCollectionState.NotOwned, isFavorite)
         {
 
         }
 
-        public SwitchCollectionItem(string name, string titleid, string titlekey, SwitchCollectionState state) : this(name, titleid, titlekey, state, false)
-        {
-
-        }
-
-        public SwitchCollectionItem(string name, string titleid, string titlekey) : this(name, titleid, titlekey, SwitchCollectionState.NotOwned, false)
+        public SwitchCollectionItem(SwitchTitle title, SwitchCollectionState state) : this(title, state, false)
         {
 
         }

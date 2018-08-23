@@ -1,5 +1,5 @@
 ﻿using SwitchManager.nx.library;
-using SwitchManager.nx.cdn;
+using SwitchManager.nx.system;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using SwitchManager.util;
+using SwitchManager.nx.cdn;
 
 namespace SwitchManager.nx.library
 {
@@ -27,7 +28,7 @@ namespace SwitchManager.nx.library
         public SwitchTitleCollection Collection { get; set; }
 
         [XmlIgnore]
-        public CDNDownloader Loader { get; set; }
+        public EshopDownloader Loader { get; set; }
 
         [XmlIgnore]
         public string RomsPath { get; set; } = ".";
@@ -49,7 +50,7 @@ namespace SwitchManager.nx.library
             this.Collection = new SwitchTitleCollection();
         }
 
-        public SwitchLibrary(CDNDownloader loader, string imagesPath, string romsPath) : this()
+        public SwitchLibrary(EshopDownloader loader, string imagesPath, string romsPath) : this()
         {
             this.Loader = loader;
             this.ImagesPath = imagesPath;

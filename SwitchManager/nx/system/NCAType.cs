@@ -1,7 +1,7 @@
 ﻿using SwitchManager.util;
 using System.ComponentModel;
 
-namespace SwitchManager.nx.cdn
+namespace SwitchManager.nx.system
 {
     /// <summary>
     /// Describes the "type" of an NCA. Every NCA in a game has a type, which is coded into headers and

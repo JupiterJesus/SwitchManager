@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SwitchManager.nx.cdn
+namespace SwitchManager.nx.system
 {
     /// <summary>
     /// Represents a metadata entry in a cnmt file 

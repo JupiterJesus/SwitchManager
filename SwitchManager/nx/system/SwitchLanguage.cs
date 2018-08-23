@@ -1,7 +1,7 @@
 ﻿using SwitchManager.util;
 using System.ComponentModel;
 
-namespace SwitchManager.nx.cdn
+namespace SwitchManager.nx.system
 {
     /// <summary>
     /// Languages supported by the switch. The name of the enum and the number/index are both important.

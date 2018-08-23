@@ -88,7 +88,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("certs\\client.pfx")]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\testclient.pfx")]
         public string ClientCertPath {
             get {
                 return ((string)(this["ClientCertPath"]));

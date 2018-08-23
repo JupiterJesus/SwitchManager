@@ -24,7 +24,7 @@
       <Value Profile="(Default)">hactool\keys.txt</Value>
     </Setting>
     <Setting Name="ClientCertPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\client.pfx</Value>
+      <Value Profile="(Default)">certs\testclient.pfx</Value>
     </Setting>
     <Setting Name="EShopCertPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">certs\eshop-cert.cert</Value>

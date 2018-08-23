@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 
-namespace SwitchManager.nx.cdn
+namespace SwitchManager.nx.system
 {
     /// <summary>
     /// Represents a title ticket. See http://switchbrew.org/index.php?title=Ticket.

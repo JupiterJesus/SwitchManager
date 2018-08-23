@@ -1,0 +1,343 @@
+﻿using System;
+using System.Linq;
+using System.Security.Cryptography;
+using System.IO;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.OpenSsl;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.X509;
+using Org.BouncyCastle.Security;
+
+namespace SwitchManager.util
+{
+    public class Crypto
+    {
+        /*
+        public static void Pkcs12ToPfx(string certFile, string keyFile, string pfxFile)
+        {
+            var publicKey = File.ReadAllText(certFile);
+            var privateKey = File.ReadAllText(keyFile);
+
+            var certData = GetBytesFromPEM(publicKey, "CERTIFICATE");
+            var pKeyData = GetBytesFromPEM(privateKey, "RSA PRIVATE KEY");
+
+            var certificate = new X509Certificate2(certData, string.Empty,
+                X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
+
+            var rsa = DecodeRSAPrivateKey(pKeyData);
+            certificate.PrivateKey = rsa;
+
+            var certificateData = certificate.Export(X509ContentType.Pfx, string.Empty);
+            File.WriteAllBytes(pfxFile, certificateData);
+        }
+        */
+
+        public static void PemToPfx(string certFile, string keyFile, string pfxFile)
+        {
+            PemReader pemReaderCert = new PemReader(File.OpenText(certFile));
+            PemReader pemReaderKey = new PemReader(File.OpenText(keyFile));
+            
+            AsymmetricCipherKeyPair keyPair = null;
+            X509Certificate cert = null;
+            
+            object o = pemReaderCert.ReadObject();
+            if (o != null && o is X509Certificate)
+            {
+                cert = (X509Certificate)o;
+            }
+
+            o = pemReaderKey.ReadObject();
+            if (o != null && o is AsymmetricCipherKeyPair)
+            {
+                keyPair = (AsymmetricCipherKeyPair)o;
+            }
+
+            PemToPfx(cert, keyPair, pfxFile);
+        }
+
+        public static void PemToPfx(string pemFile, string pfxFile)
+        {
+            PemReader pemReader = new PemReader(File.OpenText(pemFile));
+            
+            AsymmetricCipherKeyPair keyPair = null;
+            X509Certificate cert = null;
+
+            object o;
+            while ((o = pemReader.ReadObject()) != null)
+            {
+                if (o is X509Certificate)
+                {
+                    cert = (X509Certificate)o;
+                }
+                else if (o is AsymmetricCipherKeyPair)
+                {
+                    keyPair = (AsymmetricCipherKeyPair)o;
+                }
+            }
+
+            PemToPfx(cert, keyPair, pfxFile);
+        }
+
+        public static void PemToPfx(X509Certificate cert, AsymmetricCipherKeyPair keyPair, string pfxFile)
+        {
+            Pkcs12Store store = new Pkcs12StoreBuilder().Build();
+
+            X509CertificateEntry[] chain = new X509CertificateEntry[1];
+            chain[0] = new X509CertificateEntry(cert);
+            store.SetKeyEntry("test", new AsymmetricKeyEntry(keyPair.Private), chain);
+            FileStream p12file = File.Create(pfxFile);
+            store.Save(p12file, null, new SecureRandom());
+            p12file.Close();
+        }
+
+        public static System.Security.Cryptography.X509Certificates.X509Certificate LoadCertificate(string path, string password = null)
+        {
+            //string contents = File.ReadAllText(path); 
+            //byte[] bytes = GetBytesFromPEM(contents, "CERTIFICATE");
+            //byte[] bytes = GetBytesFromPEM(contents, "RSA PRIVATE KEY");
+            //var certificate = new X509Certificate2(bytes);
+            var certificate = password == null ? new System.Security.Cryptography.X509Certificates.X509Certificate2(path) : new System.Security.Cryptography.X509Certificates.X509Certificate2(path, password);
+            //var certificate = X509Certificate.CreateFromSignedFile(path);
+            //var certificate = X509Certificate.CreateFromCertFile(path);
+            return certificate;
+        }
+
+        public static byte[] GetBytesFromPEM(string pemString, string section)
+        {
+            var header = String.Format("-----BEGIN {0}-----", section);
+            var footer = String.Format("-----END {0}-----", section);
+
+            var start = pemString.IndexOf(header, StringComparison.Ordinal);
+            if (start < 0)
+                return null;
+
+            start += header.Length;
+            var end = pemString.IndexOf(footer, start, StringComparison.Ordinal) - start;
+
+            if (end < 0)
+                return null;
+
+            return DecodeBase64(pemString.Substring(start, end));
+        }
+
+        public static string EncodeBase64(byte[] data)
+        {
+            return Convert.ToBase64String(data);
+        }
+
+        public static byte[] DecodeBase64(string data)
+        {
+            return Convert.FromBase64String(data);
+        }
+
+
+        public static byte[] GenerateAESKek(byte[] MasterKey, byte[] AESUseSrc, byte[] DAuth_KEK, byte[] DAuth_Src)
+        {
+            byte[] GenAESKey = Decrypt(AESUseSrc, MasterKey);
+            byte[] GenAESKek = Decrypt(DAuth_KEK, GenAESKey);
+            return Decrypt(DAuth_Src, GenAESKek);
+        }
+
+        public static byte[] Decrypt(byte[] Data, byte[] Key)
+        {
+            RijndaelManaged Unwrap = new RijndaelManaged
+            {
+                Mode = CipherMode.ECB,
+                Key = Key,
+                Padding = PaddingMode.None
+            };
+            var decrypt = Unwrap.CreateDecryptor();
+            byte[] Out = decrypt.TransformFinalBlock(Data, 0, 16);
+            return Out;
+        }
+
+        //------- Parses binary ans.1 RSA private key; returns RSACryptoServiceProvider  ---
+        public static RSACryptoServiceProvider DecodeRSAPrivateKey(byte[] privkey)
+        {
+            byte[] MODULUS, E, D, P, Q, DP, DQ, IQ;
+
+            // ---------  Set up stream to decode the asn.1 encoded RSA private key  ------
+            MemoryStream mem = new MemoryStream(privkey);
+            BinaryReader binr = new BinaryReader(mem);    //wrap Memory Stream with BinaryReader for easy reading
+            byte bt = 0;
+            ushort twobytes = 0;
+            int elems = 0;
+            try
+            {
+                twobytes = binr.ReadUInt16();
+                if (twobytes == 0x8130) //data read as little endian order (actual data order for Sequence is 30 81)
+                    binr.ReadByte();        //advance 1 byte
+                else if (twobytes == 0x8230)
+                    binr.ReadInt16();       //advance 2 bytes
+                else
+                    return null;
+
+                twobytes = binr.ReadUInt16();
+                if (twobytes != 0x0102) //version number
+                    return null;
+                bt = binr.ReadByte();
+                if (bt != 0x00)
+                    return null;
+
+
+                //------  all private key components are Integer sequences ----
+                elems = GetIntegerSize(binr);
+                MODULUS = binr.ReadBytes(elems);
+
+                elems = GetIntegerSize(binr);
+                E = binr.ReadBytes(elems);
+
+                elems = GetIntegerSize(binr);
+                D = binr.ReadBytes(elems);
+
+                elems = GetIntegerSize(binr);
+                P = binr.ReadBytes(elems);
+
+                elems = GetIntegerSize(binr);
+                Q = binr.ReadBytes(elems);
+
+                elems = GetIntegerSize(binr);
+                DP = binr.ReadBytes(elems);
+
+                elems = GetIntegerSize(binr);
+                DQ = binr.ReadBytes(elems);
+
+                elems = GetIntegerSize(binr);
+                IQ = binr.ReadBytes(elems);
+
+                // ------- create RSACryptoServiceProvider instance and initialize with public key -----
+                RSACryptoServiceProvider RSA = new RSACryptoServiceProvider();
+                RSAParameters RSAparams = new RSAParameters
+                {
+                    Modulus = MODULUS,
+                    Exponent = E,
+                    D = D,
+                    P = P,
+                    Q = Q,
+                    DP = DP,
+                    DQ = DQ,
+                    InverseQ = IQ
+                };
+                RSA.ImportParameters(RSAparams);
+                return RSA;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            finally
+            {
+                binr.Close();
+            }
+        }
+
+        private static int GetIntegerSize(BinaryReader binr)
+        {
+            byte bt = 0;
+            byte lowbyte = 0x00;
+            byte highbyte = 0x00;
+            int count = 0;
+            bt = binr.ReadByte();
+            if (bt != 0x02)     //expect integer
+                return 0;
+            bt = binr.ReadByte();
+
+            if (bt == 0x81)
+                count = binr.ReadByte();    // data size in next byte
+            else
+              if (bt == 0x82)
+            {
+                highbyte = binr.ReadByte(); // data size in next 2 bytes
+                lowbyte = binr.ReadByte();
+                byte[] modint = { lowbyte, highbyte, 0x00, 0x00 };
+                count = BitConverter.ToInt32(modint, 0);
+            }
+            else
+            {
+                count = bt;     // we already have the data size
+            }
+
+            while (binr.ReadByte() == 0x00)
+            {   //remove high order zeros in data
+                count -= 1;
+            }
+            binr.BaseStream.Seek(-1, SeekOrigin.Current);       //last ReadByte wasn't a removed zero, so back up a byte
+            return count;
+        }
+
+        internal static object GenerateAesKEK(byte[] data)
+        {
+            throw new NotImplementedException();
+        }
+        
+        //Code taken from https://stackoverflow.com/questions/29163493/aes-cmac-calculation-c-sharp
+        public static byte[] AESEncrypt(byte[] key, byte[] iv, byte[] data)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                AesCryptoServiceProvider aes = new AesCryptoServiceProvider
+                {
+                    Mode = CipherMode.CBC,
+                    Padding = PaddingMode.None
+                };
+
+                using (CryptoStream cs = new CryptoStream(ms, aes.CreateEncryptor(key, iv), CryptoStreamMode.Write))
+                {
+                    cs.Write(data, 0, data.Length);
+                    cs.FlushFinalBlock();
+
+                    return ms.ToArray();
+                }
+            }
+        }
+        public static byte[] Rol(byte[] b)
+        {
+            byte[] r = new byte[b.Length];
+            byte carry = 0;
+
+            for (int i = b.Length - 1; i >= 0; i--)
+            {
+                ushort u = (ushort)(b[i] << 1);
+                r[i] = (byte)((u & 0xff) + carry);
+                carry = (byte)((u & 0xff00) >> 8);
+            }
+
+            return r;
+        }
+        public static byte[] AESCMAC(byte[] key, byte[] data)
+        {
+            byte[] L = AESEncrypt(key, new byte[16], new byte[16]);
+
+            byte[] FirstSubkey = Rol(L);
+            if ((L[0] & 0x80) == 0x80)
+                FirstSubkey[15] ^= 0x87;
+
+            byte[] SecondSubkey = Rol(FirstSubkey);
+            if ((FirstSubkey[0] & 0x80) == 0x80)
+                SecondSubkey[15] ^= 0x87;
+
+            if (((data.Length != 0) && (data.Length % 16 == 0)) == true)
+            {
+                for (int j = 0; j < FirstSubkey.Length; j++)
+                    data[data.Length - 16 + j] ^= FirstSubkey[j];
+            }
+            else
+            {
+                byte[] padding = new byte[16 - data.Length % 16];
+                padding[0] = 0x80;
+
+                data = data.Concat<byte>(padding.AsEnumerable()).ToArray();
+
+                for (int j = 0; j < SecondSubkey.Length; j++)
+                    data[data.Length - 16 + j] ^= SecondSubkey[j];
+            }
+
+            byte[] encResult = AESEncrypt(key, new byte[16], data);
+
+            byte[] HashValue = new byte[16];
+            Array.Copy(encResult, encResult.Length - HashValue.Length, HashValue, 0, HashValue.Length);
+
+            return HashValue;
+        }
+    }
+}

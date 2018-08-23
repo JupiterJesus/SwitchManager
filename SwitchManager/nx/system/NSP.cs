@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SwitchManager.nx.cdn
+namespace SwitchManager.nx.system
 {
     public class NSP
     {
@@ -98,13 +98,19 @@ namespace SwitchManager.nx.cdn
             Console.WriteLine($"Failed to repack NSP to {path}");
             return false;
         }
+        public static byte[] GenerateHeader(string[] files)
+        {
+            // Calculate the file sizes array (size of file for each file)
+            var fileSizes = files.Select(f => new FileInfo(f).Length).ToArray();
+            return GenerateHeader(files, fileSizes);
+        }
 
         /// <summary>
         /// Generates the PFS0 (NSP) header
         /// See http://switchbrew.org/index.php?title=NCA_Format#PFS0
         /// </summary>
         /// <returns></returns>
-        public static byte[] GenerateHeader(string[] files)
+        public static byte[] GenerateHeader(string[] files, long[] fileSizes)
         {
             int nFiles = files.Length;
             
@@ -115,9 +121,6 @@ namespace SwitchManager.nx.cdn
 
             int remainder = 0x10 - headerSize % 0x10;
             headerSize += remainder;
-            
-            // Calculate the file sizes array (size of file for each file)
-            var fileSizes = files.Select(f => new FileInfo(f).Length).ToArray();
 
             // Calculate the file offsets array (offset of file from start for each file)
             var fileOffsets = new long[nFiles];

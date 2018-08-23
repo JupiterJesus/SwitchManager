@@ -1,7 +1,7 @@
 ﻿using SwitchManager.util;
 using System.ComponentModel;
 
-namespace SwitchManager.nx.cdn
+namespace SwitchManager.nx.system
 {
     /// <summary>
     /// Title Type stored in CNMT metadata, in the header at offset 0xE. It is one byte long.

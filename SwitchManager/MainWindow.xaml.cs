@@ -14,7 +14,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using SwitchManager.nx;
 using SwitchManager.nx.library;
-using SwitchManager.nx.cdn;
+using SwitchManager.nx.system;
 using SwitchManager.Properties;
 using System.ComponentModel;
 using System.Globalization;
@@ -24,6 +24,8 @@ using SwitchManager.util;
 using System.Diagnostics;
 using BespokeFusion;
 using SwitchManager.ui;
+using System.Threading;
+using SwitchManager.nx.cdn;
 
 namespace SwitchManager
 {
@@ -40,7 +42,7 @@ namespace SwitchManager
         {
             InitializeComponent();
 
-            CDNDownloader downloader = new CDNDownloader(Settings.Default.ClientCertPath,
+            EshopDownloader downloader = new EshopDownloader(Settings.Default.ClientCertPath,
                                                          Settings.Default.EShopCertPath,
                                                          Settings.Default.TitleCertPath,
                                                          Settings.Default.TitleTicketPath,
@@ -157,25 +159,32 @@ namespace SwitchManager
         private uint? SelectedVersion { get; set; }
         private DownloadOptions? DLOption { get; set; }
 
-        private async void Button_Download_Click(object sender, RoutedEventArgs e)
+        private void Button_Download_Click(object sender, RoutedEventArgs e)
         {
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
 
             uint v = SelectedVersion ?? item.Title.BaseVersion;
             DownloadOptions o = DLOption ?? DownloadOptions.BaseGameOnly;
-            try
+
+            // Okay so the below got way more complicated than it used to be. I wanted to catch an exception in case
+            // the cert is denied. I had to put that in the threaded task. Since I didn't want the download window to open
+            // or focus unless the download started, I think had to put that in there right after
+            Task.Run(delegate
             {
-                await library.DownloadGame(item, v, o, Settings.Default.NSPRepack, false);
-                // Open the download window if it isn't showing
-                if (downloadWindow.IsVisible)
-                    this.downloadWindow.Focus();
-                else
-                    MenuItem_ShowDownloads.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            }
-            catch (CertificateDeniedException)
-            {
-                MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
-            }
+                try
+                {
+                    library.DownloadGame(item, v, o, Settings.Default.NSPRepack, false);
+                }
+                catch (CertificateDeniedException)
+                {
+                    MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
+                }
+            });
+            // Open the download window if it isn't showing
+            if (downloadWindow.IsVisible)
+                this.downloadWindow.Focus();
+            else
+                MenuItem_ShowDownloads.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         }
 
         private void ComboBox_VersionChanged(object sender, SelectionChangedEventArgs e)
@@ -346,14 +355,33 @@ namespace SwitchManager
             }
         }
 
+        /// <summary>
+        /// Estimates sizes of all games (no updates, demos or dlc) that don't already have a size.
+        /// It is buggy though - it sometimes fails due to some threading issue
+        /// // Maybe if instead of spawning a thread for each, I spawn one thread for all of them but do them all in a row?
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void MenuItemEstimateSizes_Click(object sender, RoutedEventArgs e)
         {
             // Here I severely limit what I even try to get sizes for, because I've found that some types will crash the shit out of this
             // Demos and DLC, for example, will fail hard
             // But those same demos and DLC sometimes work fine when I individually click on them to update the size
-            this.library.Collection.FindAll(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).AsParallel().ForAll(async t => await UpdateSize(t));
 
+            Task.Run(delegate
+            {
+                this.library.Collection.FindAll(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).ForEach(async t => await UpdateSize(t));
+            });
             //Parallel.ForEach(this.library.Collection, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async t => await UpdateSize(t).ConfigureAwait(false));
+        }
+
+        private void MenuItemForceEstimateSizes_Click(object sender, RoutedEventArgs e)
+        {
+            // Just like regular estimate sizes, but force updates any that don't have a filename
+            Task.Run(delegate
+            {
+                this.library.Collection.FindAll(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && string.IsNullOrWhiteSpace(t.RomPath)).ForEach(async t => await UpdateSize(t));
+            });
         }
 
         private void MenuItemShowDownloads_Click(object sender, RoutedEventArgs e)
@@ -422,7 +450,34 @@ namespace SwitchManager
 
         private void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
         {
-            MaterialMessageBox.Show("Not implemented, but this will provide a convenient popup window for pasting in a new device id and selecting the path to a new PEM file, and the app will handle updating the settings and converting the cert to pfx.");
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".pem",
+                Filter = "OpenSSL Certificate (*.pem)|*.pem|PKCS12 Certificate (*.pfx)|*.pfx|All Files (*.*)|*.*"
+            };
+
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == true)
+            {
+                // Open document 
+                string newCert = dlg.FileName;
+                string pfxFile = Settings.Default.ClientCertPath;
+                string backupFile = pfxFile + ".bak";
+                File.Copy(pfxFile, backupFile);
+
+                if (".PFX".Equals(System.IO.Path.GetExtension(newCert)))
+                {
+                    File.Copy(newCert, pfxFile);
+                }
+                else if (".PEM".Equals(System.IO.Path.GetExtension(newCert)))
+                {
+                    Crypto.PemToPfx(newCert, pfxFile);
+                }
+
+                library.Loader.UpdateClientCert(pfxFile);
+                ShowMessage(@"Your certificate located at {pemFile} was successfully imported. Just in case something didn't work out, I made a backup of your old certificate at {backupFile}. Your certificate is located at {pfxFile}.", "Certificate imported!", "Thanks!");
+            }
+
         }
 
         private void ShowMessage(string text, string title, string okButton = null, string cancel = null)

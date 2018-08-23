@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 
 namespace SwitchManager.nx.library
@@ -20,16 +16,38 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Title")]
         public string TitleID { get; set; }
 
+        [XmlElement(ElementName = "Key")]
+        public string TitleKey { get; set; }
+
+        [XmlElement(ElementName = "Name")]
+        public string Name { get; set; }
+
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State { get; set; }
 
         [XmlElement(ElementName = "Favorite")]
         public bool IsFavorite { get; set; }
 
-        [XmlElement(ElementName = "Size")]
-        public ulong Size { get; set; }
-
         [XmlElement(ElementName = "Path")]
         public string Path { get; set; }
+
+        [XmlElement(ElementName = "Size")]
+        public long? Size { get; set; }
+
+        [XmlElement(ElementName = "Updates")]
+        public List<UpdateMetadataItem> Updates { get; set; }
+    }
+
+    [XmlRoot(ElementName = "UpdateItem")]
+    public class UpdateMetadataItem
+    {
+        [XmlElement(ElementName = "Title")]
+        public string TitleID { get; set; }
+
+        [XmlElement(ElementName = "Key")]
+        public string TitleKey { get; set; }
+
+        [XmlElement(ElementName = "Version")]
+        public uint Version { get; set; }
     }
 }

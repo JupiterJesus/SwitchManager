@@ -9,11 +9,9 @@ namespace SwitchManager.ui
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // Always test MultiValueConverter inputs for non-null 
-            // (to avoid crash bugs for views in the designer) 
-            if (value is bool)
+            if (value is string str)
             {
-                bool hasText = !(bool)value;
+                bool hasText = !string.IsNullOrWhiteSpace(str);
                 if (hasText)
                     return Visibility.Collapsed;
             }
