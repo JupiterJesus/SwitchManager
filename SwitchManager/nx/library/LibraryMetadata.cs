@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Xml.Serialization;
 
 namespace SwitchManager.nx.library
@@ -21,6 +22,15 @@ namespace SwitchManager.nx.library
 
         [XmlElement(ElementName = "Name")]
         public string Name { get; set; }
+
+        [XmlElement(ElementName = "Developer")]
+        public string Developer { get; set; }
+
+        [XmlElement(ElementName = "Description")]
+        public string Description { get; set; }
+
+        [XmlElement(ElementName = "ReleaseDate")]
+        public DateTime? ReleaseDate { get; set; }
 
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State { get; set; }

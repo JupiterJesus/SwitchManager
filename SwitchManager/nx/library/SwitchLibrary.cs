@@ -154,6 +154,9 @@ namespace SwitchManager.nx.library
                     ci.RomPath = item.Path;
                     ci.State = item.State;
                     ci.Size = item.Size;
+                    ci.Developer = item.Developer;
+                    ci.ReleaseDate = item.ReleaseDate;
+                    ci.Description = item.Description;
 
                     foreach (var update in item.Updates)
                     {
@@ -291,10 +294,11 @@ namespace SwitchManager.nx.library
 
         private SwitchUpdate AddUpdateTitle(string updateid, string gameid, string name, uint version, string titlekey)
         {
-            string id = gameid ?? (updateid == null ? null : SwitchTitle.GetBaseGameIDFromUpdate(updateid));
-            if (id != null)
+            if (gameid == null)
+                gameid = (updateid == null ? null : SwitchTitle.GetBaseGameIDFromUpdate(updateid));
+            if (updateid != null && gameid != null)
             {
-                SwitchUpdate update = new SwitchUpdate(name, gameid, version, titlekey);
+                SwitchUpdate update = new SwitchUpdate(name, updateid, gameid, version, titlekey);
                 return AddUpdateTitle(update);
             }
             return null;
@@ -385,7 +389,7 @@ namespace SwitchManager.nx.library
         {
             var nsp = await Loader.DownloadTitle(title, version, dir.FullName, repack, verify).ConfigureAwait(false);
 
-            if (repack)
+            if (repack && nsp != null)
             {
                 string titleName = Miscellaneous.SanitizeFileName(title.Name);
 
@@ -424,7 +428,7 @@ namespace SwitchManager.nx.library
         /// <param name="repack"></param>
         /// <param name="verify"></param>
         /// <returns></returns>
-        internal async Task DownloadGame(SwitchCollectionItem titleItem, uint v, DownloadOptions options, bool repack, bool verify)
+        internal async Task DownloadTitle(SwitchCollectionItem titleItem, uint v, DownloadOptions options, bool repack, bool verify)
         {
             SwitchTitle title = titleItem?.Title;
             if (title == null)
@@ -436,7 +440,10 @@ namespace SwitchManager.nx.library
                     if (SwitchTitle.IsDLCID(title.TitleID))
                     {
                         string dlcPath = await DownloadTitle(title, title.Versions.Last(), repack, verify);
-                        titleItem.State = SwitchCollectionState.Owned;
+                        if (titleItem.Title.IsTitleKeyValid)
+                            titleItem.State = SwitchCollectionState.Owned;
+                        else
+                            titleItem.State = SwitchCollectionState.Downloaded;
                         titleItem.RomPath = Path.GetFullPath(dlcPath);
                         titleItem.Size = Miscellaneous.GetFileSystemSize(dlcPath);
                     }
@@ -448,7 +455,11 @@ namespace SwitchManager.nx.library
                         {
                             SwitchCollectionItem dlcTitle = GetTitleByID(t?.TitleID);
                             string dlcPath = await DownloadTitle(dlcTitle?.Title, title.Versions.Last(), repack, verify);
-                            dlcTitle.State = SwitchCollectionState.Owned;
+                            if (dlcTitle.Title.IsTitleKeyValid)
+                                    dlcTitle.State = SwitchCollectionState.Owned;
+                            else
+                                    dlcTitle.State = SwitchCollectionState.Downloaded;
+
                             dlcTitle.RomPath = Path.GetFullPath(dlcPath);
                             dlcTitle.Size = Miscellaneous.GetFileSystemSize(dlcPath);
                         }
@@ -485,10 +496,15 @@ namespace SwitchManager.nx.library
                 case DownloadOptions.BaseGameOnly:
                 default:
                     string romPath = await DownloadTitle(title, title.Versions.Last(), repack, verify);
-                    titleItem.State = SwitchCollectionState.Owned;
+
+                    if (titleItem.Title.IsTitleKeyValid)
+                        titleItem.State = SwitchCollectionState.Owned;
+                    else
+                        titleItem.State = SwitchCollectionState.Downloaded;
+
                     titleItem.RomPath = Path.GetFullPath(romPath);
                     titleItem.Size = Miscellaneous.GetFileSystemSize(romPath);
-
+                    
                     if (options == DownloadOptions.BaseGameAndUpdate || options == DownloadOptions.BaseGameAndUpdateAndDLC)
                         goto case DownloadOptions.UpdateOnly;
                     else if (options == DownloadOptions.BaseGameAndDLC)
@@ -585,7 +601,7 @@ namespace SwitchManager.nx.library
                 string tkey = split[1]?.Trim()?.Substring(0, 32);
                 string name = split[2]?.Trim();
 
-                LoadTitle(tid, tkey, name, versions);
+                var item = LoadTitle(tid, tkey, name, versions);
             }
 
             if (certDenied) throw new CertificateDeniedException();
@@ -600,16 +616,39 @@ namespace SwitchManager.nx.library
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
-                string tid = split[0]?.Trim()?.Substring(0, 16);
-                SwitchCollectionItem item = GetTitleByID(tid);
-                if (item == null)
+                string tid = string.IsNullOrWhiteSpace(split[0]) ? null : split[0]?.Trim()?.Substring(0, 16);
+                SwitchCollectionItem item = tid == null ? null : GetTitleByID(tid);
+
+                // We only care about new titles, and ignore messed up entries that are missing a title ID for some reason
+                if (tid != null)
                 {
-                    // New title!!
-                    string tkey = split[1]?.Trim()?.Substring(0, 32);
-                    string name = split[2]?.Trim();
-                    item = LoadTitle(tid, tkey, name, versions);
-                    item.State = SwitchCollectionState.New;
-                    newTitles.Add(item);
+                    string tkey = string.IsNullOrWhiteSpace(split[1]) ? null : split[1]?.Trim()?.Substring(0, 32);
+                    string name = string.IsNullOrWhiteSpace(split[2]) ? null : split[2]?.Trim();
+                    if (item == null)
+                    {
+                        // New title!!
+
+                        // A missing tkey can always be added in later
+                        item = LoadTitle(tid, tkey, name, versions);
+
+                        // If the key is missing, mark it as such, otherwise it is a properly working New title
+                        if (item.Title.IsTitleKeyValid)
+                            item.State = SwitchCollectionState.New;
+                        else
+                            item.State = SwitchCollectionState.NoKey;
+
+                        newTitles.Add(item);
+                    }
+                    else
+                    {
+                        // Existing title
+                        // The only thing to do here is check for new data if the existing entry is missing anything
+                        if (!item.Title.IsTitleKeyValid)
+                            item.Title.TitleKey = tkey;
+
+                        if (string.IsNullOrWhiteSpace(item.Title.Name))
+                            item.Title.Name = name;
+                    }
                 }
             }
 

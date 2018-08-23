@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SwitchManager.nx.library
+namespace SwitchManager.nx.system
 {
     public class SwitchDLC : SwitchTitle
     {

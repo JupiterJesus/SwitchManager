@@ -140,7 +140,7 @@ namespace SwitchManager.nx.cdn
                         File.Copy(this.titleCertPath, certPath, true);
                         Console.WriteLine($"Generated certificate {certPath}.");
 
-                        if (!string.IsNullOrWhiteSpace(title.TitleKey))
+                        if (title.IsTitleKeyValid)
                         {
                             byte[] data = File.ReadAllBytes(this.titleTicketPath);
 
@@ -270,7 +270,8 @@ namespace SwitchManager.nx.cdn
                 }
                 controlDir.Delete(true);
 
-                if (nspRepack)
+                // Repack to NSP if requested AND if the title has a key
+                if (nspRepack && title.IsTitleKeyValid)
                 {
                     return nsp;
                 }

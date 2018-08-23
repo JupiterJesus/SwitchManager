@@ -1,4 +1,5 @@
-﻿using SwitchManager.util;
+﻿using SwitchManager.nx.system;
+using SwitchManager.util;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -25,14 +26,24 @@ namespace SwitchManager.nx.library
         private SwitchTitle title;
 
         [XmlElement(ElementName = "Title")]
-        public string TitleId { get { return title?.TitleID; } set { } }
+        public string TitleId { get { return title?.TitleID; } set { if (title != null) title.TitleID = value; } }
 
         [XmlElement(ElementName = "Key")]
-        public string TitleKey { get { return title?.TitleKey; } set { } }
+        public string TitleKey { get { return title?.TitleKey; } set { if (title != null) title.TitleKey = value; } }
 
         [XmlElement(ElementName = "Name")]
-        public string TitleName { get { return title?.Name; } set { } }
+        public string TitleName { get { return title?.Name; } set { if (title != null) title.Name = value; } }
 
+        [XmlElement(ElementName = "Developer")]
+        public string Developer { get { return title?.Developer; } set { if (title != null) title.Developer = value; } }
+
+        [XmlElement(ElementName = "Description")]
+        public string Description { get { return title?.Description; } set { if (title != null) title.Description = value; } }
+
+
+        [XmlElement(ElementName = "ReleaseDate")]
+        public DateTime? ReleaseDate { get { return title?.ReleaseDate; } set { if (title != null) title.ReleaseDate = value; } }
+        
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State
         {

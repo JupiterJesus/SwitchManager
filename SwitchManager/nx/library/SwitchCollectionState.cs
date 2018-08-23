@@ -20,5 +20,11 @@ namespace SwitchManager.nx.library
 
         [Description("Hidden")]
         Hidden,
+
+        [Description("Title Key Missing")]
+        NoKey,
+
+        [Description("Downloaded")]
+        Downloaded,
     }
 }
