@@ -52,6 +52,7 @@ namespace SwitchManager.ui
             Download dl = new Download();
             dl.Task = download;
             downloads.Add(download.FileName, dl);
+
             if (Application.Current != null)
                 Application.Current.Dispatcher.Invoke(delegate 
                 {
@@ -89,7 +90,9 @@ namespace SwitchManager.ui
                     dl.Container.Children.Add(bar);
                     dl.Container.Children.Add(t);
                     dl.Container.UpdateLayout();
-                    DownloadsPanel.Children.Insert(1, dl.Container);
+
+                    DownloadsPanel.Children.Insert(0, dl.Container);
+                    DownloadsPanel.ScrollOwner.ScrollToTop();
                     DownloadsPanel.UpdateLayout();
                 });
 
@@ -101,14 +104,15 @@ namespace SwitchManager.ui
 
         private void Downloader_DownloadFinished(DownloadTask download)
         {
-            //Download dl = downloads[download.FileName];
+            Download dl = downloads[download.FileName];
             //downloads.Remove(download.FileName);
 
-            //if (Application.Current != null)
-            //    Application.Current.Dispatcher.Invoke(delegate
-            //    {
-            //        //DownloadsPanel.Children.Remove(dl.Container);
-           //     });
+            if (Application.Current != null)
+                Application.Current.Dispatcher.Invoke(delegate
+                {
+                    DownloadsPanel.Children.Remove(dl.Container);
+                    DownloadsPanel.Children.Insert(DownloadsPanel.Children.Count, dl.Container);
+                });
 
             //Console.WriteLine($"Finished download, File: '{download.FileName}'.");
         }

@@ -3,18 +3,27 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" Width="300" Height="400">
+        mc:Ignorable="d" Width="300" SizeToContent="Height">
 
   <Window.Resources>
   </Window.Resources>
 
-  <Grid Margin="10">
-    <StackPanel Orientation="Vertical">
-      <TextBlock x:Name="Label_Input" HorizontalAlignment="Stretch" Margin="10" Text="PLACEHOLDER" TextWrapping="Wrap" FontSize="14" />
-      <TextBox x:Name="TextBox_Input" HorizontalAlignment="Stretch" Margin="10" Text="" />
+  <StackPanel VerticalAlignment="Stretch" x:Name="Panel">
+    
+    <TextBlock x:Name="Label_Input" VerticalAlignment="Top" HorizontalAlignment="Stretch" Margin="10" Text="PLACEHOLDER" TextWrapping="Wrap" FontSize="14" />
 
-      <Button x:Name="Button_OK" Click="Button_OK_Clicked" Content="OK" Margin="10" />
-      <Button x:Name="Button_Cancel" Click="Button_Cancel_Click"  Content="Cancel" Margin="10" />
-    </StackPanel>
-  </Grid>
-</Window>
+    <TextBox x:Name="TextBox_Input" HorizontalAlignment="Stretch" Margin="10" Text="" VerticalScrollBarVisibility="Auto" MaxHeight="150" />
+
+    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="50">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition/>
+        <ColumnDefinition/>
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition/>
+      </Grid.RowDefinitions>
+      <Button Grid.Row="0" Grid.Column="0" x:Name="Button_OK" Click="Button_OK_Clicked" Content="Confirm" VerticalAlignment="Stretch" Grid.ColumnSpan="1" Margin="10" />
+      <Button Grid.Row="0" Grid.Column="1"  x:Name="Button_Cancel" Click="Button_Cancel_Click"  Content="Cancel" VerticalAlignment="Stretch" Grid.ColumnSpan="1" Margin="10"/>
+    </Grid>
+  </StackPanel>
+</Window> 

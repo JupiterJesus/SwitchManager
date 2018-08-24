@@ -9,9 +9,16 @@
   <Window.Resources>
   </Window.Resources>
 
-  <Grid Margin="0">
-    <StackPanel x:Name="DownloadsPanel" Margin="25" Height="Auto">
-      <Button x:Name="Button_Clear" Height="25" Width="200" Margin="15" Click="Button_Clear_Click">Clear Completed Downloads</Button>
-    </StackPanel>
+  <Grid Margin="10">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="60"/>
+    </Grid.RowDefinitions>
+
+    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="10" >
+      <StackPanel x:Name="DownloadsPanel" Height="Auto" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+      </StackPanel>
+    </ScrollViewer>
+    <Button Grid.Row="1" x:Name="Button_Clear" VerticalAlignment="Stretch" Width="200" Margin="10" Click="Button_Clear_Click">Clear Completed Downloads</Button>
   </Grid>
 </Window>

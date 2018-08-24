@@ -86,7 +86,7 @@ namespace SwitchManager.nx.system
         public uint LatestVersion 
         {
             get { return latestVersion; }
-            set { this.versions.Clear(); GetAllVersions(this.latestVersion, this.versions); NotifyPropertyChanged("LatestVersion"); NotifyPropertyChanged("Versions"); }
+            set { this.latestVersion = value;  this.versions.Clear(); GetAllVersions(this.latestVersion, this.versions); NotifyPropertyChanged("LatestVersion"); NotifyPropertyChanged("Versions"); }
         }
 
         public Collection<uint> Versions

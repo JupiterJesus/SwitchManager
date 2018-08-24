@@ -32,10 +32,22 @@ namespace SwitchManager.ui
     public partial class TextInputWindow : Window
     {
 
-        public TextInputWindow(string label)
+        public TextInputWindow(string label, bool multiline = false)
         {
             InitializeComponent();
             Title = "Enter Input";
+            if (multiline)
+            {
+                //this.Height += 200;
+                TextBox_Input.Height += 200;
+                TextBox_Input.VerticalAlignment = VerticalAlignment.Top;
+                TextBox_Input.VerticalContentAlignment = VerticalAlignment.Top;
+                TextBox_Input.TextWrapping = TextWrapping.Wrap;
+                TextBox_Input.AcceptsReturn = true;
+                TextBox_Input.AcceptsTab = true;
+                TextBox_Input.UpdateLayout();
+                Panel.UpdateLayout();
+            }
             Label_Input.Text = label;
         }
 

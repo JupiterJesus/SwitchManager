@@ -8,7 +8,7 @@
         xmlns:ui="clr-namespace:SwitchManager.ui"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="Switch Library and CDN Downloader" Height="450" Width="800">
+        Title="Switch Library and CDN Downloader">
 
   <Window.Resources>
     <!-- WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN-->
@@ -31,37 +31,36 @@
     </Style>
   </Window.Resources>
 
-  <StackPanel Margin="0">
-    <DockPanel Grid.Row="0" Margin="0,0,0.333,-0.333" Grid.RowSpan="2">
-      <Menu DockPanel.Dock="Top">
-        <MenuItem Header="_Downloads">
-          <MenuItem x:Name="MenuItem_ShowDownloads" Header="_Show Downloads" Click="MenuItemShowDownloads_Click"/>
-          <MenuItem x:Name="MenuItem_DownloadFavorites" Header="Download Favorites" ToolTip="Downloads all of your unowned Favorites (includes Games and DLC)" Click="MenuItemDownloadFavorites_ClickAsync"/>
-          <MenuItem x:Name="MenuItem_DownloadUpdates" Header="Download Updates" ToolTip="Downloads all updates for owned games." Click="MenuItemDownloadUpdates_ClickAsync"/>
-          <MenuItem x:Name="MenuItem_DownloadDLC" Header="Download DLC" ToolTip="Downloads all DLC for owned games." Click="MenuItemDownloadDLC_ClickAsync"/>
-        </MenuItem>
-        <MenuItem Header="_Tools">
-          <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
-          <MenuItem x:Name="MenuItem_LoadKeys" Header="_Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
-          <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials" ToolTip="Imports a PEM certificate (used by CDNSP) into SwitchManager by converting it to a PKCS12 (PFX) file." Click="MenuItemImportCreds_Click"/>
-          <!--MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game _Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own, but only if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/-->
-          <MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/>
-        </MenuItem>
-        <MenuItem Header="_Library">
-          <MenuItem Header="Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="MenuItemScan_Click"/>
-          <MenuItem Header="Select _Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="MenuItemSelectLocation_Click"/>
-          <MenuItem Header="Save Library _Metadata" Click="MenuItemSaveLibrary_Click"/>
-        </MenuItem>
-        <MenuItem Header="_Options">
-        </MenuItem>
-      </Menu>
-      <StackPanel></StackPanel>
-    </DockPanel>
-    <StackPanel Orientation="Horizontal" >
+  <DockPanel Margin="0,0,0.333,-0.333">
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_Downloads">
+        <MenuItem x:Name="MenuItem_ShowDownloads" Header="_Show Downloads" Click="MenuItemShowDownloads_Click"/>
+        <MenuItem x:Name="MenuItem_DownloadFavorites" Header="Download Favorites" ToolTip="Downloads all of your unowned Favorites (includes Games and DLC)" Click="MenuItemDownloadFavorites_ClickAsync"/>
+        <MenuItem x:Name="MenuItem_DownloadUpdates" Header="Download Updates" ToolTip="Downloads all updates for owned games." Click="MenuItemDownloadUpdates_ClickAsync"/>
+        <MenuItem x:Name="MenuItem_DownloadDLC" Header="Download DLC" ToolTip="Downloads all DLC for owned games." Click="MenuItemDownloadDLC_ClickAsync"/>
+      </MenuItem>
+      <MenuItem Header="_Tools">
+        <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
+        <MenuItem x:Name="MenuItem_LoadKeys" Header="_Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
+        <MenuItem x:Name="MenuItem_PasteKeys" Header="_Paste Title Keys" ToolTip="Paste a bunch of title keys directly into the app." Click="MenuItemPasteKeys_Click"/>
+        <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials" ToolTip="Imports a PEM certificate (used by CDNSP) into SwitchManager by converting it to a PKCS12 (PFX) file." Click="MenuItemImportCreds_Click"/>
+        <!--MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game _Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own, but only if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/-->
+        <MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/>
+      </MenuItem>
+      <MenuItem Header="_Library">
+        <MenuItem Header="Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="MenuItemScan_Click"/>
+        <MenuItem Header="Select _Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="MenuItemSelectLocation_Click"/>
+        <MenuItem Header="Save Library _Metadata" Click="MenuItemSaveLibrary_Click"/>
+      </MenuItem>
+      <MenuItem Header="_Options">
+      </MenuItem>
+    </Menu>
+
+    <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
       <Grid Background="White" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5">
         <!-- overlay with hint text -->
         <TextBlock Margin="5,2" Height="20"  MinWidth="50" Text="Type to filter library by name..." 
-                   Foreground="LightSteelBlue" Visibility="{Binding ElementName=TextBox_Search, Path=Text, Converter={StaticResource TextInputToVisibilityConverter}}" />
+                  Foreground="LightSteelBlue" Visibility="{Binding ElementName=TextBox_Search, Path=Text, Converter={StaticResource TextInputToVisibilityConverter}}" />
         <!-- enter term here -->
         <TextBox Height="20" MinWidth="50" x:Name="TextBox_Search" Width="200" TextChanged="TextBox_Search_TextChanged"  Background="Transparent" />
       </Grid>
@@ -74,20 +73,19 @@
       <CheckBox x:Name="CheckBox_Favorites" Margin="5,5,5,5" Checked="CheckBox_Favorites_Checked" Unchecked="CheckBox_Favorites_Checked">Favorites (hides non-favorites)</CheckBox>
       <CheckBox x:Name="CheckBox_New" Margin="5,5,5,5" Checked="CheckBox_New_Checked" Unchecked="CheckBox_New_Checked">New (hides non-new)</CheckBox>
     </StackPanel>
-    <DataGrid x:Name="DataGrid_Collection"  Grid.Row="2"
-              MaxHeight="600" Margin="5,5,5,5" 
-              AutoGenerateColumns="False" 
-              DataContext="{StaticResource ItemCollectionViewSource}"
-              ItemsSource="{Binding}"
-              SelectionUnit="FullRow"
-              SelectionMode="Single"
-              CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeRows="False" CanUserSortColumns="True"
-              RowDetailsVisibilityChanged="DataGrid_Collection_RowDetailsVisibilityChanged">
+    <DataGrid x:Name="DataGrid_Collection"
+            AutoGenerateColumns="False" 
+            DataContext="{StaticResource ItemCollectionViewSource}"
+            ItemsSource="{Binding}"
+            SelectionUnit="FullRow"
+            SelectionMode="Single"
+            CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeRows="False" CanUserSortColumns="True"
+            RowDetailsVisibilityChanged="DataGrid_Collection_RowDetailsVisibilityChanged">
       <DataGrid.Resources>
         <!-- The below triggers editing on mouseover, so that once you actually click you are already in editing mode - thus, single click editing -->
         <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
           <Style.Triggers>
-            <MultiTrigger> 
+            <MultiTrigger>
               <MultiTrigger.Conditions>
                 <Condition Property="IsMouseOver" Value="True" />
                 <Condition Property="IsReadOnly" Value="False" />
@@ -134,31 +132,31 @@
       </DataGrid.RowDetailsTemplate>
       <DataGrid.Columns>
         <DataGridCheckBoxColumn 
-              Header="Favorite ?"  
-              Binding="{Binding Path=IsFavorite, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            Header="Favorite ?"  
+            Binding="{Binding Path=IsFavorite, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
         <DataGridTextColumn 
-            Header="Title Name" 
-            MaxWidth="400"
-            Binding="{Binding Path=Title.Name, Mode=OneWay}" 
-            FontSize="12" />
+          Header="Title Name" 
+          MaxWidth="400"
+          Binding="{Binding Path=Title.Name, Mode=OneWay}" 
+          FontSize="12" />
         <DataGridTextColumn 
-            Header="Title Type" 
-            Binding="{Binding Path=Title.Type, Mode=OneWay}" 
-            FontSize="12" />
+          Header="Title Type" 
+          Binding="{Binding Path=Title.Type, Mode=OneWay}" 
+          FontSize="12" />
         <DataGridComboBoxColumn 
-            Header="State"
-            SelectedItemBinding="{Binding Path=State, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-            ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:SwitchCollectionState}}}">
+          Header="State"
+          SelectedItemBinding="{Binding Path=State, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+          ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:SwitchCollectionState}}}">
         </DataGridComboBoxColumn>
         <DataGridTextColumn 
-            Header="Size" 
-            Binding="{Binding Path=Size, Converter={StaticResource FileSizeConverter}, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
-            FontSize="12" />
+          Header="Size" 
+          Binding="{Binding Path=Size, Converter={StaticResource FileSizeConverter}, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
+          FontSize="12" />
         <DataGridTextColumn 
-            Header="Rom Path"
-            Binding="{Binding Path=RomPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-            FontSize="12" />
+          Header="Rom Path"
+          Binding="{Binding Path=RomPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+          FontSize="12" />
       </DataGrid.Columns>
     </DataGrid>
-  </StackPanel>
+  </DockPanel>
 </Window>

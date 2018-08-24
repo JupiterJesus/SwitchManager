@@ -42,6 +42,17 @@ namespace SwitchManager
         {
             InitializeComponent();
 
+            // Initialize the window dimensions from saved settings
+            this.Top = Settings.Default.WindowTop;
+            this.Left = Settings.Default.WindowLeft;
+            this.Height = Settings.Default.WindowHeight;
+            this.Width = Settings.Default.WindowWidth;
+
+            if (Settings.Default.WindowMaximized)
+            {
+                WindowState = WindowState.Maximized;
+            }
+
             EshopDownloader downloader = new EshopDownloader(Settings.Default.ClientCertPath,
                                                          Settings.Default.EShopCertPath,
                                                          Settings.Default.TitleCertPath,
@@ -132,8 +143,32 @@ namespace SwitchManager
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            // Save window dimensions!
+            if (WindowState == WindowState.Maximized)
+            {
+                // Use the RestoreBounds as the current values will be 0, 0 and the size of the screen
+                Settings.Default.WindowTop = RestoreBounds.Top;
+                Settings.Default.WindowLeft = RestoreBounds.Left;
+                Settings.Default.WindowHeight = RestoreBounds.Height;
+                Settings.Default.WindowWidth = RestoreBounds.Width;
+                Settings.Default.WindowMaximized = true;
+            }
+            else
+            {
+                Settings.Default.WindowTop = this.Top;
+                Settings.Default.WindowLeft = this.Left;
+                Settings.Default.WindowHeight = this.Height;
+                Settings.Default.WindowWidth = this.Width;
+                Settings.Default.WindowMaximized = false;
+            }
+
+            // Save all settings
             Settings.Default.Save();
+
+            // Save library
             library.SaveMetadata(metadataFile);
+
+            // Make sure the download window doesn't stay open
             downloadWindow.Close();
         }
 
@@ -170,27 +205,26 @@ namespace SwitchManager
             // Okay so the below got way more complicated than it used to be. I wanted to catch an exception in case
             // the cert is denied. I had to put that in the threaded task. Since I didn't want the download window to open
             // or focus unless the download started, I think had to put that in there right after
-            Task.Run(delegate
+            Task.Run(async delegate
             {
                 try
                 {
-                    DownloadTitle(item, v, o);
+                    await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, false);
                 }
                 catch (CertificateDeniedException)
                 {
                     MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
                 }
             });
-        }
-
-        private async Task DownloadTitle(SwitchCollectionItem item, uint v, DownloadOptions o)
-        {
-            await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, false);
-            // Open the download window if it isn't showing
             if (downloadWindow.IsVisible)
                 this.downloadWindow.Focus();
             else
                 MenuItem_ShowDownloads.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        }
+
+        private async Task DownloadTitle(SwitchCollectionItem item, uint v, DownloadOptions o)
+        {
+            await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
         }
 
         private void ComboBox_VersionChanged(object sender, SelectionChangedEventArgs e)
@@ -363,6 +397,21 @@ namespace SwitchManager
                 // Open document 
                 string filename = dlg.FileName;
                 await LoadTitleKeys(filename);
+            }
+        }
+
+        private async void MenuItemPasteKeys_Click(object sender, RoutedEventArgs e)
+        {
+            TextInputWindow win = new TextInputWindow("Paste title keys in the standard format.\n\nTITLE ID (16 hex chars)|TITLE KEY (32 hex chars)|TITLE NAME\n\nIf the title key is missing, you can still download the title, but you need a key to unlock it. A missing name will be automatically replaced with the correct name by the app.", true);
+            win.Width = 600;
+            bool? result = win.ShowDialog();
+            if (result ?? false)
+            {
+                string keys = win.ResponseText;
+                string temp = Settings.Default.TitleKeysFile + ".tmp";
+                File.WriteAllText(temp, keys);
+                await LoadTitleKeys(temp);
+                File.Delete(temp);
             }
         }
 
