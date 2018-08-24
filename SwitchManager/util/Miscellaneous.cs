@@ -22,9 +22,9 @@ namespace SwitchManager.util
             return sb.ToString();
         }
 
+        private static string[] suffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
         public static string ToFileSize(double value)
         {
-            string[] suffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
             for (int i = 0; i < suffixes.Length; i++)
             {
                 if (value <= (Math.Pow(1024, i + 1)))
@@ -34,6 +34,63 @@ namespace SwitchManager.util
             }
 
             return ThreeNonZeroDigits(value / Math.Pow(1024, suffixes.Length - 1)) + " " + suffixes[suffixes.Length - 1];
+        }
+
+        public static long FromFileSize(string value)
+        {
+            // Remove leading and trailing spaces.
+            value = value.Trim();
+
+            try
+            {
+                // Find the last non-alphabetic character.
+                int ext_start = 0;
+                for (int i = value.Length - 1; i >= 0; i--)
+                {
+                    // Stop if we find something other than a letter.
+                    if (!char.IsLetter(value, i))
+                    {
+                        ext_start = i + 1;
+                        break;
+                    }
+                }
+
+                // Get the numeric part.
+                double number = double.Parse(value.Substring(0, ext_start));
+
+                // Get the extension.
+                string suffix;
+                if (ext_start < value.Length)
+                {
+                    suffix = value.Substring(ext_start).Trim().ToUpper();
+                    if (suffix == "BYTES") suffix = "bytes";
+                }
+                else
+                {
+                    suffix = "bytes";
+                }
+
+                // Find the extension in the list.
+                int suffix_index = -1;
+                for (int i = 0; i < suffixes.Length; i++)
+                {
+                    if (suffixes[i] == suffix)
+                    {
+                        suffix_index = i;
+                        break;
+                    }
+                }
+                if (suffix_index < 0)
+                    throw new FormatException(
+                        "Unknown file size extension " + suffix + ".");
+
+                // Return the result.
+                return (long)Math.Round(number * Math.Pow(1024.0, suffix_index));
+            }
+            catch (Exception ex)
+            {
+                throw new FormatException("Invalid file size format", ex);
+            }
         }
 
         private static string ThreeNonZeroDigits(double value)

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using SwitchManager.nx.library;
+using SwitchManager.nx.system;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,6 +12,46 @@ namespace SwitchManager.util
 {
     public static class Extensions
     {
+        public static IEnumerable<SwitchCollectionItem> GetFavoriteTitles(this IEnumerable<SwitchCollectionItem> list)
+        {
+            return list.Where(i => i.IsFavorite);
+        }
+
+        public static IEnumerable<SwitchCollectionItem> GetDownloadedTitles(this IEnumerable<SwitchCollectionItem> list)
+        {
+            return list.Where(i => i.IsDownloaded);
+        }
+
+        public static IEnumerable<SwitchCollectionItem> GetGames(this IEnumerable<SwitchCollectionItem> list)
+        {
+            return list.Where(i => i.Title is SwitchGame && i.Title.IsGame);
+        }
+
+        public static IEnumerable<SwitchCollectionItem> GetDLC(this IEnumerable<SwitchCollectionItem> list)
+        {
+            return list.Where(i => i.Title is SwitchDLC && i.Title.IsDLC);
+        }
+        
+        public static IEnumerable<SwitchCollectionItem> GetUpdates(this IEnumerable<SwitchCollectionItem> list)
+        {
+            return list.GetGames().SelectMany(i => ((SwitchGame)i.Title).Updates).Select(i => new SwitchCollectionItem(i));
+        }
+        
+        public static IEnumerable<SwitchCollectionItem> GetTitlesNotDownloaded(this IEnumerable<SwitchCollectionItem> list)
+        {
+            return list.Where(i => !i.IsDownloaded);
+        }
+
+        public static IEnumerable<SwitchCollectionItem> GetDownloadedGames(this IEnumerable<SwitchCollectionItem> list)
+        {
+            return list.GetGames().GetDownloadedTitles();
+        }
+
+        public static IEnumerable<SwitchCollectionItem> GetGamesNotDownloaded(this IEnumerable<SwitchCollectionItem> list)
+        {
+            return list.GetGames().GetTitlesNotDownloaded();
+        }
+
         public static IEnumerable<string> NumericSort(this IEnumerable<string> list)
         {
             int maxLen = list.Select(s => s.Length).Max();

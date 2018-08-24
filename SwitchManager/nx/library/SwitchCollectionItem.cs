@@ -144,6 +144,18 @@ namespace SwitchManager.nx.library
             }
         }
 
+        [XmlIgnore]
+        public bool IsOwned
+        {
+            get { return State == SwitchCollectionState.Owned || State == SwitchCollectionState.OnSwitch; }
+        }
+
+        [XmlIgnore]
+        public bool IsDownloaded
+        {
+            get { return IsOwned || State == SwitchCollectionState.Downloaded; }
+        }
+        
         /// <summary>
         /// Default constructor. I don't like these but XmlSerializer requires it, even though I have NO NO NO
         /// intention of deserializing into this class  (just serializing). Make sure to populate fields if you call

@@ -36,10 +36,9 @@
       <Menu DockPanel.Dock="Top">
         <MenuItem Header="_Downloads">
           <MenuItem x:Name="MenuItem_ShowDownloads" Header="_Show Downloads" Click="MenuItemShowDownloads_Click"/>
-          <MenuItem x:Name="MenuItem_DownloadAlpha" Header="Download All Favorites (_alphabetically) (NYI)" ToolTip="Downloads all of your unowned Favorites in alphabetical order." Click="MenuItemDownloadAlpha_Click"/>
-          <MenuItem x:Name="MenuItem_DownloadSize" Header="Download All Favorites (by _size) (NYI)" ToolTip="Download all of your unowned Favorites in order of increasing size." Click="MenuItemDownloadSize_Click"/>
-          <MenuItem x:Name="MenuItem_DownloadSmallest" Header="Download Smallest Favorites (NYI)" ToolTip="Download all of your unowned Favorites that are under a specific size, in order of increasing size. For example, download all of my Favorites under 2 GB." Click="MenuItemDownloadSmallest_Click"/>
-          <MenuItem x:Name="MenuItem_DownloadLimited" Header="Download Some Favorites (_limited by total download size) (NYI)" ToolTip="Downloads favorites by increasing size until you've download a certain total amount of data. Use this if you have a data cap and you want to download as many games as possible without hitting your cap. For example, download Favorites until I've downloaded 10 GB worth of data." Click="MenuItemDownloadLimited_Click"/>
+          <MenuItem x:Name="MenuItem_DownloadFavorites" Header="Download Favorites" ToolTip="Downloads all of your unowned Favorites (includes Games and DLC)" Click="MenuItemDownloadFavorites_ClickAsync"/>
+          <MenuItem x:Name="MenuItem_DownloadUpdates" Header="Download Updates" ToolTip="Downloads all updates for owned games." Click="MenuItemDownloadUpdates_ClickAsync"/>
+          <MenuItem x:Name="MenuItem_DownloadDLC" Header="Download DLC" ToolTip="Downloads all DLC for owned games." Click="MenuItemDownloadDLC_ClickAsync"/>
         </MenuItem>
         <MenuItem Header="_Tools">
           <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>

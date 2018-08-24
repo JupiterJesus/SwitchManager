@@ -166,6 +166,7 @@ namespace SwitchManager
             uint v = SelectedVersion ?? item.Title.BaseVersion;
             DownloadOptions o = DLOption ?? DownloadOptions.BaseGameOnly;
 
+
             // Okay so the below got way more complicated than it used to be. I wanted to catch an exception in case
             // the cert is denied. I had to put that in the threaded task. Since I didn't want the download window to open
             // or focus unless the download started, I think had to put that in there right after
@@ -173,13 +174,18 @@ namespace SwitchManager
             {
                 try
                 {
-                    library.DownloadGame(item, v, o, Settings.Default.NSPRepack, false);
+                    DownloadTitle(item, v, o);
                 }
                 catch (CertificateDeniedException)
                 {
                     MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
                 }
             });
+        }
+
+        private async Task DownloadTitle(SwitchCollectionItem item, uint v, DownloadOptions o)
+        {
+            await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, false);
             // Open the download window if it isn't showing
             if (downloadWindow.IsVisible)
                 this.downloadWindow.Focus();
@@ -338,13 +344,18 @@ namespace SwitchManager
             }
 
             await LoadTitleKeys(tempTkeysFile);
+            File.Delete(tempTkeysFile);
         }
 
         private async void MenuItemLoadKeys_Click(object sender, RoutedEventArgs e)
         {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
-            dlg.DefaultExt = ".txt";
-            dlg.Filter = "Title Keys Files (*.txt)|*.txt";
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".txt",
+                Filter = "Title Keys Files (*.txt)|*.txt",
+                FileName = Settings.Default.TitleKeysFile,
+                InitialDirectory = new FileInfo(Settings.Default.TitleKeysFile).Directory.FullName,
+            };
 
             Nullable<bool> result = dlg.ShowDialog();
             if (result == true)
@@ -403,20 +414,258 @@ namespace SwitchManager
             }
         }
 
-        private void MenuItemDownloadAlpha_Click(object sender, RoutedEventArgs e)
+        private async void MenuItemDownloadFavorites_ClickAsync(object sender, RoutedEventArgs e)
         {
+            try
+            {
+                var win = new DownloadWindow("Favorite Games");
+                bool s = win.ShowDialog() ?? false;
+                if (s)
+                {
+                    var method = win.Method ?? DownloadMethod.None;
+                    switch (method)
+                    {
+                        case DownloadMethod.Alphabetical:
+                            await DownloadAlphabetical(SwitchTitleType.Game);
+                            break;
+                        case DownloadMethod.BySize:
+                            await DownloadLimitedBySize(SwitchTitleType.Game);
+                            break;
+                        case DownloadMethod.LimitedByData:
+
+                            var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. Favorites will be downloaded until the next download would exceed this number, or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                            s = maxDataWin.ShowDialog() ?? false;
+                            if (s)
+                            {
+                                string maxSize = maxDataWin.ResponseText;
+                                long bytes = Miscellaneous.FromFileSize(maxSize);
+                                await DownloadLimitedByData(SwitchTitleType.Game, bytes);
+                            }
+                            break;
+                        case DownloadMethod.LimitedBySize:
+
+                            var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest game you want to download. If the next title is larger than this amount, or if the size is unknown, downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                            s = maxSizeWin.ShowDialog() ?? false;
+                            if (s)
+                            {
+                                string maxSize = maxSizeWin.ResponseText;
+                                long bytes = Miscellaneous.FromFileSize(maxSize);
+                                await DownloadLimitedBySize(SwitchTitleType.Game, bytes);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            catch (CertificateDeniedException)
+            {
+                MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
+            }
         }
 
-        private void MenuItemDownloadSize_Click(object sender, RoutedEventArgs e)
+        private async void MenuItemDownloadUpdates_ClickAsync(object sender, RoutedEventArgs e)
         {
+            try
+            {
+                var win = new DownloadWindow("Updates");
+                bool s = win.ShowDialog() ?? false;
+                if (s)
+                {
+                    var method = win.Method ?? DownloadMethod.None;
+                    switch (method)
+                    {
+                        case DownloadMethod.Alphabetical:
+                            await DownloadAlphabetical(SwitchTitleType.Update);
+                            break;
+                        case DownloadMethod.BySize:
+                            await DownloadLimitedBySize(SwitchTitleType.Update);
+                            break;
+                        case DownloadMethod.LimitedByData:
+
+                            var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. Updates will be downloaded until the next download would exceed this number, or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                            s = maxDataWin.ShowDialog() ?? false;
+                            if (s)
+                            {
+                                string maxSize = maxDataWin.ResponseText;
+                                long bytes = Miscellaneous.FromFileSize(maxSize);
+                                await DownloadLimitedByData(SwitchTitleType.Update, bytes);
+                            }
+                            break;
+                        case DownloadMethod.LimitedBySize:
+
+                            var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest update you want to download. If the next update is larger than this amount, or if the size is unknown,  downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                            s = maxSizeWin.ShowDialog() ?? false;
+                            if (s)
+                            {
+                                string maxSize = maxSizeWin.ResponseText;
+                                long bytes = Miscellaneous.FromFileSize(maxSize);
+                                await DownloadLimitedBySize(SwitchTitleType.DLC, bytes);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            catch (CertificateDeniedException)
+            {
+                MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
+            }
         }
 
-        private void MenuItemDownloadSmallest_Click(object sender, RoutedEventArgs e)
+        private async void MenuItemDownloadDLC_ClickAsync(object sender, RoutedEventArgs e)
         {
+            try
+            {
+                var win = new DownloadWindow("DLC");
+                bool s = win.ShowDialog() ?? false;
+                if (s)
+                {
+                    var method = win.Method ?? DownloadMethod.None;
+                    switch (method)
+                    {
+                        case DownloadMethod.Alphabetical:
+                            await DownloadAlphabetical(SwitchTitleType.DLC);
+                            break;
+                        case DownloadMethod.BySize:
+                            await DownloadLimitedBySize(SwitchTitleType.DLC);
+                            break;
+                        case DownloadMethod.LimitedByData:
+
+                            var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. DLC will be downloaded until the next download would exceed this number,  or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                            s = maxDataWin.ShowDialog() ?? false;
+                            if (s)
+                            {
+                                string maxSize = maxDataWin.ResponseText;
+                                long bytes = Miscellaneous.FromFileSize(maxSize);
+                                await DownloadLimitedByData(SwitchTitleType.DLC, bytes);
+                            }
+                            break;
+                        case DownloadMethod.LimitedBySize:
+
+                            var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest DLC you want to download. If the next DLC is larger than this amount, or if the size is unknown, downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                            s = maxSizeWin.ShowDialog() ?? false;
+                            if (s)
+                            {
+                                string maxSize = maxSizeWin.ResponseText;
+                                long bytes = Miscellaneous.FromFileSize(maxSize);
+                                await DownloadLimitedBySize(SwitchTitleType.DLC, bytes);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            catch (CertificateDeniedException)
+            {
+                MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
+            }
         }
 
-        private void MenuItemDownloadLimited_Click(object sender, RoutedEventArgs e)
+        private async Task DownloadAlphabetical(SwitchTitleType type)
         {
+            var titles = GetDownloadList(type);
+            var ordered = titles.OrderBy(x => x.TitleName);
+
+            switch (type)
+            {
+                case SwitchTitleType.Game:
+                    foreach (var item in ordered) await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                    break;
+                case SwitchTitleType.Update:
+                    foreach (var item in ordered) await DownloadTitle(item, item.Title.LatestVersion, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                    break;
+                case SwitchTitleType.DLC:
+                    foreach (var item in ordered) await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.AllDLC).ConfigureAwait(false);
+                    break;
+            }
+        }
+
+        private async Task DownloadLimitedByData(SwitchTitleType type, long limit = 0)
+        {
+            var titles = GetDownloadList(type);
+            var ordered = titles.OrderBy(x => x.Size);
+            long accumulated = 0;
+
+            foreach (var item in ordered)
+            {
+                if (!item.Size.HasValue)
+                    break;
+
+                if (limit > 0 && accumulated + item.Size > limit)
+                    break;
+
+                switch (type)
+                {
+                    case SwitchTitleType.Game:
+                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        break;
+                    case SwitchTitleType.Update:
+                        await DownloadTitle(item, item.Title.LatestVersion, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        break;
+                    case SwitchTitleType.DLC:
+                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        break;
+                }
+
+                accumulated += item.Size.Value;
+            }
+        }
+
+        private async Task DownloadLimitedBySize(SwitchTitleType type, long limit = 0)
+        {
+            var titles = GetDownloadList(type);
+            var ordered = titles.OrderBy(x => x.Size);
+
+            foreach (var item in ordered)
+            {
+                if (!item.Size.HasValue)
+                    break;
+
+                if (limit > 0 && item.Size > limit)
+                    break;
+
+
+                switch (type)
+                {
+                    case SwitchTitleType.Game:
+                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        break;
+                    case SwitchTitleType.Update:
+                        await DownloadTitle(item, item.Title.LatestVersion, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        break;
+                    case SwitchTitleType.DLC:
+                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        break;
+                }
+            }
+        }
+
+        private IEnumerable<SwitchCollectionItem> GetDownloadList(SwitchTitleType type)
+        {
+            if (type == SwitchTitleType.Game) // Says game here but actually gets DLC favorites too
+            {
+                return this.library.Collection.GetFavoriteTitles().GetTitlesNotDownloaded();
+            }
+            else if (type == SwitchTitleType.Update)
+            {
+                return this.library.Collection.GetDownloadedTitles().GetUpdates();
+            }
+            else if (type == SwitchTitleType.DLC) // can't use GetDLC() because that gets DLC we own already, when what we want is unowned dlc for games we own
+            {
+                return this.library.Collection.Where(i =>
+                {
+                    if (i.Title is SwitchDLC && i.Title.IsDLC)
+                    {
+                        var parent = library.GetBaseGameByID(i.TitleId);
+                        return (i.Title is SwitchGame && i.Title.IsGame && i.IsDownloaded);
+                    }
+                    return false;
+                });
+            }
+            return null;
         }
 
         private async Task LoadTitleKeys(string tkeysFile)
@@ -439,7 +688,6 @@ namespace SwitchManager
                 {
                     ShowMessage("NO new titles found... :(", "Nothing new...", "Darn...");
                 }
-                File.Delete(tkeysFile);
             }
             else
             {

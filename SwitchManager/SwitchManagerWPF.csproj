@@ -88,10 +88,17 @@
     <Compile Include="nx\cdn\EshopToken.cs" />
     <Compile Include="nx\system\NACP.cs" />
     <Compile Include="nx\system\SwitchLanguage.cs" />
-    <Compile Include="nx\library\SwitchDLC.cs" />
-    <Compile Include="nx\library\SwitchUpdate.cs" />
-    <Compile Include="nx\library\SwitchGame.cs" />
+    <Compile Include="nx\system\SwitchDLC.cs" />
+    <Compile Include="nx\system\SwitchUpdate.cs" />
+    <Compile Include="nx\system\SwitchGame.cs" />
+    <Compile Include="ui\DownloadMethod.cs" />
+    <Compile Include="ui\TextInputWindow.xaml.cs">
+      <DependentUpon>TextInputWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ui\EnumDescriptionTypeConverter.cs" />
+    <Compile Include="ui\DownloadWindow.xaml.cs">
+      <DependentUpon>DownloadWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ui\ProgressWindow.xaml.cs">
       <DependentUpon>ProgressWindow.xaml</DependentUpon>
     </Compile>
@@ -101,6 +108,14 @@
     <Compile Include="util\Crypto.cs" />
     <Compile Include="util\Extensions.cs" />
     <Compile Include="util\Miscellaneous.cs" />
+    <Page Include="ui\TextInputWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ui\DownloadWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="ui\ProgressWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -133,7 +148,7 @@
     <Compile Include="nx\library\SwitchTitleCollection.cs" />
     <Compile Include="nx\library\SwitchTitleType.cs" />
     <Compile Include="nx\library\SwitchCollectionState.cs" />
-    <Compile Include="nx\library\SwitchTitle.cs" />
+    <Compile Include="nx\system\SwitchTitle.cs" />
     <Compile Include="nx\library\SwitchImage.cs" />
     <Compile Include="nx\cdn\EshopDownloader.cs" />
     <Compile Include="nx\system\CNMT.cs" />
