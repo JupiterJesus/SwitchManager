@@ -43,7 +43,9 @@
         <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
         <MenuItem x:Name="MenuItem_LoadKeys" Header="_Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
         <MenuItem x:Name="MenuItem_PasteKeys" Header="_Paste Title Keys" ToolTip="Paste a bunch of title keys directly into the app." Click="MenuItemPasteKeys_Click"/>
+        <MenuItem x:Name="MenuItem_ImportGameInfo" Header="Import _Game Info" ToolTip="Imports Game_info.json file from CDNSP. This only needs to be done one time, though you can do it again with newer version of the file to update missing games." Click="MenuItemImportGameInfo_Click"/>
         <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials" ToolTip="Imports a PEM certificate (used by CDNSP) into SwitchManager by converting it to a PKCS12 (PFX) file." Click="MenuItemImportCreds_Click"/>
+        <MenuItem x:Name="MenuItem_PreloadImages" Header="Preload Game Icons" ToolTip="Loads and caches all title images directly from the CDN game files. If you have the boxart already displaying or have already loaded all images, this is not necessary." Click="MenuItemPreloadImages_Click"/>
         <!--MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game _Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own, but only if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/-->
         <MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/>
       </MenuItem>
@@ -103,21 +105,31 @@
 
             <StackPanel Orientation="Vertical">
               <Button x:Name="IconButton" Margin="5" Style="{StaticResource ImageButtonStyle}" Click="IconButton_Click"  MaxHeight="100" Width="100">
-                <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon.Location,Mode=OneWay}"/>
+                <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon,Mode=OneWay}"/>
               </Button>
-              <TextBlock FontSize="8">Click icon to go to eShop listing</TextBlock>
+              <StackPanel Margin="3" Orientation="Vertical">
+                <TextBlock FontSize="10" Text="{Binding Path=Title.TitleKey, Mode=OneWay}"/>
+                <TextBlock FontSize="10" Text="{Binding Path=Title.TitleID, Mode=OneWay}" />
+                <TextBlock FontSize="8">Click icon to go to eShop listing</TextBlock>
+              </StackPanel>
             </StackPanel>
             <StackPanel Margin="20,10" Orientation="Vertical" Width="400">
-              <TextBlock FontSize="20" Text="{Binding Path=Title.Name, Mode=OneWay}"/>
-              <TextBlock FontSize="13" Text="{Binding Path=Title.TitleKey, Mode=OneWay}"/>
-              <TextBlock FontSize="13" Text="{Binding Path=Title.TitleID, Mode=OneWay}" />
-              <TextBlock FontSize="13" Text="{Binding Path=Title.Type, Mode=OneWay}" />
-              <TextBlock FontSize="13" Text="{Binding Path=RomPath, Mode=OneWay}" />
-
-              <TextBlock FontSize="13" Text="{Binding Path=Size, Converter={StaticResource FileSizeConverter}, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock FontSize="16" Text="{Binding Path=Title.Name, Mode=OneWay}"/>
+              <TextBlock Margin="5" FontSize="12" FontStyle="Italic">
+                <TextBlock.Text>
+                  <MultiBinding StringFormat="Developed by {0}, Published by {1} on {2:MM/dd/yyyy}">
+                    <Binding Path="Title.Developer" Mode="OneWay" TargetNullValue="Unknown" />
+                    <Binding Path="Title.Publisher" Mode="OneWay" TargetNullValue="Unknown"/>
+                    <Binding Path="Title.ReleaseDate" Mode="OneWay" TargetNullValue="Unknown Date"/>
+                  </MultiBinding>
+                </TextBlock.Text>
+              </TextBlock>
+              <ScrollViewer Height="100" VerticalScrollBarVisibility="Auto">
+                <TextBlock Margin="5" FontSize="11" Text="{Binding Path=Title.Description, Mode=OneWay, TargetNullValue=No description available.}" /> 
+              </ScrollViewer>
             </StackPanel>
 
-            <StackPanel Width="200" Margin="20,10" Orientation="Vertical">
+            <StackPanel Margin="20,10" Orientation="Vertical">
               <TextBlock Margin="5" FontSize="13" Text="Versions" />
               <ComboBox Margin="5" ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}" SelectionChanged="ComboBox_VersionChanged">
               </ComboBox>

@@ -26,6 +26,9 @@ using BespokeFusion;
 using SwitchManager.ui;
 using System.Threading;
 using SwitchManager.nx.cdn;
+using System.Xml.Serialization;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace SwitchManager
 {
@@ -85,8 +88,6 @@ namespace SwitchManager
                     MaterialMessageBox.ShowError("Error reading library metadata file, it will be recreated on exit or when you force save it.\nIf your library is empty, make sure to update title keys and scan your library to get a fresh start.");
             }
 
-            Task.Run(() => library.LoadTitleIcons(Settings.Default.ImageCache, Settings.Default.PreloadImages)).ConfigureAwait(false);
-
             // WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN
             CollectionViewSource itemCollectionViewSource;
             itemCollectionViewSource = (CollectionViewSource)(FindResource("ItemCollectionViewSource"));
@@ -111,6 +112,25 @@ namespace SwitchManager
                        (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()));
             });
             cv.Filter = datagridFilter;
+
+            SortGrid(1);
+        }
+
+        private void SortGrid(int columnIndex, ListSortDirection sortDirection = ListSortDirection.Ascending)
+        {
+            var column = DataGrid_Collection.Columns[columnIndex];
+            DataGrid_Collection.Items.SortDescriptions.Clear();
+            DataGrid_Collection.Items.SortDescriptions.Add(new SortDescription(column.SortMemberPath, sortDirection)); 
+            
+            // Apply sort
+            foreach (var col in DataGrid_Collection.Columns)
+            {
+                col.SortDirection = null;
+            }
+            column.SortDirection = sortDirection;
+
+            // Refresh items to display sort
+            DataGrid_Collection.Items.Refresh();
         }
 
         /// <summary>
@@ -444,6 +464,11 @@ namespace SwitchManager
             });
         }
 
+        private void MenuItemPreloadImages_Click(object sender, RoutedEventArgs e)
+        {
+            Task.Run(() => library.LoadTitleIcons(Settings.Default.ImageCache)).ConfigureAwait(false);
+        }
+
         private void MenuItemShowDownloads_Click(object sender, RoutedEventArgs e)
         {
             MenuItem mi = (MenuItem)sender;
@@ -760,21 +785,96 @@ namespace SwitchManager
                 string newCert = dlg.FileName;
                 string pfxFile = Settings.Default.ClientCertPath;
                 string backupFile = pfxFile + ".bak";
-                File.Copy(pfxFile, backupFile);
+                File.Copy(pfxFile, backupFile, true);
 
-                if (".PFX".Equals(System.IO.Path.GetExtension(newCert)))
-                {
-                    File.Copy(newCert, pfxFile);
-                }
-                else if (".PEM".Equals(System.IO.Path.GetExtension(newCert)))
-                {
-                    Crypto.PemToPfx(newCert, pfxFile);
-                }
-
-                library.Loader.UpdateClientCert(pfxFile);
-                ShowMessage(@"Your certificate located at {pemFile} was successfully imported. Just in case something didn't work out, I made a backup of your old certificate at {backupFile}. Your certificate is located at {pfxFile}.", "Certificate imported!", "Thanks!");
             }
+        }
 
+        private async void MenuItemImportGameInfo_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".json",
+                Filter = "Game Info (JSON) (*.json)|*.json|Gmae Info (XML) (*.xml)|*.xml|All Files (*.*)|*.*"
+            };
+
+                Nullable<bool> result = dlg.ShowDialog();
+            if (result == true)
+            {
+                // Open document 
+                string gameInfoFileName = dlg.FileName;
+                string ext = System.IO.Path.GetExtension(gameInfoFileName)?.ToLower() ?? null;
+                
+                if (gameInfoFileName != null && ext != null && File.Exists(gameInfoFileName))
+                {
+                    IEnumerable<LibraryMetadataItem> games = null;
+
+                    if (".json".Equals(ext))
+                    {
+                        var lGames = new List<LibraryMetadataItem>();
+
+                        JObject json = JObject.Parse(File.ReadAllText(gameInfoFileName));
+                        foreach (var pair in json)
+                        {
+                            string tid = pair.Key;
+                            var jsonGame = pair.Value;
+                            if (SwitchTitle.IsBaseGameID(tid) && jsonGame.HasValues)
+                            {
+                                LibraryMetadataItem game = new LibraryMetadataItem();
+
+                                game.TitleID = jsonGame?.Value<string>("titleid");
+                                game.Name = jsonGame?.Value<string>("title");
+                                game.Publisher = jsonGame?.Value<string>("publisher");
+                                game.Developer = jsonGame?.Value<string>("developer");
+                                game.Description = jsonGame?.Value<string>("description");
+                                game.Intro = jsonGame?.Value<string>("intro");
+                                game.Category = jsonGame?.Value<string>("category");
+                                game.BoxArtUrl = jsonGame?.Value<string>("front_box_art");
+                                game.Rating = jsonGame?.Value<string>("rating");
+                                game.NumPlayers = jsonGame?.Value<string>("number_of_players");
+                                game.NsuId = jsonGame?.Value<string>("nsuid");
+                                game.Code = jsonGame?.Value<string>("game_code");
+                                game.RatingContent = jsonGame?.Value<string>("content");
+                                game.Price = jsonGame?.Value<string>("US_price");
+
+                                string s = jsonGame?.Value<string>("dlc");
+                                if (!string.IsNullOrWhiteSpace(s) && bool.TryParse(s, out bool hasDlc))
+                                    game.HasDLC = hasDlc;
+                                else
+                                    game.HasDLC = false;
+
+                                s = jsonGame?.Value<string>("amiibo_compatibility");
+                                if (!string.IsNullOrWhiteSpace(s) && bool.TryParse(s, out bool hasA))
+                                    game.HasAmiibo = hasA;
+                                else
+                                    game.HasAmiibo = false;
+
+                                string sSize = jsonGame?.Value<string>("Game_size");
+                                if (long.TryParse(sSize, out long size))
+                                    game.Size = size;
+
+                                if (DateTime.TryParseExact(jsonGame?.Value<string>("release_date_iso"), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime rDate))
+                                    game.ReleaseDate = rDate;
+
+                                lGames.Add(game);
+                            }
+                        }
+                        games = lGames;
+                    }
+                    else if (".xml".Equals(ext))
+                    {
+                        XmlSerializer xml = new XmlSerializer(typeof(LibraryMetadata));
+                        LibraryMetadata lib;
+
+                        using (FileStream fs = File.OpenRead(gameInfoFileName))
+                            lib = xml.Deserialize(fs) as LibraryMetadata;
+
+                        games = lib.Items;
+                    }
+
+                    await library.LoadMetadata(games).ConfigureAwait(false);
+                }
+            }
         }
 
         private void ShowMessage(string text, string title, string okButton = null, string cancel = null)
@@ -859,12 +959,42 @@ namespace SwitchManager
                     // If anything is null, or the blank image is used, get a new image
                     if (item.Title?.Icon == null || (item.Title?.Icon?.Equals(SwitchLibrary.BlankImage) ?? true))
                     {
-                        await library.LoadTitleIcon(item?.Title, true);
+                        try
+                        {
+                            await library.LoadTitleIcon(item?.Title, true);
+                        }
+                        catch (HactoolFailedException)
+                        {
+                            Console.WriteLine("WARNING: Hactool failed while getting icon file.");
+                        }
+                        catch (CertificateDeniedException)
+                        {
+                            Console.WriteLine("WARNING: Cert denied while getting icon file.");
+                        }
+                        catch (Exception)
+                        {
+                            Console.WriteLine("WARNING: WTF something failed while getting icon file.");
+                        }
                     }
 
                     if ((item.Size ?? 0) == 0)
                     {
-                        await UpdateSize(item);
+                        try
+                        {
+                            await UpdateSize(item);
+                        }
+                        catch (HactoolFailedException)
+                        {
+                            Console.WriteLine("WARNING: Hactool failed while updating size.");
+                        }
+                        catch (CertificateDeniedException)
+                        {
+                            Console.WriteLine("WARNING: Cert denied while updating size.");
+                        }
+                        catch (Exception)
+                        {
+                            Console.WriteLine("WARNING: WTF something failed while updating size.");
+                        }
                     }
                 }
             }

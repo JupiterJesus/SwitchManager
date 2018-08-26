@@ -24,7 +24,7 @@
       <Value Profile="(Default)">hactool\keys.txt</Value>
     </Setting>
     <Setting Name="ClientCertPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\testclient.pfx</Value>
+      <Value Profile="(Default)">certs\client.pfx</Value>
     </Setting>
     <Setting Name="EShopCertPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">certs\eshop-cert.cert</Value>
@@ -37,9 +37,6 @@
     </Setting>
     <Setting Name="ImageCache" Type="System.String" Scope="User">
       <Value Profile="(Default)">Images</Value>
-    </Setting>
-    <Setting Name="PreloadImages" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="TitleCertPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">certs\Certificate.cert</Value>

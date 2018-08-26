@@ -92,7 +92,7 @@ namespace SwitchManager.ui
                     dl.Container.UpdateLayout();
 
                     DownloadsPanel.Children.Insert(0, dl.Container);
-                    DownloadsPanel.ScrollOwner.ScrollToTop();
+                    DownloadsPanel.ScrollOwner?.ScrollToTop();
                     DownloadsPanel.UpdateLayout();
                 });
 

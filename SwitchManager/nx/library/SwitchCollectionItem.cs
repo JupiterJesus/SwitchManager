@@ -34,16 +34,54 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Name")]
         public string TitleName { get { return title?.Name; } set { if (title != null) title.Name = value; } }
 
-        [XmlElement(ElementName = "Developer")]
-        public string Developer { get { return title?.Developer; } set { if (title != null) title.Developer = value; } }
+        [XmlElement(ElementName = "Icon")]
+        public string Icon { get { return title?.Icon; } set { if (title != null) title.Icon = value; } }
+
+        [XmlElement(ElementName = "Price")]
+        public string Price { get { return title?.Price; } set { if (title != null) title.Price = value; } }
+
+        [XmlElement(ElementName = "Code")]
+        public string Code { get { return title?.Code; } set { if (title != null) title.Code = value; } }
+
+        [XmlElement(ElementName = "NsuId")]
+        public string NsuId { get { return title?.NsuId; } set { if (title != null) title.NsuId = value; } }
+
+        [XmlElement(ElementName = "NumPlayers")]
+        public string NumPlayers { get { return title?.NumPlayers; } set { if (title != null) title.NumPlayers = value; } }
+
+        [XmlElement(ElementName = "Rating")]
+        public string Rating { get { return title?.Rating; } set { if (title != null) title.Rating = value; } }
+
+        [XmlElement(ElementName = "RatingContent")]
+        public string RatingContent { get { return title?.RatingContent; } set { if (title != null) title.RatingContent = value; } }
+
+        [XmlElement(ElementName = "BoxArtUrl")]
+        public string BoxArtUrl { get { return title?.BoxArtUrl; } set { if (title != null) title.BoxArtUrl = value; } }
+
+        [XmlElement(ElementName = "Category")]
+        public string Category { get { return title?.Category; } set { if (title != null) title.Category = value; } }
+
+        [XmlElement(ElementName = "HasAmiibo")]
+        public bool HasAmiibo { get { return title?.HasAmiibo ?? false; } set { if (title != null) title.HasAmiibo = value; } }
+
+        [XmlElement(ElementName = "HasDLC")]
+        public bool HasDLC { get { return title?.HasDLC ?? false; } set { if (title != null) title.HasDLC = value; } }
+
+        [XmlElement(ElementName = "Intro")]
+        public string Intro { get { return title?.Intro; } set { if (title != null) title.Intro = value; } }
 
         [XmlElement(ElementName = "Description")]
         public string Description { get { return title?.Description; } set { if (title != null) title.Description = value; } }
 
+        [XmlElement(ElementName = "Publisher")]
+        public string Publisher { get { return title?.Publisher; } set { if (title != null) title.Publisher = value; } }
+
+        [XmlElement(ElementName = "Developer")]
+        public string Developer { get { return title?.Developer; } set { if (title != null) title.Developer = value; } }
 
         [XmlElement(ElementName = "ReleaseDate")]
         public DateTime? ReleaseDate { get { return title?.ReleaseDate; } set { if (title != null) title.ReleaseDate = value; } }
-        
+
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State
         {
@@ -89,19 +127,7 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Size")]
         public long? Size
         {
-            get
-            {
-                /*
-                if (string.IsNullOrWhiteSpace(RomPath))
-                    return this.size;
-                else if (Directory.Exists(RomPath))
-                    return DirSize(new DirectoryInfo(RomPath));
-                else if (File.Exists(RomPath))
-                    return new FileInfo(RomPath).Length;
-                else
-                */
-                return this.size;
-            }
+            get { return this.size; }
             set { this.size = value; NotifyPropertyChanged("Size"); }
         }
         private long? size;

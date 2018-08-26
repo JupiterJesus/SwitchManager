@@ -125,7 +125,17 @@ namespace SwitchManager.nx.library
             using (FileStream fs = File.OpenRead(path))
                 metadata = xml.Deserialize(fs) as LibraryMetadata;
 
-            if (metadata?.Items != null)
+            await LoadMetadata(metadata?.Items).ConfigureAwait(false);
+            Console.WriteLine($"Finished loading library metadata from {path}");
+        }
+
+        /// <summary>
+        /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
+        /// </summary>
+        /// <param name="filename"></param>
+        internal async Task LoadMetadata(IEnumerable<LibraryMetadataItem> metadata)
+        {
+            if (metadata != null)
             {
                 bool certDenied = false;
                 Dictionary<string, uint> versions = null;
@@ -138,7 +148,7 @@ namespace SwitchManager.nx.library
                     certDenied = true;
                 }
 
-                foreach (var item in metadata.Items)
+                foreach (var item in metadata)
                 {
                     SwitchCollectionItem ci = GetTitleByID(item.TitleID);
                     if (ci == null)
@@ -147,29 +157,53 @@ namespace SwitchManager.nx.library
                     }
                     else
                     {
-                        if (item.Name != null) ci.Title.Name = item.Name;
+                        // UPDATE TITLE KEY JUST IN CASE IT IS MISSING
                         if (item.TitleKey != null) ci.Title.TitleKey = item.TitleKey;
+
+                        // ONLY UPDATE NAME IF IT IS MISSING
+                        // I USED TO LET IT UPDATE NAMES FROM THE OFFICIAL SOURCE
+                        // BUT THE NAMES ARE OFTEN LOW QUALITY OR MISSING REGION SIGNIFIERS OR DEMO LABELS AND FILLED
+                        // WITH UNICODE SYMBOLS
+                        if (item.Name != null)
+                        {
+                            if (string.IsNullOrWhiteSpace(ci.TitleName))
+                                ci.Title.Name = item.Name;
+                            //else if (ci.Title.IsDemo && !(item.Name.ToUpper().Contains("DEMO") || item.Name.ToUpper().Contains("SPECIAL TRIAL") || item.Name.ToUpper().Contains("TRIAL VER")))
+                            //    ci.Title.Name = item.Name + " Demo";
+                        }
                     }
+
                     ci.IsFavorite = item.IsFavorite;
                     ci.RomPath = item.Path;
                     ci.State = item.State;
                     ci.Size = item.Size;
                     ci.Developer = item.Developer;
+                    ci.Publisher = item.Publisher;
                     ci.ReleaseDate = item.ReleaseDate;
                     ci.Description = item.Description;
+                    ci.Intro = item.Intro;
+                    ci.HasDLC = item.HasDLC;
+                    ci.HasAmiibo = item.HasAmiibo;
+                    ci.Category = item.Category;
+                    ci.BoxArtUrl = item.BoxArtUrl;
+                    ci.Rating = item.Rating;
+                    ci.NumPlayers = item.NumPlayers;
+                    ci.NsuId = item.NsuId;
+                    ci.Code = item.Code;
+                    ci.RatingContent = item.RatingContent;
+                    ci.Price = item.Price;
 
-                    foreach (var update in item.Updates)
-                    {
-                        AddUpdateTitle(update.TitleID, item.TitleID, item.Name, update.Version, update.TitleKey);
-                    }
+                    if (item.Updates != null)
+                        foreach (var update in item.Updates)
+                        {
+                            AddUpdateTitle(update.TitleID, item.TitleID, item.Name, update.Version, update.TitleKey);
+                        }
                 }
 
                 if (certDenied) throw new CertificateDeniedException();
             }
-
-            Console.WriteLine($"Finished loading library metadata from {path}");
         }
-        
+
         internal void SaveMetadata(string path)
         {
             path = Path.GetFullPath(path);
@@ -519,12 +553,12 @@ namespace SwitchManager.nx.library
         /// every single image if it isn't found locally.
         /// </summary>
         /// <param name="localPath"></param>
-        /// <param name="preload">Set preload to true to load all images at once if they aren't available locally. False will return a blank image if it isn't found in the cache.</param>
-        internal void LoadTitleIcons(string localPath, bool preload = false)
+        internal void LoadTitleIcons(string localPath)
         {
             foreach (SwitchCollectionItem item in Collection)
             {
-                Task.Run(()=>LoadTitleIcon(item.Title, preload)); // This is async, let it do its thing we don't need the results now
+                if (item.Title.Icon == null)
+                    Task.Run(()=>LoadTitleIcon(item.Title, true)); // This is async, let it do its thing we don't need the results now
             }
         }
 
@@ -537,7 +571,7 @@ namespace SwitchManager.nx.library
         /// <returns></returns>
         public async Task LoadTitleIcon(SwitchTitle title, bool downloadRemote = false)
         {
-            SwitchImage img = GetLocalImage(title.TitleID);
+            string img = GetLocalImage(title.TitleID);
             if (img == null && downloadRemote && SwitchTitle.IsBaseGameID(title.TitleID))
             {
                 // Ask the image loader to get the image remotely and cache it
@@ -552,7 +586,7 @@ namespace SwitchManager.nx.library
                 title.Icon = img;
         }
 
-        public SwitchImage GetLocalImage(string titleID)
+        public string GetLocalImage(string titleID)
         {
             string path = Path.GetFullPath(this.ImagesPath);
             if (Directory.Exists(path))
@@ -560,8 +594,7 @@ namespace SwitchManager.nx.library
                 string location = path + Path.DirectorySeparatorChar + titleID + ".jpg";
                 if (File.Exists(location))
                 {
-                    SwitchImage img = new SwitchImage(location);
-                    return img;
+                    return location;
                 }
                 else
                 {
@@ -576,7 +609,7 @@ namespace SwitchManager.nx.library
             return null;
         }
         
-        public static SwitchImage BlankImage { get { return new SwitchImage("Images\\blank.jpg"); } }
+        public static string BlankImage { get { return "blank.jpg"; } }
 
 
         public async Task LoadTitleKeysFile(string filename)
@@ -616,13 +649,13 @@ namespace SwitchManager.nx.library
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
-                string tid = string.IsNullOrWhiteSpace(split[0]) ? null : split[0]?.Trim()?.Substring(0, 16);
+                string tid = string.IsNullOrWhiteSpace(split[0]) ? null : split[0]?.Trim()?.Substring(0, 16).ToLower();
                 SwitchCollectionItem item = tid == null ? null : GetTitleByID(tid);
 
                 // We only care about new titles, and ignore messed up entries that are missing a title ID for some reason
                 if (tid != null)
                 {
-                    string tkey = string.IsNullOrWhiteSpace(split[1]) ? null : split[1]?.Trim()?.Substring(0, 32);
+                    string tkey = string.IsNullOrWhiteSpace(split[1]) ? null : split[1]?.Trim()?.Substring(0, 32).ToLower();
                     string name = string.IsNullOrWhiteSpace(split[2]) ? null : split[2]?.Trim();
                     if (item == null)
                     {
@@ -667,6 +700,12 @@ namespace SwitchManager.nx.library
         /// <returns></returns>
         private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, Dictionary<string,uint> versions)
         {
+            if (string.IsNullOrWhiteSpace(tid)) return null;
+            else tid = tid.ToLower();
+
+            if (string.IsNullOrWhiteSpace(tkey)) tkey = null;
+            else tkey = tkey.ToLower();
+
             if (SwitchTitle.IsBaseGameID(tid))
             {
                 var item = NewGame(name, tid, tkey);

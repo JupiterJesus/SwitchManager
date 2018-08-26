@@ -88,7 +88,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("certs\\testclient.pfx")]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\client.pfx")]
         public string ClientCertPath {
             get {
                 return ((string)(this["ClientCertPath"]));
@@ -137,18 +137,6 @@ namespace SwitchManager.Properties {
             }
             set {
                 this["ImageCache"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool PreloadImages {
-            get {
-                return ((bool)(this["PreloadImages"]));
-            }
-            set {
-                this["PreloadImages"] = value;
             }
         }
         

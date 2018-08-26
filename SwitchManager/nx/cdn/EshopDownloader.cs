@@ -54,7 +54,8 @@ namespace SwitchManager.nx.cdn
             this.imagesPath = Path.GetFullPath(imagesPath);
             this.hactoolPath = Path.GetFullPath(hactoolPath);
             this.keysPath = Path.GetFullPath(keysPath);
-            this.CDNUserAgent = $"NintendoSDK Firmware/{firmware} (platform:NX; did:{deviceId}; eid:{environment})";
+            //this.CDNUserAgent = $"NintendoSDK Firmware/{firmware} (platform:NX; did:{deviceId}; eid:{environment})";
+            this.CDNUserAgent = $"NintendoSDK Firmware/{firmware} (platform:NX; eid:{environment})";
 
             UpdateClientCert(clientCertPath);
             UpdateEshopCert(eShopCertPath);
@@ -373,7 +374,7 @@ namespace SwitchManager.nx.cdn
                 hactool.WaitForExit();
 
                 if (outDirInfo.GetDirectories().Length == 0)
-                    throw new Exception($"Running hactool failed, output directory {outDir} is empty!");
+                    throw new HactoolFailedException($"Running hactool failed, output directory {outDir} is empty!");
             }
             catch (Exception e)
             {
@@ -866,7 +867,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="title"></param>
         /// <param name="lang"></param>
         /// <returns></returns>
-        public async Task<object> GetEshopData(EshopLogin token, SwitchTitle title, string lang)
+        public async Task<HttpResponseMessage> GetEshopData(EshopLogin token, SwitchTitle title, string lang)
         {
             string url = $"https://bugyo.hac.{environment}.eshop.nintendo.net/shogun/v1/contents/ids?shop_id=4&lang={lang}&country={region}&type=title&title_ids={title.TitleID}";
 

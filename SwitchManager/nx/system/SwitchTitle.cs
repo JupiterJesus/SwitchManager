@@ -72,10 +72,10 @@ namespace SwitchManager.nx.system
             }
         }
 
-        public SwitchImage icon;
-        public SwitchImage Icon
+        public string icon;
+        public string Icon
         {
-            get { return this.icon; }
+            get { return this.BoxArtUrl ?? this.icon; }
             set { this.icon = value; NotifyPropertyChanged("Icon"); }
         }
 
@@ -94,12 +94,96 @@ namespace SwitchManager.nx.system
             get { return this.versions.Count > 0 ? versions : new ObservableCollection<uint> { 0 }; }
         }
 
+        private string price;
+        public string Price
+        {
+            get { return price; }
+            set { this.price = value; NotifyPropertyChanged("Price"); }
+        }
+
+        private string code;
+        public string Code
+        {
+            get { return code; }
+            set { this.code = value; NotifyPropertyChanged("Code"); }
+        }
+
+        private string nsuId;
+        public string NsuId
+        {
+            get { return nsuId; }
+            set { this.nsuId = value; NotifyPropertyChanged("NsuId"); }
+        }
+
+        private string numPlayers;
+        public string NumPlayers
+        {
+            get { return numPlayers; }
+            set { this.numPlayers = value; NotifyPropertyChanged("NumPlayers"); }
+        }
+
+        private string rating;
+        public string Rating
+        {
+            get { return rating; }
+            set { this.rating = value; NotifyPropertyChanged("Rating"); }
+        }
+
+        private string ratingContent;
+        public string RatingContent
+        {
+            get { return ratingContent; }
+            set { this.ratingContent = value; NotifyPropertyChanged("RatingContent"); }
+        }
+
+        private string boxArtUrl;
+        public string BoxArtUrl
+        {
+            get { return boxArtUrl; }
+            set { this.boxArtUrl = value; NotifyPropertyChanged("BoxArtUrl"); }
+        }
+
+        private string category;
+        public string Category
+        {
+            get { return category; }
+            set { this.category = value; NotifyPropertyChanged("Category"); }
+        }
+
+        private bool hasAmiibo;
+        public bool HasAmiibo
+        {
+            get { return hasAmiibo; }
+            set { this.hasAmiibo = value; NotifyPropertyChanged("HasAmiibo"); }
+        }
+
+        private bool hasDLC;
+        public bool HasDLC
+        {
+            get { return hasDLC; }
+            set { this.hasDLC = value; NotifyPropertyChanged("HasDLC"); }
+        }
+
+        private string intro;
+        public string Intro
+        {
+            get { return intro; }
+            set { this.intro = value; NotifyPropertyChanged("Intro"); }
+        }
+
+        private string publisher;
+        public string Publisher
+        {
+            get { return publisher; }
+            set { this.publisher = value; NotifyPropertyChanged("Publisher"); }
+        }
+
         public abstract bool IsGame { get; }
         public abstract bool IsDLC { get; }
         public abstract bool IsUpdate { get; }
         public abstract bool IsDemo { get; }
         public bool IsTitleKeyValid { get { return !string.IsNullOrWhiteSpace(TitleKey) && TitleKey.Length == 32; }  }
-
+       
         internal SwitchTitle(string name, string titleid, string titlekey)
         {
             Name = name;

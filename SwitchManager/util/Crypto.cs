@@ -7,6 +7,10 @@ using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Encodings;
+using Org.BouncyCastle.Crypto.Engines;
+using System.Security.Cryptography.X509Certificates;
 
 namespace SwitchManager.util
 {
@@ -38,12 +42,12 @@ namespace SwitchManager.util
             PemReader pemReaderKey = new PemReader(File.OpenText(keyFile));
             
             AsymmetricCipherKeyPair keyPair = null;
-            X509Certificate cert = null;
+            Org.BouncyCastle.X509.X509Certificate cert = null;
             
             object o = pemReaderCert.ReadObject();
-            if (o != null && o is X509Certificate)
+            if (o != null && o is Org.BouncyCastle.X509.X509Certificate)
             {
-                cert = (X509Certificate)o;
+                cert = (Org.BouncyCastle.X509.X509Certificate)o;
             }
 
             o = pemReaderKey.ReadObject();
@@ -55,30 +59,46 @@ namespace SwitchManager.util
             PemToPfx(cert, keyPair, pfxFile);
         }
 
-        public static void PemToPfx(string pemFile, string pfxFile)
+        public static bool PemToPfx(string pemFile, string pfxFile)
         {
+            if (string.IsNullOrWhiteSpace(pemFile)) return false;
+            if (!File.Exists(pemFile)) return false;
+
             PemReader pemReader = new PemReader(File.OpenText(pemFile));
             
             AsymmetricCipherKeyPair keyPair = null;
-            X509Certificate cert = null;
+            Org.BouncyCastle.X509.X509Certificate cert = null;
+            RSA rsa = null;
 
             object o;
             while ((o = pemReader.ReadObject()) != null)
             {
-                if (o is X509Certificate)
+                if (o is Org.BouncyCastle.X509.X509Certificate)
                 {
-                    cert = (X509Certificate)o;
+                    cert = (Org.BouncyCastle.X509.X509Certificate)o;
                 }
                 else if (o is AsymmetricCipherKeyPair)
                 {
                     keyPair = (AsymmetricCipherKeyPair)o;
                 }
+                else if (o is RsaPrivateCrtKeyParameters)
+                {
+                    var k = ((RsaPrivateCrtKeyParameters)o);
+                    rsa = DotNetUtilities.ToRSA(k);
+                }
             }
 
-            PemToPfx(cert, keyPair, pfxFile);
+            if (cert == null)
+                return false;
+
+            if (keyPair != null)
+                return PemToPfx(cert, keyPair, pfxFile);
+            else if (rsa != null)
+                return PemToPfx(cert, rsa, pfxFile);
+            else return false;
         }
 
-        public static void PemToPfx(X509Certificate cert, AsymmetricCipherKeyPair keyPair, string pfxFile)
+        public static bool PemToPfx(Org.BouncyCastle.X509.X509Certificate cert, AsymmetricCipherKeyPair keyPair, string pfxFile)
         {
             Pkcs12Store store = new Pkcs12StoreBuilder().Build();
 
@@ -88,6 +108,34 @@ namespace SwitchManager.util
             FileStream p12file = File.Create(pfxFile);
             store.Save(p12file, null, new SecureRandom());
             p12file.Close();
+
+            return File.Exists(pfxFile);
+        }
+
+        public static bool PemToPfx(Org.BouncyCastle.X509.X509Certificate cert, RSA key, string pfxFile)
+        {// Convert BouncyCastle X509 Certificate to .NET's X509Certificate
+            var netCert = DotNetUtilities.ToX509Certificate(cert);
+            var certBytes = netCert.Export(X509ContentType.Pkcs12);
+
+            // Convert X509Certificate to X509Certificate2
+            var cert2 = new X509Certificate2(certBytes);
+
+            // Setup RSACryptoServiceProvider with "KeyContainerName" set
+            var csp = new CspParameters();
+            csp.KeyContainerName = "KeyContainer";
+
+            var rsaPrivate = new RSACryptoServiceProvider(csp);
+
+            // Import private key from BouncyCastle's rsa
+            rsaPrivate.ImportParameters(key.ExportParameters(true));
+
+            // Set private key on our X509Certificate2
+            cert2.PrivateKey = rsaPrivate;
+
+            // Export Certificate with private key
+            File.WriteAllBytes(pfxFile, cert2.Export(X509ContentType.Pkcs12));
+
+            return File.Exists(pfxFile);
         }
 
         public static System.Security.Cryptography.X509Certificates.X509Certificate LoadCertificate(string path, string password = null)
