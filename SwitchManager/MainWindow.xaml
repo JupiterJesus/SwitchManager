@@ -38,6 +38,8 @@
         <MenuItem x:Name="MenuItem_DownloadFavorites" Header="Download Favorites" ToolTip="Downloads all of your unowned Favorites (includes Games and DLC)" Click="MenuItemDownloadFavorites_ClickAsync"/>
         <MenuItem x:Name="MenuItem_DownloadUpdates" Header="Download Updates" ToolTip="Downloads all updates for owned games." Click="MenuItemDownloadUpdates_ClickAsync"/>
         <MenuItem x:Name="MenuItem_DownloadDLC" Header="Download DLC" ToolTip="Downloads all DLC for owned games." Click="MenuItemDownloadDLC_ClickAsync"/>
+        <MenuItem x:Name="MenuItem_CancelDownloads" Header="Cancel Bulk Download" ToolTip="Cancels any bulk downloads initiated through the Downloads menu. This will not affect downloads started individually. Use the Downloads window for that (double click a progress bar)." Click="MenuItemCancelDownloads_Click"/>
+
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
@@ -82,7 +84,8 @@
             SelectionUnit="FullRow"
             SelectionMode="Single"
             CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeRows="False" CanUserSortColumns="True"
-            RowDetailsVisibilityChanged="DataGrid_Collection_RowDetailsVisibilityChanged">
+            RowDetailsVisibilityChanged="DataGrid_Collection_RowDetailsVisibilityChanged"
+            >
       <DataGrid.Resources>
         <!-- The below triggers editing on mouseover, so that once you actually click you are already in editing mode - thus, single click editing -->
         <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
@@ -99,6 +102,16 @@
           </Style.Triggers>
         </Style>
       </DataGrid.Resources>
+      <DataGrid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Download Title" ToolTip="Downloads the currently expanded Switch title from the CDN." Click="Button_Download_Click"/>
+          <MenuItem Header="Visit eShop Link" ToolTip="Opens the default Web Browser to the Nintendo eShop link for this title." Click="IconButton_Click"/>
+          <MenuItem Header="Toggle Favorite" ToolTip="Toggles the Favorite check for this title." Click="MenuItemToggleFavorite_Click"/>
+          <Separator />
+          <MenuItem Header="Delete Title" ToolTip="Deletes the Switch title from your library forever." Click="MenuItemDeleteTitle_Click"/>
+          <MenuItem Header="Remove Title From Library" ToolTip="Marks the title as Not Owned and clears the Rom Path." Click="MenuItemRemoveTitle_Click"/>
+        </ContextMenu>
+      </DataGrid.ContextMenu>
       <DataGrid.RowDetailsTemplate>
         <DataTemplate>
           <StackPanel Orientation="Horizontal">

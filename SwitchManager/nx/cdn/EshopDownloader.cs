@@ -555,7 +555,7 @@ namespace SwitchManager.nx.cdn
             {
                 DownloadTask download = new DownloadTask(remoteStream, fileStream, expectedSize, startingSize);
 
-                if (DownloadStarted != null) DownloadStarted.Invoke(download);
+                DownloadStarted?.Invoke(download);
 
                 byte[] buffer = new byte[this.DownloadBuffer];
                 while (true)
@@ -572,12 +572,12 @@ namespace SwitchManager.nx.cdn
                     // Report progress.
                     download.UpdateProgress(n);
 
-                    if (DownloadStarted != null) DownloadProgress.Invoke(download, n);
+                    DownloadProgress?.Invoke(download, n);
 
                     // Write to file.
                     fileStream.Write(buffer, 0, n);
                 }
-                if (DownloadFinished != null) DownloadFinished.Invoke(download);
+                DownloadFinished?.Invoke(download);
                 fileStream.Flush();
 
                 return !download.IsCanceled;

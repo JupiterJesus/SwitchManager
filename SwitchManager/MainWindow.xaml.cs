@@ -1,18 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using SwitchManager.nx;
 using SwitchManager.nx.library;
 using SwitchManager.nx.system;
 using SwitchManager.Properties;
@@ -24,11 +17,9 @@ using SwitchManager.util;
 using System.Diagnostics;
 using BespokeFusion;
 using SwitchManager.ui;
-using System.Threading;
 using SwitchManager.nx.cdn;
 using System.Xml.Serialization;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
 
 namespace SwitchManager
 {
@@ -56,6 +47,8 @@ namespace SwitchManager
                 WindowState = WindowState.Maximized;
             }
 
+            //downloadWindow.Closing += this.Downloads_Closing;
+
             EshopDownloader downloader = new EshopDownloader(Settings.Default.ClientCertPath,
                                                          Settings.Default.EShopCertPath,
                                                          Settings.Default.TitleCertPath,
@@ -70,7 +63,9 @@ namespace SwitchManager
 
             downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
 
-            library = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory);
+            library = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory, Settings.Default.TempDirectory);
+
+            downloadWindow = new ProgressWindow(library);
 
             //library.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
 
@@ -94,9 +89,6 @@ namespace SwitchManager
             itemCollectionViewSource.Source = library.Collection;
             //
 
-            downloadWindow = new ProgressWindow(library);
-            downloadWindow.Closing += this.Downloads_Closing;
-
             // Add a filter to the datagrid based on text filtering and checkboxes
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
             Predicate<object> datagridFilter = (o =>
@@ -109,28 +101,11 @@ namespace SwitchManager
                        ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
                        ((this.showNotOwned && (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
                        ((this.showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
-                       (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()));
+                       (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
             });
             cv.Filter = datagridFilter;
 
             SortGrid(1);
-        }
-
-        private void SortGrid(int columnIndex, ListSortDirection sortDirection = ListSortDirection.Ascending)
-        {
-            var column = DataGrid_Collection.Columns[columnIndex];
-            DataGrid_Collection.Items.SortDescriptions.Clear();
-            DataGrid_Collection.Items.SortDescriptions.Add(new SortDescription(column.SortMemberPath, sortDirection)); 
-            
-            // Apply sort
-            foreach (var col in DataGrid_Collection.Columns)
-            {
-                col.SortDirection = null;
-            }
-            column.SortDirection = sortDirection;
-
-            // Refresh items to display sort
-            DataGrid_Collection.Items.Refresh();
         }
 
         /// <summary>
@@ -189,9 +164,28 @@ namespace SwitchManager
             library.SaveMetadata(metadataFile);
 
             // Make sure the download window doesn't stay open
-            downloadWindow.Close();
+            CloseDownloadWindow();
         }
 
+        private void CloseDownloadWindow()
+        {
+            if (downloadWindow != null)
+                downloadWindow.Close();
+        }
+
+        private void ShowDownloadWindow()
+        {
+            if (downloadWindow == null)
+            {
+                downloadWindow = new ProgressWindow(library);
+                //downloadWindow.Closing += this.Downloads_Closing;
+            }
+
+            if (downloadWindow.IsVisible)
+                this.downloadWindow.Focus();
+            else
+                MenuItem_ShowDownloads.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        }
         /// <summary>
         /// Replaces the window close with a hide, but only if the main app is still open. Otherwise, it is impossible
         /// to close since the download window always cancels the close and it is hidden. If I don't cancel the close,
@@ -201,7 +195,7 @@ namespace SwitchManager
         /// <param name="e"></param>
         private void Downloads_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (this.IsVisible)
+            if (this.IsVisible && this.IsLoaded)
             {
                 //    e.Cancel = true;
                 //    downloadWindow.Hide();
@@ -236,15 +230,45 @@ namespace SwitchManager
                     MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
                 }
             });
-            if (downloadWindow.IsVisible)
-                this.downloadWindow.Focus();
-            else
-                MenuItem_ShowDownloads.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         }
 
         private async Task DownloadTitle(SwitchCollectionItem item, uint v, DownloadOptions o)
         {
             await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
+        }
+
+        private void MenuItemRemoveTitle_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            if (DataGrid_Collection.SelectedValue is SwitchCollectionItem selected)
+            {
+                selected.RomPath = null;
+                if (selected.State == SwitchCollectionState.Owned)
+                    selected.State = SwitchCollectionState.NotOwned;
+                else if (selected.State == SwitchCollectionState.Downloaded)
+                    selected.State = SwitchCollectionState.NoKey;
+            }
+        }
+
+        private void MenuItemToggleFavorite_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            if (DataGrid_Collection.SelectedValue is SwitchCollectionItem selected)
+            {
+                selected.IsFavorite = !selected.IsFavorite;
+            }
+        }
+
+        private void MenuItemDeleteTitle_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            if (DataGrid_Collection.SelectedValue is SwitchCollectionItem selected)
+            {
+                library.DeleteTitle(selected);
+            }
         }
 
         private void ComboBox_VersionChanged(object sender, SelectionChangedEventArgs e)
@@ -267,6 +291,23 @@ namespace SwitchManager
                 DownloadOptions d = (DownloadOptions)cb.SelectedValue;
                 DLOption = d;
             }
+        }
+
+        private void SortGrid(int columnIndex, ListSortDirection sortDirection = ListSortDirection.Ascending)
+        {
+            var column = DataGrid_Collection.Columns[columnIndex];
+            DataGrid_Collection.Items.SortDescriptions.Clear();
+            DataGrid_Collection.Items.SortDescriptions.Add(new SortDescription(column.SortMemberPath, sortDirection));
+
+            // Apply sort
+            foreach (var col in DataGrid_Collection.Columns)
+            {
+                col.SortDirection = null;
+            }
+            column.SortDirection = sortDirection;
+
+            // Refresh items to display sort
+            DataGrid_Collection.Items.Refresh();
         }
 
         #endregion 
@@ -450,7 +491,7 @@ namespace SwitchManager
 
             Task.Run(delegate
             {
-                this.library.Collection.FindAll(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).ForEach(async t => await UpdateSize(t));
+                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).ToList().ForEach(async t => await UpdateSize(t));
             });
             //Parallel.ForEach(this.library.Collection, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async t => await UpdateSize(t).ConfigureAwait(false));
         }
@@ -460,7 +501,7 @@ namespace SwitchManager
             // Just like regular estimate sizes, but force updates any that don't have a filename
             Task.Run(delegate
             {
-                this.library.Collection.FindAll(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && string.IsNullOrWhiteSpace(t.RomPath)).ForEach(async t => await UpdateSize(t));
+                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && string.IsNullOrWhiteSpace(t.RomPath)).ToList().ForEach(async t => await UpdateSize(t));
             });
         }
 
@@ -472,7 +513,10 @@ namespace SwitchManager
         private void MenuItemShowDownloads_Click(object sender, RoutedEventArgs e)
         {
             MenuItem mi = (MenuItem)sender;
-            if (this.downloadWindow != null)
+
+            if (this.downloadWindow == null)
+                ShowDownloadWindow();
+            else
             {
                 if (this.downloadWindow.IsVisible)
                 {
@@ -486,6 +530,13 @@ namespace SwitchManager
                     mi.Header = "Hide Downloads";
                 }
             }
+        }
+
+        private bool DownloadsCancelled { get; set; } = false;
+
+        private void MenuItemCancelDownloads_Click(object sender, RoutedEventArgs e)
+        {
+            DownloadsCancelled = true;
         }
 
         private async void MenuItemDownloadFavorites_ClickAsync(object sender, RoutedEventArgs e)
@@ -640,31 +691,42 @@ namespace SwitchManager
 
         private async Task DownloadAlphabetical(SwitchTitleType type)
         {
+            DownloadsCancelled = false;
             var titles = GetDownloadList(type);
             var ordered = titles.OrderBy(x => x.TitleName);
 
-            switch (type)
+            foreach (var item in ordered)
             {
-                case SwitchTitleType.Game:
-                    foreach (var item in ordered) await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                if (DownloadsCancelled)
                     break;
-                case SwitchTitleType.Update:
-                    foreach (var item in ordered) await DownloadTitle(item, item.Title.LatestVersion, DownloadOptions.UpdateOnly).ConfigureAwait(false);
-                    break;
-                case SwitchTitleType.DLC:
-                    foreach (var item in ordered) await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.AllDLC).ConfigureAwait(false);
-                    break;
+
+                switch (type)
+                {
+                    case SwitchTitleType.Game:
+                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        break;
+                    case SwitchTitleType.Update:
+                        await DownloadTitle(item, item.Title.LatestVersion, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        break;
+                    case SwitchTitleType.DLC:
+                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        break;
+                }
             }
         }
 
         private async Task DownloadLimitedByData(SwitchTitleType type, long limit = 0)
         {
+            DownloadsCancelled = false;
             var titles = GetDownloadList(type);
             var ordered = titles.OrderBy(x => x.Size);
             long accumulated = 0;
 
             foreach (var item in ordered)
             {
+                if (DownloadsCancelled)
+                    break;
+
                 if (!item.Size.HasValue)
                     break;
 
@@ -690,11 +752,15 @@ namespace SwitchManager
 
         private async Task DownloadLimitedBySize(SwitchTitleType type, long limit = 0)
         {
+            DownloadsCancelled = false;
             var titles = GetDownloadList(type);
             var ordered = titles.OrderBy(x => x.Size);
 
             foreach (var item in ordered)
             {
+                if (DownloadsCancelled)
+                    break;
+
                 if (!item.Size.HasValue)
                     break;
 
@@ -949,7 +1015,7 @@ namespace SwitchManager
 
         private async void DataGrid_Collection_RowDetailsVisibilityChanged(object sender, DataGridRowDetailsEventArgs e)
         {
-            if (e.DetailsElement.IsVisible)
+            if (e?.DetailsElement?.IsVisible ?? false)
             {
                 ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
                 var item = cv?.CurrentItem as SwitchCollectionItem;
@@ -977,7 +1043,7 @@ namespace SwitchManager
                         }
                     }
 
-                    if ((item.Size ?? 0) == 0)
+                    if (item != null && ((item.Size ?? 0) == 0))
                     {
                         try
                         {
@@ -1002,7 +1068,7 @@ namespace SwitchManager
 
         private async Task UpdateSize(SwitchCollectionItem item)
         {
-            string titledir = Settings.Default.NSPDirectory + System.IO.Path.DirectorySeparatorChar + item?.TitleId;
+            string titledir = Settings.Default.TempDirectory + System.IO.Path.DirectorySeparatorChar + item?.TitleId;
             if (!Directory.Exists(titledir))
                 Directory.CreateDirectory(titledir);
             var result = await library.Loader.GetTitleSize(item?.Title, 0, titledir).ConfigureAwait(false);

@@ -13,6 +13,21 @@
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <WarningLevel>4</WarningLevel>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -92,6 +107,7 @@
     <Compile Include="nx\system\SwitchDLC.cs" />
     <Compile Include="nx\system\SwitchUpdate.cs" />
     <Compile Include="nx\system\SwitchGame.cs" />
+    <Compile Include="ui\WindowBehavior.cs" />
     <Compile Include="ui\DownloadMethod.cs" />
     <Compile Include="ui\TextInputWindow.xaml.cs">
       <DependentUpon>TextInputWindow.xaml</DependentUpon>
@@ -185,6 +201,7 @@
     </None>
     <None Include="certs\eshop-cert.cert" />
     <None Include="certs\Ticket.tik" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
@@ -194,7 +211,6 @@
   <ItemGroup>
     <Content Include="hactool\hactool.exe" />
     <Resource Include="TODO.txt" />
-    <None Include="library.xml" />
     <Content Include="nx\cdn\Shogun.Designer.vb" />
     <Content Include="nx\cdn\Shogun.vb" />
     <None Include="Images\0100000000010000.jpg" />
@@ -955,6 +971,13 @@
     <Content Include="hactool\libmbedx509.dll" />
     <Content Include="hactool\Newtonsoft.Json.dll" />
     <Resource Include="hactool\Newtonsoft.Json.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

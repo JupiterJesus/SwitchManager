@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace SwitchManager.nx.library
 {
-    public class SwitchTitleCollection : List<SwitchCollectionItem>
+    public class SwitchTitleCollection : ObservableCollection<SwitchCollectionItem>
     {
         public SwitchTitleCollection()
         {

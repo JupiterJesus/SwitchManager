@@ -31,7 +31,10 @@ namespace SwitchManager.nx.library
         public EshopDownloader Loader { get; set; }
 
         [XmlIgnore]
-        public string RomsPath { get; set; } = ".";
+        public string RomsPath { get; set; } = "nsp";
+
+        [XmlIgnore]
+        public string TempPath { get; set; } = "tmp";
 
         [XmlIgnore]
         public bool RemoveContentAfterRepack { get; set; } = false;
@@ -50,11 +53,12 @@ namespace SwitchManager.nx.library
             this.Collection = new SwitchTitleCollection();
         }
 
-        public SwitchLibrary(EshopDownloader loader, string imagesPath, string romsPath) : this()
+        public SwitchLibrary(EshopDownloader loader, string imagesPath, string romsPath, string tempPath = null) : this()
         {
             this.Loader = loader;
             this.ImagesPath = imagesPath;
             this.RomsPath = romsPath;
+            this.TempPath = tempPath ?? romsPath;
         }
 
         internal SwitchCollectionItem AddTitle(SwitchCollectionItem item)
@@ -173,25 +177,35 @@ namespace SwitchManager.nx.library
                         }
                     }
 
-                    ci.IsFavorite = item.IsFavorite;
-                    ci.RomPath = item.Path;
-                    ci.State = item.State;
-                    ci.Size = item.Size;
-                    ci.Developer = item.Developer;
-                    ci.Publisher = item.Publisher;
-                    ci.ReleaseDate = item.ReleaseDate;
-                    ci.Description = item.Description;
-                    ci.Intro = item.Intro;
-                    ci.HasDLC = item.HasDLC;
-                    ci.HasAmiibo = item.HasAmiibo;
-                    ci.Category = item.Category;
-                    ci.BoxArtUrl = item.BoxArtUrl;
-                    ci.Rating = item.Rating;
-                    ci.NumPlayers = item.NumPlayers;
-                    ci.NsuId = item.NsuId;
-                    ci.Code = item.Code;
-                    ci.RatingContent = item.RatingContent;
-                    ci.Price = item.Price;
+                    // Collection State enum
+                    if (item.State.HasValue) ci.State = item.State.Value;
+
+                    // long?
+                    if (item.Size.HasValue) ci.Size = item.Size;
+
+                    // bool?
+                    if (item.IsFavorite.HasValue) ci.IsFavorite = item.IsFavorite.Value;
+                    if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC.Value;
+                    if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo.Value;
+
+                    // datetime
+                    if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
+
+                    // string
+                    if (!string.IsNullOrWhiteSpace(item.Path)) ci.RomPath = item.Path;
+                    if (!string.IsNullOrWhiteSpace(item.Developer)) ci.Developer = item.Developer;
+                    if (!string.IsNullOrWhiteSpace(item.Publisher)) ci.Publisher = item.Publisher;
+                    if (!string.IsNullOrWhiteSpace(item.Description)) ci.Description = item.Description;
+                    if (!string.IsNullOrWhiteSpace(item.Intro)) ci.Intro = item.Intro;
+                    if (!string.IsNullOrWhiteSpace(item.Category)) ci.Category = item.Category;
+                    if (!string.IsNullOrWhiteSpace(item.BoxArtUrl)) ci.BoxArtUrl = item.BoxArtUrl;
+                    if (!string.IsNullOrWhiteSpace(item.Icon)) ci.Icon = item.Icon;
+                    if (!string.IsNullOrWhiteSpace(item.Rating)) ci.Rating = item.Rating;
+                    if (!string.IsNullOrWhiteSpace(item.NumPlayers)) ci.NumPlayers = item.NumPlayers;
+                    if (!string.IsNullOrWhiteSpace(item.NsuId)) ci.NsuId = item.NsuId;
+                    if (!string.IsNullOrWhiteSpace(item.Code)) ci.Code = item.Code;
+                    if (!string.IsNullOrWhiteSpace(item.RatingContent)) ci.RatingContent = item.RatingContent;
+                    if (!string.IsNullOrWhiteSpace(item.Price)) ci.Price = item.Price;
 
                     if (item.Updates != null)
                         foreach (var update in item.Updates)
@@ -215,7 +229,6 @@ namespace SwitchManager.nx.library
             xml.Serialize(fs, this);
             fs.Dispose();
 
-            // TODO: Save updates to metadata, even though updates are inside the base title instead of in the main collection
             Console.WriteLine($"Finished saving library metadata to {path}");
         }
 
@@ -326,6 +339,25 @@ namespace SwitchManager.nx.library
             }
         }
 
+        /// <summary>
+        /// Removes a title from the collection, permanently.
+        /// </summary>
+        /// <param name="title">Title to remove.</param>
+        internal void DeleteTitle(SwitchTitle title)
+        {
+            var item = GetTitleByID(title?.TitleID);
+            Collection.Remove(item);
+        }
+
+        /// <summary>
+        /// Removes a collection item from the collection, permanently.
+        /// </summary>
+        /// <param name="item">Title to remove.</param>
+        internal void DeleteTitle(SwitchCollectionItem item)
+        {
+            Collection.Remove(item);
+        }
+
         private SwitchUpdate AddUpdateTitle(string updateid, string gameid, string name, uint version, string titlekey)
         {
             if (gameid == null)
@@ -379,7 +411,7 @@ namespace SwitchManager.nx.library
             if (title == null)
                 throw new Exception($"No title selected for download");
 
-            string dir = this.RomsPath + Path.DirectorySeparatorChar + title.TitleID;
+            string dir = this.TempPath + Path.DirectorySeparatorChar + title.TitleID;
             DirectoryInfo dinfo = new DirectoryInfo(dir);
             if (!dinfo.Exists)
                 dinfo.Create();

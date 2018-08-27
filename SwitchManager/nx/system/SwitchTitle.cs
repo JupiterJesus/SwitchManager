@@ -140,7 +140,7 @@ namespace SwitchManager.nx.system
         public string BoxArtUrl
         {
             get { return boxArtUrl; }
-            set { this.boxArtUrl = value; NotifyPropertyChanged("BoxArtUrl"); }
+            set { this.boxArtUrl = value; NotifyPropertyChanged("BoxArtUrl"); NotifyPropertyChanged("Icon"); }
         }
 
         private string category;

@@ -63,10 +63,10 @@ namespace SwitchManager.nx.library
         public string Code { get; set; }
 
         [XmlElement(ElementName = "HasDLC")]
-        public bool HasDLC { get; set; }
+        public bool? HasDLC { get; set; }
 
         [XmlElement(ElementName = "HasAmiibo")]
-        public bool HasAmiibo { get; set; }
+        public bool? HasAmiibo { get; set; }
 
         [XmlElement(ElementName = "SLUG")]
         public string SLUG { get; set; }
@@ -78,10 +78,10 @@ namespace SwitchManager.nx.library
         public string Description { get; set; }
 
         [XmlElement(ElementName = "State")]
-        public SwitchCollectionState State { get; set; }
+        public SwitchCollectionState? State { get; set; }
 
         [XmlElement(ElementName = "Favorite")]
-        public bool IsFavorite { get; set; }
+        public bool? IsFavorite { get; set; }
 
         [XmlElement(ElementName = "Path")]
         public string Path { get; set; }

@@ -277,7 +277,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        [global::System.Configuration.DefaultSettingValueAttribute("E:\\Emulation\\nws\\roms\\nsp\\tmp")]
         public string TempDirectory {
             get {
                 return ((string)(this["TempDirectory"]));
