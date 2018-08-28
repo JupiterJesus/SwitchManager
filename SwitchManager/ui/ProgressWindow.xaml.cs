@@ -47,10 +47,10 @@ namespace SwitchManager.ui
                         Minimum=0, Maximum=download.ExpectedSize,
                         Height=25, Name = $"ProgressBar_{downloads.Count - 1}",
                     };
-
+                    
                     // Bind the Progress value to the Value property
                     bar.SetBinding(ProgressBar.ValueProperty, 
-                        new Binding("Progress")
+                        new Binding("BytesDownloaded")
                         {
                             Source = download,
                             Mode = BindingMode.OneWay,
@@ -63,12 +63,12 @@ namespace SwitchManager.ui
                         Name = $"ProgressLabel_{downloads.Count - 1}",
                     };
                     t.SetBinding(TextBlock.TextProperty,
-                        new Binding("Progress")
+                        new Binding("BytesDownloaded")
                         {
                             Source = download,
                             Mode = BindingMode.OneWay,
                             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                            Converter = new DownloadProgressTextConverter(download.ExpectedSize, download.FileName)
+                            Converter = new DownloadProgressTextConverter(download)
                         });
 
                     dl.Container = new StackPanel ();
@@ -81,10 +81,10 @@ namespace SwitchManager.ui
                     DownloadsPanel.UpdateLayout();
                 });
 
-            if (download.Progress == 0)
+            if (download.BytesDownloaded == 0)
                 Console.WriteLine($"Starting download of size {Miscellaneous.ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
             else
-                Console.WriteLine($"Resuming download at {Miscellaneous.ToFileSize(download.Progress)}/{Miscellaneous.ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
+                Console.WriteLine($"Resuming download at {Miscellaneous.ToFileSize(download.BytesDownloaded)}/{Miscellaneous.ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
         }
 
         private void Downloader_DownloadFinished(DownloadTask download)
@@ -133,40 +133,40 @@ namespace SwitchManager.ui
 
     public class DownloadProgressTextConverter : IValueConverter
     {
-        private readonly long expected;
-        private readonly string filename;
         private Stopwatch clock = new Stopwatch();
         private DateTime completed;
 
-        public DownloadProgressTextConverter(long expected, string filename)
+        DownloadTask download = null;
+        public DownloadProgressTextConverter(DownloadTask download)
         {
-            this.expected = expected;
-            this.filename = filename;
+            this.download = download;
             this.clock.Restart();
         }
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            string name = download?.Title?.Name;
+            if (name == null) name = ""; else name = name + "\n";
+
             long progress = (long)value; 
 
-            if (progress == expected)
+            if (progress == download.ExpectedSize)
             {
                 if (this.completed == default(DateTime)) // bugfix, it cant be null it is a value type apparently, so always would say min-value 1/1/0001 if you check against null
                     this.completed = DateTime.Now;
 
-                return $"{filename}\nCompleted on {this.completed.ToLongDateString()}";
+                return $"{name}{download.FileName}\nCompleted on {this.completed.ToLongDateString()}";
             }
             else if (progress > 0)
             {
                 double speed = ((double)progress / clock.Elapsed.TotalSeconds);
-                long left = expected - progress;
-                double remainingSeconds = left / speed;
+                double remainingSeconds = download.BytesLeft / speed;
 
                 DateTime time = DateTime.Now.AddSeconds(remainingSeconds);
-                return $"{filename}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(expected)}  -  {Miscellaneous.ToFileSize(speed)} / sec (avg) - Complete on {time.ToLongTimeString()}\nDouble-click progress bar to cancel";    
+                return $"{name}{download.FileName}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(download.ExpectedSize)}  -  {Miscellaneous.ToFileSize(speed)} / sec (avg) - Complete on {time.ToLongTimeString()}\nDouble-click progress bar to cancel";    
             }
             else
             {
-                return $"{filename}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(expected)}\nDouble-click progress bar to cancel";
+                return $"{name}{download.FileName}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(download.ExpectedSize)}\nDouble-click progress bar to cancel";
             }
 
         }
