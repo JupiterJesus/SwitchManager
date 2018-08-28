@@ -97,7 +97,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("certs\\eshop-cert.cert")]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\eshop.pfx")]
         public string EShopCertPath {
             get {
                 return ((string)(this["EShopCertPath"]));
