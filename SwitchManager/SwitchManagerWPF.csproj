@@ -100,7 +100,9 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="nx\cdn\CertificateDeniedException.cs" />
-    <Compile Include="nx\cdn\EshopToken.cs" />
+    <Compile Include="nx\cdn\CnmtMissingException.cs" />
+    <Compile Include="nx\cdn\DownloadFailedException.cs" />
+    <Compile Include="nx\cdn\EshopLogin.cs" />
     <Compile Include="nx\cdn\HactoolFailedException.cs" />
     <Compile Include="nx\system\NACP.cs" />
     <Compile Include="nx\system\SwitchLanguage.cs" />
@@ -186,7 +188,9 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="certs\ca-certificates.crt" />
-    <None Include="certs\Certificate.cert" />
+    <None Include="certs\Certificate.cert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="certs\client-cert.cert" />
     <None Include="certs\client-pkey.pem" />
     <None Include="certs\client.pfx" />
@@ -200,7 +204,9 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <None Include="certs\eshop-cert.cert" />
-    <None Include="certs\Ticket.tik" />
+    <None Include="certs\Ticket.tik">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
@@ -211,8 +217,6 @@
   <ItemGroup>
     <Content Include="hactool\hactool.exe" />
     <Resource Include="TODO.txt" />
-    <Content Include="nx\cdn\Shogun.Designer.vb" />
-    <Content Include="nx\cdn\Shogun.vb" />
     <None Include="Images\0100000000010000.jpg" />
     <None Include="Images\01000040098e4000.jpg" />
     <None Include="Images\010000a00218e000.jpg" />
