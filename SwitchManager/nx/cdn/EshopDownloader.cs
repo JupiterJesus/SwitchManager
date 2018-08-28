@@ -82,8 +82,7 @@ namespace SwitchManager.nx.cdn
             // Make sure directory is created first
             string gamePath = this.imagesPath + Path.DirectorySeparatorChar + title.TitleID;
             DirectoryInfo gameDir = Directory.CreateDirectory(gamePath);
-
-
+            
             var cnmt = await DownloadAndDecryptCnmt(title, version, gamePath).ConfigureAwait(false);
             if (cnmt != null)
             {
@@ -100,8 +99,8 @@ namespace SwitchManager.nx.cdn
 
                     var iconFile = imageDir.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
                     iconFile.MoveTo(imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg");
-                    gameDir.Delete(true);
                 }
+                gameDir.Delete(true);
             }
             else
             {
@@ -222,7 +221,7 @@ namespace SwitchManager.nx.cdn
                             byte[] hash = content.Value.HashData;
                             string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
                             nsp.AddNCA(type, path);
-                            Task<bool> t = DoDownloadNCA(ncaID, path, hash);
+                            Task<bool> t = DoDownloadNCA(ncaID, path, hash, title);
                             tasks.Add(t);
                         }
                     }
@@ -233,7 +232,7 @@ namespace SwitchManager.nx.cdn
                         {
                             string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
                             nsp.AddNCA(type, path);
-                            Task<bool> t = DoDownloadNCA(ncaID, path, null);
+                            Task<bool> t = DoDownloadNCA(ncaID, path, null, title);
                             tasks.Add(t);
                         }
                     }
@@ -257,19 +256,23 @@ namespace SwitchManager.nx.cdn
                     }
                 }
 
-                string controlID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
-                string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
-                var controlDir = DecryptNCA(controlPath);
-                DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
-
-                foreach (var image in imageDir.EnumerateFiles("icon_*.dat"))
+                if (cnmt.Type == TitleType.Application)
                 {
-                    string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
-                    if (!File.Exists(destFile))
-                        image.MoveTo(destFile);
-                    nsp.AddImage(destFile);
+
+                    string controlID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
+                    string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
+                    var controlDir = DecryptNCA(controlPath);
+                    DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
+
+                    foreach (var image in imageDir.EnumerateFiles("icon_*.dat"))
+                    {
+                        string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
+                        if (!File.Exists(destFile))
+                            image.MoveTo(destFile);
+                        nsp.AddImage(destFile);
+                    }
+                    controlDir.Delete(true);
                 }
-                controlDir.Delete(true);
 
                 // Repack to NSP if requested AND if the title has a key
                 if (nspRepack && title.IsTitleKeyValid)
@@ -281,10 +284,10 @@ namespace SwitchManager.nx.cdn
             return null;
         }
 
-        private async Task<bool> DoDownloadNCA(string ncaID, string path, byte[] expectedHash)
+        private async Task<bool> DoDownloadNCA(string ncaID, string path, byte[] expectedHash, SwitchTitle title = null)
         {
             Console.WriteLine($"Downloading NCA {ncaID}.");
-            bool completed = await DownloadNCA(ncaID, path).ConfigureAwait(false);
+            bool completed = await DownloadNCA(ncaID, path, title).ConfigureAwait(false);
             if (!completed) return false;
 
             // A null hash means no verification necessary, just return true
@@ -312,11 +315,11 @@ namespace SwitchManager.nx.cdn
             return true;
         }
 
-        private async Task<bool> DownloadNCA(string ncaID, string path)
+        private async Task<bool> DownloadNCA(string ncaID, string path, SwitchTitle title = null)
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
 
-            return await DownloadFile(url, path).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
+            return await DownloadFile(url, path, title).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
         }
 
         /// <summary>
@@ -451,7 +454,7 @@ namespace SwitchManager.nx.cdn
         /// </summary>
         /// <param name="url"></param>
         /// <param name="fpath"></param>
-        public async Task<bool> DownloadFile(string url, string fpath)
+        public async Task<bool> DownloadFile(string url, string fpath, SwitchTitle title = null)
         {
             var finfo = new FileInfo(fpath);
             long downloaded = 0;
@@ -521,7 +524,7 @@ namespace SwitchManager.nx.cdn
             // The thing that calls DownloadFile either uses "await" to wait for it to finish or it can 
             // collect tasks somewhere until they're done. Right? I don't actually know
 
-            bool completed = await StartDownload(fs, result, expectedSize, downloaded).ConfigureAwait(false);
+            bool completed = await StartDownload(fs, result, expectedSize, downloaded, title).ConfigureAwait(false);
 
             fs.Dispose();
             result.Dispose();
@@ -549,11 +552,14 @@ namespace SwitchManager.nx.cdn
         /// <param name="result"></param>
         /// <param name="expectedSize"></param>
         /// <returns>true if the download completed and false if it was cancelled</returns>
-        private async Task<bool> StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize, long startingSize = 0)
+        private async Task<bool> StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize, long startingSize = 0, SwitchTitle title = null)
         {
             using (Stream remoteStream = await result.Content.ReadAsStreamAsync().ConfigureAwait(false))
             {
-                DownloadTask download = new DownloadTask(remoteStream, fileStream, expectedSize, startingSize);
+                DownloadTask download = new DownloadTask(remoteStream, fileStream, expectedSize, startingSize)
+                {
+                    Title = title
+                };
 
                 DownloadStarted?.Invoke(download);
 
@@ -637,19 +643,8 @@ namespace SwitchManager.nx.cdn
             var result = new Dictionary<string, uint>();
             foreach (var title in titles)
             {
-                // Okay so I don't know why (perhaps this has something to do with word alignment? That's too deep in the weeds for me)
-                // but every title id ends with 000, except in the results from here they all end with 800
-                // Until I understand how it works I'm just going to swap the 8 for a 0.
-                // Research update: see get_name_control in python sou rce
-                // Titles ending in 000 are base game
-                // Titles ending in 800 are updates (what about multiple updates?)
-                // I guess this explains why the versions url gets titles ending in 800 - it is a list of updates,
-                // and that also explains why titles with no update don't appear there.
-                // The pattern for DLC is extra weird
-                // TODO: Figure out DLC title ids
-                // TODO: Figure out how that 800 works if there are multiple updates - do you do a request for XXX800, plus a version to get only the update file?
-                // Does that mean that if you request XXX000 for base title, that the version number is irrelevant? Or do you get updates included in the nsp instead of separately?
-                string tid = SwitchTitle.GetBaseGameIDFromUpdate(title.Value<string>("id"));
+                string tid = title.Value<string>("id");
+                tid = SwitchTitle.GetBaseGameIDFromUpdate(tid);
                 uint latestVersion = title.Value<uint>("version");
                 result[tid] = latestVersion;
             }
@@ -809,8 +804,7 @@ namespace SwitchManager.nx.cdn
             var head = await CDNHead(url).ConfigureAwait(false);
 
             string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
-            if (cnmtid == null) throw new CertificateDeniedException();
-
+            
             return cnmtid;
         }
 
@@ -832,7 +826,7 @@ namespace SwitchManager.nx.cdn
             // Get the CNMT ID for the title
             string cnmtid = await GetCnmtID(title, version).ConfigureAwait(false);
             if (cnmtid == null)
-                throw new Exception($"No or invalid CNMT ID found for {title.Name} {title.TitleID}");
+                throw new CnmtMissingException($"No or invalid CNMT ID found for {title.Name} {title.TitleID}");
 
             // Path to the NCA
             string ncaPath = titleDir + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
@@ -963,7 +957,18 @@ namespace SwitchManager.nx.cdn
                 foreach (var nca in parsedNCAFiles)
                 {
                     files.Add(titleDir + Path.DirectorySeparatorChar + nca.Key + ".nca");
-                    sizes.Add(nca.Value.Size);
+
+                    if (cnmt.Type == TitleType.AddOnContent)
+                    {
+                        string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{nca.Key}?device_id={deviceId}";
+                        long size = await this.GetContentLength(url).ConfigureAwait(false);
+                        sizes.Add(size);
+                    }
+                    else
+                    {
+                        sizes.Add(nca.Value.Size);
+                    }
+
                     if (nca.Value.Type == NCAType.Control)
                     {
                         controlID = nca.Key;
@@ -978,19 +983,22 @@ namespace SwitchManager.nx.cdn
                 files.Add(ticketPath); sizes.Add(ticketSize);
                 
                 // Extract the images and add their file names and sizes
-                var controlDir = DecryptNCA(controlPath);
-                var romfs = controlDir.EnumerateDirectories("romfs");
-                if (romfs.Count() == 1)
+                if (controlPath != null)
                 {
-                    // Check for directory named romfs and, if it exists, there is only one and it is the first
-                    foreach (var image in romfs.First().EnumerateFiles("icon_*.dat"))
+                    var controlDir = DecryptNCA(controlPath);
+                    var romfs = controlDir.EnumerateDirectories("romfs");
+                    if (romfs.Count() == 1)
                     {
-                        string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
-                        files.Add(destFile);
-                        sizes.Add(Miscellaneous.GetFileSystemSize(destFile) ?? 0);
+                        // Check for directory named romfs and, if it exists, there is only one and it is the first
+                        foreach (var image in romfs.First().EnumerateFiles("icon_*.dat"))
+                        {
+                            string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
+                            files.Add(destFile);
+                            sizes.Add(Miscellaneous.GetFileSystemSize(destFile) ?? 0);
+                        }
                     }
+                    controlDir.Delete(true);
                 }
-                controlDir.Delete(true);
 
                 // Add up the sizes of all the files plus the NSP header
                 return sizes.Sum() + NSP.GenerateHeader(files.ToArray(), sizes.ToArray()).Length;
