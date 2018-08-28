@@ -146,7 +146,7 @@ must match the CDNSP naming convention:
 
 For games: Game Name [titleid][v0].nsp
 For updates: Game Name [UPD][updateid][version].nsp 
-For dlc: [DLC] Game Name [dlcid][v0].nsp
+For dlc: [DLC] Game Name [dlcid][version].nsp
 
 titleid is the ID of the base game. Self-explanatory.
 
@@ -157,7 +157,9 @@ The ID for DLC is the same as the base game's ID, but with last 4 characters rep
 where X is one more than the same digit in the base game ID and DDD is 001, 002, 003, etc.
 For example, the DLC IDs for a game with ID 01002fc00412c000 would be 01002fc00412d001, 01002fc00412d002, 01002fc00412d003, ..., since c + 1 = d in hex.
 
-version always starts with a v, followed by the version number, which is always 0 for games and DLC (I think), and always a multiple of 65536, which is 0x10000 in hex, for updates.
+version always starts with a v, followed by the version number, which is always 0 for games, and always a multiple of 65536, which is 0x10000 in hex, for updates and DLC.
+It is impossible to download older versions of DLC. I've tried downloading DLC of version 0 and it fails if there is a version greater than 0.
+
 In other words, the versions work like this
 '''
 Update #1 -> 0x10000 = 65536 in decimal
@@ -274,8 +276,7 @@ To download only updates, select Updates Only from the drop down menu just above
 drop down list. The default selected version is the game's latest version. The selected version will be downloaded, along with
 all versions before it (except for version 0, which is the base game).
 
-To download only DLC, select DLC, select DLC Only from the drop down menu. Versions doesn't do anything because DLC is
-always version 0 (I think).
+To download only DLC, select DLC, select DLC Only from the drop down menu. Versions doesn't do anything because the latest version is always used.
 
 To download the base game and all updates, choose Game + Updates. This download base game version 0, plus updates up to the
 selected version (see Updates only, above).
@@ -285,6 +286,8 @@ To download the base game and all DLC, choose Game + DLC.
 To download all updates and DLC, choose Game + DLC. Updates will be downloaded up to the chosen version, as described above.
 
 To download everything, choose Game + Updates + DLC. Updates will be downloaded up to the chosen version, as described above.
+
+Alternatively, you can right click and choose a download option.
 
 There is no limit to the number of downloads you can have going at once, besides your own system and connection. Downloading
 many files at once may increase Nintendo's suspicion, however, and may lead to a faster certificate ban. Please use judiciously.
@@ -360,6 +363,8 @@ almost certainly crash the app. You can download a title that is already downloa
 as long as download and repack process is completed BEFORE clicking Download Title again.
 
 Bulk downloading updates and dlc is not tested at all. 
+
+The app started taking some time to boot on 8/27/18. I don't know what the change was. I'll investigate and this may be gone by the time anyone sees this REadme.
 
 ## License
 
