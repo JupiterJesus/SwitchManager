@@ -79,19 +79,26 @@ namespace SwitchManager.nx.system
             set { this.icon = value; NotifyPropertyChanged("Icon"); }
         }
 
-        public uint BaseVersion { get { return 0; } }
-
-        private uint latestVersion;
-        private ObservableCollection<uint> versions = new ObservableCollection<uint>();
-        public uint LatestVersion 
+        private string boxArtUrl;
+        public string BoxArtUrl
         {
-            get { return latestVersion; }
-            set { this.latestVersion = value;  this.versions.Clear(); GetAllVersions(this.latestVersion, this.versions); NotifyPropertyChanged("LatestVersion"); NotifyPropertyChanged("Versions"); }
+            get { return boxArtUrl; }
+            set { this.boxArtUrl = value; NotifyPropertyChanged("BoxArtUrl"); NotifyPropertyChanged("Icon"); }
         }
 
-        public Collection<uint> Versions
+        public uint BaseVersion { get { return 0; } }
+
+        private uint? latestVersion;
+        private List<uint> versions = new List<uint>();
+        public uint? LatestVersion 
         {
-            get { return this.versions.Count > 0 ? versions : new ObservableCollection<uint> { 0 }; }
+            get { return latestVersion; }
+            set { this.latestVersion = value;  this.versions.Clear(); GetAllVersions(this.latestVersion ?? 0, this.versions); NotifyPropertyChanged("LatestVersion"); NotifyPropertyChanged("Versions"); }
+        }
+
+        public List<uint> Versions
+        {
+            get { return this.versions.Count > 0 ? versions : new List<uint> { 0 }; }
         }
 
         private string price;
@@ -134,13 +141,6 @@ namespace SwitchManager.nx.system
         {
             get { return ratingContent; }
             set { this.ratingContent = value; NotifyPropertyChanged("RatingContent"); }
-        }
-
-        private string boxArtUrl;
-        public string BoxArtUrl
-        {
-            get { return boxArtUrl; }
-            set { this.boxArtUrl = value; NotifyPropertyChanged("BoxArtUrl"); NotifyPropertyChanged("Icon"); }
         }
 
         private string category;
@@ -269,9 +269,9 @@ namespace SwitchManager.nx.system
         /// </summary>
         /// <param name="versionNo"></param>
         /// <returns></returns>
-        public static Collection<uint> GetAllVersions(uint versionNo)
+        public static List<uint> GetAllVersions(uint versionNo)
         {
-            var versions = new ObservableCollection<uint>();
+            var versions = new List<uint>();
             GetAllVersions(versionNo, versions);
             return versions;
         }
@@ -281,7 +281,7 @@ namespace SwitchManager.nx.system
         /// </summary>
         /// <param name="versionNo"></param>
         /// <returns></returns>
-        public static void GetAllVersions(uint versionNo, Collection<uint> versions)
+        public static void GetAllVersions(uint versionNo, List<uint> versions)
         {
             for (uint v = versionNo; v > 0; v -= 0x10000)
             {
