@@ -25,7 +25,7 @@ namespace SwitchManager.nx.library
     public class SwitchLibrary
     {
         [XmlElement(ElementName = "CollectionItem")]
-        public SwitchTitleCollection Collection { get; set; }
+        public ObservableList<SwitchCollectionItem> Collection { get; set; }
 
         [XmlIgnore]
         public EshopDownloader Loader { get; set; }
@@ -50,7 +50,7 @@ namespace SwitchManager.nx.library
         /// </summary>
         public SwitchLibrary()
         {
-            this.Collection = new SwitchTitleCollection();
+            this.Collection = new ObservableList<SwitchCollectionItem>();
         }
 
         public SwitchLibrary(EshopDownloader loader, string imagesPath, string romsPath, string tempPath = null) : this()
@@ -387,7 +387,7 @@ namespace SwitchManager.nx.library
             {
                 SwitchGame game = baseT.Title as SwitchGame;
                 if (game.Updates == null)
-                    game.Updates = new ObservableCollection<SwitchUpdate>();
+                    game.Updates = new List<SwitchUpdate>();
 
                 game.Updates.Add(update);
             }
@@ -421,11 +421,7 @@ namespace SwitchManager.nx.library
                 // Download a base version with a game ID
                 if (v == 0)
                 {
-                    if (SwitchTitle.IsBaseGameID(title.TitleID))
-                    {
-                        return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
-                    }
-                    else if (SwitchTitle.IsDLCID(title.TitleID))
+                    if (title.IsGame || title.IsDemo || title.IsDLC)
                     {
                         return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
                     }
@@ -434,10 +430,8 @@ namespace SwitchManager.nx.library
                 }
                 else
                 {
-                    if (SwitchTitle.IsBaseGameID(title.TitleID))
+                    if (title.IsGame || title.IsDemo)
                         throw new Exception("Don't try to download an update using base game's ID!");
-                    else if (SwitchTitle.IsDLCID(title.TitleID))
-                        throw new Exception("Don't try to download an update using a DLC ID!");
                     else
                     {
                         return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
@@ -503,9 +497,10 @@ namespace SwitchManager.nx.library
             switch (options)
             {
                 case DownloadOptions.AllDLC:
-                    if (SwitchTitle.IsDLCID(title.TitleID))
+                    if (title.IsDLC)
                     {
-                        string dlcPath = await DownloadTitle(title, title.Versions.Last(), repack, verify);
+                        uint latestVersion = await Loader.GetLatestVersion(title).ConfigureAwait(false);
+                        string dlcPath = await DownloadTitle(title, latestVersion, repack, verify);
                         if (titleItem.Title.IsTitleKeyValid)
                             titleItem.State = SwitchCollectionState.Owned;
                         else
@@ -517,18 +512,19 @@ namespace SwitchManager.nx.library
                     {
                         SwitchGame game = title as SwitchGame;
                         if (game.DLC != null && game.DLC.Count > 0)
-                        foreach (var t in game.DLC)
-                        {
-                            SwitchCollectionItem dlcTitle = GetTitleByID(t?.TitleID);
-                            string dlcPath = await DownloadTitle(dlcTitle?.Title, title.Versions.Last(), repack, verify);
-                            if (dlcTitle.Title.IsTitleKeyValid)
-                                    dlcTitle.State = SwitchCollectionState.Owned;
-                            else
-                                    dlcTitle.State = SwitchCollectionState.Downloaded;
+                            foreach (var t in game.DLC)
+                            {
+                                SwitchCollectionItem dlcTitle = GetTitleByID(t?.TitleID);
+                                uint latestVersion = await Loader.GetLatestVersion(dlcTitle.Title).ConfigureAwait(false);
+                                string dlcPath = await DownloadTitle(dlcTitle?.Title, latestVersion, repack, verify);
+                                if (dlcTitle.Title.IsTitleKeyValid)
+                                        dlcTitle.State = SwitchCollectionState.Owned;
+                                else
+                                        dlcTitle.State = SwitchCollectionState.Downloaded;
 
-                            dlcTitle.RomPath = Path.GetFullPath(dlcPath);
-                            dlcTitle.Size = Miscellaneous.GetFileSystemSize(dlcPath);
-                        }
+                                dlcTitle.RomPath = Path.GetFullPath(dlcPath);
+                                dlcTitle.Size = Miscellaneous.GetFileSystemSize(dlcPath);
+                            }
                     }
                     break;
                 case DownloadOptions.UpdateAndDLC:
@@ -561,16 +557,18 @@ namespace SwitchManager.nx.library
 
                 case DownloadOptions.BaseGameOnly:
                 default:
-                    string romPath = await DownloadTitle(title, title.Versions.Last(), repack, verify);
+                    if (title.IsGame)
+                    {
+                        string romPath = await DownloadTitle(title, title.BaseVersion, repack, verify);
 
-                    if (titleItem.Title.IsTitleKeyValid)
-                        titleItem.State = SwitchCollectionState.Owned;
-                    else
-                        titleItem.State = SwitchCollectionState.Downloaded;
+                        if (titleItem.Title.IsTitleKeyValid)
+                            titleItem.State = SwitchCollectionState.Owned;
+                        else
+                            titleItem.State = SwitchCollectionState.Downloaded;
 
-                    titleItem.RomPath = Path.GetFullPath(romPath);
-                    titleItem.Size = Miscellaneous.GetFileSystemSize(romPath);
-                    
+                        titleItem.RomPath = Path.GetFullPath(romPath);
+                        titleItem.Size = Miscellaneous.GetFileSystemSize(romPath);
+                    }
                     if (options == DownloadOptions.BaseGameAndUpdate || options == DownloadOptions.BaseGameAndUpdateAndDLC)
                         goto case DownloadOptions.UpdateOnly;
                     else if (options == DownloadOptions.BaseGameAndDLC)
@@ -610,12 +608,9 @@ namespace SwitchManager.nx.library
                 await Loader.DownloadRemoteImage(title);
                 img = GetLocalImage(title.TitleID);
             }
-            // Return cached image, or blank if it couldn't be found
 
-            if (img == null)
-                title.Icon = BlankImage;
-            else
-                title.Icon = img;
+            // Return cached image
+            title.Icon = img;
         }
 
         public string GetLocalImage(string titleID)
@@ -681,7 +676,12 @@ namespace SwitchManager.nx.library
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
-                string tid = string.IsNullOrWhiteSpace(split[0]) ? null : split[0]?.Trim()?.Substring(0, 16).ToLower();
+                string tid = string.IsNullOrWhiteSpace(split[0]) ? null : split[0];
+                if (tid == null || tid.Length < 16)
+                    continue;
+                else
+                    tid = tid.Trim().Substring(0, 16).ToLower();
+
                 SwitchCollectionItem item = tid == null ? null : GetTitleByID(tid);
 
                 // We only care about new titles, and ignore messed up entries that are missing a title ID for some reason
@@ -755,8 +755,8 @@ namespace SwitchManager.nx.library
             {
                 // basetid = '%s%s000' % (tid[:-4], str(int(tid[-4], 16) - 1))
                 string baseGameID = SwitchTitle.GetBaseGameIDFromDLC(tid);
-
                 var dlc = new SwitchDLC(name, tid, baseGameID, tkey);
+
                 try
                 {
                     return AddDLCTitle(baseGameID, dlc);
@@ -797,7 +797,7 @@ namespace SwitchManager.nx.library
             if (baseGame.IsGame)
             {
                 SwitchGame game = baseGame as SwitchGame;
-                if (game.DLC == null) game.DLC = new ObservableCollection<SwitchDLC>();
+                if (game.DLC == null) game.DLC = new List<SwitchDLC>();
 
                 game.DLC.Add(dlc);
             }

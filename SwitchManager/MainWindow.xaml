@@ -35,26 +35,26 @@
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_Downloads">
         <MenuItem x:Name="MenuItem_ShowDownloads" Header="_Show Downloads" Click="MenuItemShowDownloads_Click"/>
-        <MenuItem x:Name="MenuItem_DownloadFavorites" Header="Download Favorites" ToolTip="Downloads all of your unowned Favorites (includes Games and DLC)" Click="MenuItemDownloadFavorites_ClickAsync"/>
-        <MenuItem x:Name="MenuItem_DownloadUpdates" Header="Download Updates" ToolTip="Downloads all updates for owned games." Click="MenuItemDownloadUpdates_ClickAsync"/>
-        <MenuItem x:Name="MenuItem_DownloadDLC" Header="Download DLC" ToolTip="Downloads all DLC for owned games." Click="MenuItemDownloadDLC_ClickAsync"/>
-        <MenuItem x:Name="MenuItem_CancelDownloads" Header="Cancel Bulk Download" ToolTip="Cancels any bulk downloads initiated through the Downloads menu. This will not affect downloads started individually. Use the Downloads window for that (double click a progress bar)." Click="MenuItemCancelDownloads_Click"/>
+        <MenuItem x:Name="MenuItem_DownloadFavorites" Header="Download Favorites" ToolTip="Downloads all of your unowned Favorites (includes Games and DLC)" Click="BulkDownloadFavorites_Click"/>
+        <MenuItem x:Name="MenuItem_DownloadUpdates" Header="Download Updates" ToolTip="Downloads all updates for owned games." Click="BulkDownloadUpdates_Click"/>
+        <MenuItem x:Name="MenuItem_DownloadDLC" Header="Download DLC" ToolTip="Downloads all DLC for owned games." Click="BulkDownloadDLC_Click"/>
+        <MenuItem x:Name="MenuItem_CancelDownloads" Header="Cancel Bulk Download" ToolTip="Cancels any bulk downloads initiated through the Downloads menu. This will not affect downloads started individually. Use the Downloads window for that (double click a progress bar)." Click="CancelBulkDownloads_Click"/>
 
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
         <MenuItem x:Name="MenuItem_LoadKeys" Header="_Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
         <MenuItem x:Name="MenuItem_PasteKeys" Header="_Paste Title Keys" ToolTip="Paste a bunch of title keys directly into the app." Click="MenuItemPasteKeys_Click"/>
-        <MenuItem x:Name="MenuItem_ImportGameInfo" Header="Import _Game Info" ToolTip="Imports Game_info.json file from CDNSP. This only needs to be done one time, though you can do it again with newer version of the file to update missing games." Click="MenuItemImportGameInfo_Click"/>
+        <MenuItem x:Name="MenuItem_ImportGameInfo" Header="Import _Game Info" ToolTip="Imports Game_info.json file from CDNSP. This only needs to be done one time, though you can do it again with newer version of the file to update missing games." Click="ImportGameInfo_Click"/>
         <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials" ToolTip="Imports a PEM certificate (used by CDNSP) into SwitchManager by converting it to a PKCS12 (PFX) file." Click="MenuItemImportCreds_Click"/>
         <MenuItem x:Name="MenuItem_PreloadImages" Header="Preload Game Icons" ToolTip="Loads and caches all title images directly from the CDN game files. If you have the boxart already displaying or have already loaded all images, this is not necessary." Click="MenuItemPreloadImages_Click"/>
         <!--MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game _Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own, but only if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/-->
         <MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/>
       </MenuItem>
       <MenuItem Header="_Library">
-        <MenuItem Header="Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="MenuItemScan_Click"/>
-        <MenuItem Header="Select _Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="MenuItemSelectLocation_Click"/>
-        <MenuItem Header="Save Library _Metadata" Click="MenuItemSaveLibrary_Click"/>
+        <MenuItem Header="Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="ScanLibrary_Click"/>
+        <MenuItem Header="Select _Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="SelectLibraryLocation_Click"/>
+        <MenuItem Header="Save Library _Metadata" Click="SaveLibrary_Click"/>
       </MenuItem>
       <MenuItem Header="_Options">
       </MenuItem>
@@ -84,7 +84,7 @@
             SelectionUnit="FullRow"
             SelectionMode="Single"
             CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeRows="False" CanUserSortColumns="True"
-            RowDetailsVisibilityChanged="DataGrid_Collection_RowDetailsVisibilityChanged"
+            RowDetailsVisibilityChanged="DataGrid_RowDetailsVisibilityChanged"
             >
       <DataGrid.Resources>
         <!-- The below triggers editing on mouseover, so that once you actually click you are already in editing mode - thus, single click editing -->
@@ -104,12 +104,16 @@
       </DataGrid.Resources>
       <DataGrid.ContextMenu>
         <ContextMenu>
-          <MenuItem Header="Download Title" ToolTip="Downloads the currently expanded Switch title from the CDN." Click="Button_Download_Click"/>
+          <MenuItem Header="Download Title" ToolTip="Downloads the currently expanded Switch title from the CDN." Click="Download_Click"/>
+          <MenuItem Header="Download Title and Updates" ToolTip="Downloads the currently expanded Switch title and all of its updates from the CDN." Click="DownloadGameAndUpdates_Click"/>
+          <MenuItem Header="Download Everything" ToolTip="Downloads the currently expanded title and all updates and DLC for it." Click="DownloadAll_Click"/>
+          <MenuItem Header="Download Updates" ToolTip="Downloads all updates for currently expanded Switch title from the CDN." Click="DownloadUpdates_Click"/>
+          <MenuItem Header="Download DLC" ToolTip="Downloads all DLC for the currently expanded Switch title from the CDN." Click="DownloadDLC_Click"/>
           <MenuItem Header="Visit eShop Link" ToolTip="Opens the default Web Browser to the Nintendo eShop link for this title." Click="IconButton_Click"/>
-          <MenuItem Header="Toggle Favorite" ToolTip="Toggles the Favorite check for this title." Click="MenuItemToggleFavorite_Click"/>
+          <MenuItem Header="Toggle Favorite" ToolTip="Toggles the Favorite check for this title." Click="ToggleFavorite_Click"/>
           <Separator />
-          <MenuItem Header="Delete Title" ToolTip="Deletes the Switch title from your library forever." Click="MenuItemDeleteTitle_Click"/>
-          <MenuItem Header="Remove Title From Library" ToolTip="Marks the title as Not Owned and clears the Rom Path." Click="MenuItemRemoveTitle_Click"/>
+          <MenuItem Header="Delete Title" ToolTip="Deletes the Switch title from your library forever." Click="DeleteTitle_Click"/>
+          <MenuItem Header="Remove Title From Library" ToolTip="Marks the title as Not Owned and clears the Rom Path." Click="RemoveTitle_Click"/>
         </ContextMenu>
       </DataGrid.ContextMenu>
       <DataGrid.RowDetailsTemplate>
@@ -118,7 +122,7 @@
 
             <StackPanel Orientation="Vertical">
               <Button x:Name="IconButton" Margin="5" Style="{StaticResource ImageButtonStyle}" Click="IconButton_Click"  MaxHeight="100" Width="100">
-                <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon,Mode=OneWay}"/>
+                <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon,Mode=OneWay,UpdateSourceTrigger=PropertyChanged, TargetNullValue=blank.jpg}"/>
               </Button>
               <StackPanel Margin="3" Orientation="Vertical">
                 <TextBlock FontSize="10" Text="{Binding Path=Title.TitleKey, Mode=OneWay}"/>
@@ -144,12 +148,12 @@
 
             <StackPanel Margin="20,10" Orientation="Vertical">
               <TextBlock Margin="5" FontSize="13" Text="Versions" />
-              <ComboBox Margin="5" ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}" SelectionChanged="ComboBox_VersionChanged">
+              <ComboBox Margin="5" ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}" SelectionChanged="VersionChanged">
               </ComboBox>
 
               <TextBlock Margin="5">What do you want to download?</TextBlock>
-              <ComboBox Margin="5" SelectionChanged="ComboBox_DownloadOptionChanged" ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:DownloadOptions}}}" SelectedIndex="0"/>
-              <Button Margin="5" x:Name="Button_Download" Click="Button_Download_Click">Download Title</Button>
+              <ComboBox Margin="5" ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:DownloadOptions}}}" DataContext="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type Window}}}" SelectedItem="{Binding DLOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsSynchronizedWithCurrentItem="True"/>
+              <Button Margin="5" x:Name="Button_Download" Click="Download_Click">Download Title</Button>
 
             </StackPanel>
           </StackPanel>

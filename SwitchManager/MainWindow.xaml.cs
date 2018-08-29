@@ -206,16 +206,55 @@ namespace SwitchManager
         #region Buttons and other controls on the datagrid
 
         private uint? SelectedVersion { get; set; }
-        private DownloadOptions? DLOption { get; set; }
-
-        private void Button_Download_Click(object sender, RoutedEventArgs e)
+        public DownloadOptions? DLOption { get; set; }
+         
+        private async void Download_Click(object sender, RoutedEventArgs e)
         {
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
+            
+            var title = item?.Title;
+            uint version = title.BaseVersion;
 
-            uint v = SelectedVersion ?? item.Title.BaseVersion;
+            if (title.IsUpdate)
+                version = SelectedVersion ?? item.Title.LatestVersion ?? await library.Loader.GetLatestVersion(item.Title);
+            else if (title.IsDLC)
+                version = await library.Loader.GetLatestVersion(title);
+
             DownloadOptions o = DLOption ?? DownloadOptions.BaseGameOnly;
 
+            DoThreadedDownload(item, version, o);
+        }
 
+        private void DownloadUpdates_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection?.SelectedValue;
+            if (item != null)
+                DoThreadedDownload(item, item.Title.LatestVersion ?? item.Title.BaseVersion, DownloadOptions.UpdateOnly);
+        }
+
+        private void DownloadGameAndUpdates_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection?.SelectedValue;
+            if (item != null)
+                DoThreadedDownload(item, item.Title.LatestVersion ?? item.Title.BaseVersion, DownloadOptions.BaseGameAndUpdate);
+        }
+
+        private void DownloadAll_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection?.SelectedValue;
+            if (item != null)
+                DoThreadedDownload(item, item.Title.LatestVersion ?? item.Title.BaseVersion, DownloadOptions.BaseGameAndUpdateAndDLC);
+        }
+
+        private void DownloadDLC_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection?.SelectedValue;
+            if (item != null)
+                DoThreadedDownload(item, item.Title.BaseVersion, DownloadOptions.AllDLC);
+        }
+
+        private void DoThreadedDownload(SwitchCollectionItem item, uint ver, DownloadOptions o)
+        {
             // Okay so the below got way more complicated than it used to be. I wanted to catch an exception in case
             // the cert is denied. I had to put that in the threaded task. Since I didn't want the download window to open
             // or focus unless the download started, I think had to put that in there right after
@@ -223,21 +262,33 @@ namespace SwitchManager
             {
                 try
                 {
-                    await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, false);
+                    await DoDownload(item, ver, o);
                 }
                 catch (CertificateDeniedException)
                 {
-                    MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
+                    Application.Current.Dispatcher.Invoke(() => MaterialMessageBox.ShowError("Can't download because the certificate was denied."));
+                }
+                catch (CnmtMissingException c)
+                {
+                    Application.Current.Dispatcher.Invoke(() => MaterialMessageBox.ShowError("Can't download because we couldn't find the CNMT ID for the title"));
+                }
+                catch (DownloadFailedException f)
+                {
+                    Application.Current.Dispatcher.Invoke(() => MaterialMessageBox.ShowError("Can't download because the download failed - " + f.Message));
+                }
+                catch (Exception e)
+                {
+                    Application.Current.Dispatcher.Invoke(() => MaterialMessageBox.ShowError("Can't download because of an unknown error - " + e.Message));
                 }
             });
         }
 
-        private async Task DownloadTitle(SwitchCollectionItem item, uint v, DownloadOptions o)
+        private async Task DoDownload(SwitchCollectionItem item, uint v, DownloadOptions o)
         {
             await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
         }
 
-        private void MenuItemRemoveTitle_Click(object sender, RoutedEventArgs e)
+        private void RemoveTitle_Click(object sender, RoutedEventArgs e)
         {
             if (DataGrid_Collection == null) return;
 
@@ -251,7 +302,7 @@ namespace SwitchManager
             }
         }
 
-        private void MenuItemToggleFavorite_Click(object sender, RoutedEventArgs e)
+        private void ToggleFavorite_Click(object sender, RoutedEventArgs e)
         {
             if (DataGrid_Collection == null) return;
 
@@ -261,17 +312,18 @@ namespace SwitchManager
             }
         }
 
-        private void MenuItemDeleteTitle_Click(object sender, RoutedEventArgs e)
+        private void DeleteTitle_Click(object sender, RoutedEventArgs e)
         {
             if (DataGrid_Collection == null) return;
 
             if (DataGrid_Collection.SelectedValue is SwitchCollectionItem selected)
             {
                 library.DeleteTitle(selected);
+                DataGrid_Collection.Items.Refresh();
             }
         }
 
-        private void ComboBox_VersionChanged(object sender, SelectionChangedEventArgs e)
+        private void VersionChanged(object sender, SelectionChangedEventArgs e)
         {
             ComboBox cb = (ComboBox)sender;
 
@@ -282,16 +334,18 @@ namespace SwitchManager
             }
         }
 
-        private void ComboBox_DownloadOptionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            ComboBox cb = (ComboBox)sender;
+        #endregion 
 
-            if (cb.SelectedValue != null)
-            {
-                DownloadOptions d = (DownloadOptions)cb.SelectedValue;
-                DLOption = d;
-            }
-        }
+        #region DataGrid filtering and sorting
+
+        private string filterText = null;
+        private bool showDemos = false;
+        private bool showDLC = false;
+        private bool showFavoritesOnly = false;
+        private bool showNewOnly = false;
+        private bool showOwned = true;
+        private bool showNotOwned = true;
+        private bool showHidden = false;
 
         private void SortGrid(int columnIndex, ListSortDirection sortDirection = ListSortDirection.Ascending)
         {
@@ -309,19 +363,6 @@ namespace SwitchManager
             // Refresh items to display sort
             DataGrid_Collection.Items.Refresh();
         }
-
-        #endregion 
-
-        #region DataGrid filtering
-
-        private string filterText = null;
-        private bool showDemos = false;
-        private bool showDLC = false;
-        private bool showFavoritesOnly = false;
-        private bool showNewOnly = false;
-        private bool showOwned = true;
-        private bool showNotOwned = true;
-        private bool showHidden = false;
 
         private void TextBox_Search_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -438,7 +479,7 @@ namespace SwitchManager
                 client.DownloadFile(new Uri(Settings.Default.TitleKeysURL), tempTkeysFile);
             }
 
-            await LoadTitleKeys(tempTkeysFile);
+            await LoadTitleKeys(tempTkeysFile).ConfigureAwait(false);
             File.Delete(tempTkeysFile);
         }
 
@@ -457,7 +498,7 @@ namespace SwitchManager
             {
                 // Open document 
                 string filename = dlg.FileName;
-                await LoadTitleKeys(filename);
+                await LoadTitleKeys(filename).ConfigureAwait(false);
             }
         }
 
@@ -471,7 +512,7 @@ namespace SwitchManager
                 string keys = win.ResponseText;
                 string temp = Settings.Default.TitleKeysFile + ".tmp";
                 File.WriteAllText(temp, keys);
-                await LoadTitleKeys(temp);
+                await LoadTitleKeys(temp).ConfigureAwait(false);
                 File.Delete(temp);
             }
         }
@@ -534,12 +575,12 @@ namespace SwitchManager
 
         private bool DownloadsCancelled { get; set; } = false;
 
-        private void MenuItemCancelDownloads_Click(object sender, RoutedEventArgs e)
+        private void CancelBulkDownloads_Click(object sender, RoutedEventArgs e)
         {
             DownloadsCancelled = true;
         }
 
-        private async void MenuItemDownloadFavorites_ClickAsync(object sender, RoutedEventArgs e)
+        private async void BulkDownloadFavorites_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -589,7 +630,7 @@ namespace SwitchManager
             }
         }
 
-        private async void MenuItemDownloadUpdates_ClickAsync(object sender, RoutedEventArgs e)
+        private async void BulkDownloadUpdates_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -639,7 +680,7 @@ namespace SwitchManager
             }
         }
 
-        private async void MenuItemDownloadDLC_ClickAsync(object sender, RoutedEventArgs e)
+        private async void BulkDownloadDLC_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -700,16 +741,24 @@ namespace SwitchManager
                 if (DownloadsCancelled)
                     break;
 
+                var title = item?.Title;
+                uint version = title.BaseVersion;
+
+                if (title.IsUpdate)
+                    version = ((SwitchUpdate)title).Version;
+                else if (title.IsDLC)
+                    version = await library.Loader.GetLatestVersion(title);
+
                 switch (type)
                 {
                     case SwitchTitleType.Game:
-                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
                         break;
                     case SwitchTitleType.Update:
-                        await DownloadTitle(item, item.Title.LatestVersion, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.UpdateOnly).ConfigureAwait(false);
                         break;
                     case SwitchTitleType.DLC:
-                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.AllDLC).ConfigureAwait(false);
                         break;
                 }
             }
@@ -726,23 +775,35 @@ namespace SwitchManager
             {
                 if (DownloadsCancelled)
                     break;
-
+                
                 if (!item.Size.HasValue)
-                    break;
+                {
+                    await UpdateSize(item).ConfigureAwait(false);
+                    if (!item.Size.HasValue)
+                        break;
+                }
 
                 if (limit > 0 && accumulated + item.Size > limit)
                     break;
 
+                var title = item?.Title;
+                uint version = title.BaseVersion;
+
+                if (title.IsUpdate)
+                    version = ((SwitchUpdate)title).Version;
+                else if (title.IsDLC)
+                    version = await library.Loader.GetLatestVersion(title);
+
                 switch (type)
                 {
                     case SwitchTitleType.Game:
-                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
                         break;
                     case SwitchTitleType.Update:
-                        await DownloadTitle(item, item.Title.LatestVersion, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.UpdateOnly).ConfigureAwait(false);
                         break;
                     case SwitchTitleType.DLC:
-                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.AllDLC).ConfigureAwait(false);
                         break;
                 }
 
@@ -762,22 +823,35 @@ namespace SwitchManager
                     break;
 
                 if (!item.Size.HasValue)
-                    break;
+                {
+                    await UpdateSize(item).ConfigureAwait(false);
+                    if (!item.Size.HasValue)
+                        break;
+                    if (limit > 0 && item.Size > limit)
+                        continue;
+                }
 
                 if (limit > 0 && item.Size > limit)
                     break;
 
+                var title = item?.Title;
+                uint version = title.BaseVersion;
+
+                if (title.IsUpdate)
+                    version = ((SwitchUpdate)title).Version;
+                else if (title.IsDLC)
+                    version = await library.Loader.GetLatestVersion(title);
 
                 switch (type)
                 {
                     case SwitchTitleType.Game:
-                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
                         break;
                     case SwitchTitleType.Update:
-                        await DownloadTitle(item, item.Title.LatestVersion, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.UpdateOnly).ConfigureAwait(false);
                         break;
                     case SwitchTitleType.DLC:
-                        await DownloadTitle(item, item.Title.BaseVersion, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.AllDLC).ConfigureAwait(false);
                         break;
                 }
             }
@@ -797,10 +871,10 @@ namespace SwitchManager
             {
                 return this.library.Collection.Where(i =>
                 {
-                    if (i.Title is SwitchDLC && i.Title.IsDLC)
+                    if (i.Title.IsDLC)
                     {
-                        var parent = library.GetBaseGameByID(i.TitleId);
-                        return (i.Title is SwitchGame && i.Title.IsGame && i.IsDownloaded);
+                        var parent = library.GetTitleByID(((SwitchDLC)i.Title).GameID);
+                        return (parent.Title.IsGame && parent.IsDownloaded);
                     }
                     return false;
                 });
@@ -815,25 +889,28 @@ namespace SwitchManager
             if (tempTkeys.Exists && tempTkeys.Length >= 0)
             {
                 Console.WriteLine("Successfully downloaded new title keys file");
-                var newTitles = await library.UpdateTitleKeysFile(tkeysFile);
-
-
-                if (newTitles.Count > 0)
+                var newTitles = await library.UpdateTitleKeysFile(tkeysFile).ConfigureAwait(false);
+                
+                Dispatcher.Invoke(delegate
                 {
-                    // New titles to show you!
-                    var message = string.Join(Environment.NewLine, newTitles);
-                    ShowMessage(message, "New Title Keys Found!", "Awesome!");
-                }
-                else
-                {
-                    ShowMessage("NO new titles found... :(", "Nothing new...", "Darn...");
-                }
+                    if (newTitles.Count > 0)
+                    {
+                        // New titles to show you!
+                        var message = string.Join(Environment.NewLine, newTitles);
+                        ShowMessage(message, "New Title Keys Found!", "Awesome!");
+                    }
+                    else
+                    {
+                        ShowMessage("NO new titles found... :(", "Nothing new...", "Darn...");
+                    }
+                });
             }
             else
             {
                 MaterialMessageBox.ShowError("Failed to download new title keys.");
                 File.Delete(tkeysFile);
             }
+            Dispatcher.Invoke(()=> DataGrid_Collection.Items.Refresh());
         }
 
         private void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
@@ -856,7 +933,7 @@ namespace SwitchManager
             }
         }
 
-        private async void MenuItemImportGameInfo_Click(object sender, RoutedEventArgs e)
+        private async void ImportGameInfo_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
             {
@@ -959,7 +1036,7 @@ namespace SwitchManager
             msg.Show();
         }
 
-        private void MenuItemScan_Click(object sender, RoutedEventArgs e)
+        private void ScanLibrary_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.NSPDirectory, Description = "Choose a directory to scan for titles" };
             bool? result = dialog.ShowDialog();
@@ -976,7 +1053,7 @@ namespace SwitchManager
             }
         }
 
-        private void MenuItemSelectLocation_Click(object sender, RoutedEventArgs e)
+        private void SelectLibraryLocation_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.NSPDirectory, Description = "Choose a directory to store downloaded titles" };
             bool? result = dialog.ShowDialog();
@@ -992,7 +1069,7 @@ namespace SwitchManager
             }
         }
 
-        private void MenuItemSaveLibrary_Click(object sender, RoutedEventArgs e)
+        private void SaveLibrary_Click(object sender, RoutedEventArgs e)
         {
             this.library.SaveMetadata(Settings.Default.MetadataFile);
         }
@@ -1013,66 +1090,99 @@ namespace SwitchManager
             e.Handled = true;
         }
 
-        private async void DataGrid_Collection_RowDetailsVisibilityChanged(object sender, DataGridRowDetailsEventArgs e)
+        private async void DataGrid_RowDetailsVisibilityChanged(object sender, DataGridRowDetailsEventArgs e)
         {
             if (e?.DetailsElement?.IsVisible ?? false)
             {
                 ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
-                var item = cv?.CurrentItem as SwitchCollectionItem;
-                if (item != null)
+                if (cv == null) return;
+                if (cv.CurrentItem == null) return;
+
+                if (cv.CurrentItem is SwitchCollectionItem item)
                 {
-
-                    // If anything is null, or the blank image is used, get a new image
-                    if (item.Title?.Icon == null || (item.Title?.Icon?.Equals(SwitchLibrary.BlankImage) ?? true))
+                    if (item != null && item.Title != null)
                     {
-                        try
+                        var title = item.Title;
+                        if (title.IsGame)
                         {
-                            await library.LoadTitleIcon(item?.Title, true);
+                            DLOption = DownloadOptions.BaseGameOnly;
                         }
-                        catch (HactoolFailedException)
+                        else if (title.IsDLC)
                         {
-                            Console.WriteLine("WARNING: Hactool failed while getting icon file.");
+                            DLOption = DownloadOptions.AllDLC;
                         }
-                        catch (CertificateDeniedException)
-                        {
-                            Console.WriteLine("WARNING: Cert denied while getting icon file.");
-                        }
-                        catch (Exception)
-                        {
-                            Console.WriteLine("WARNING: WTF something failed while getting icon file.");
-                        }
-                    }
 
-                    if (item != null && ((item.Size ?? 0) == 0))
-                    {
-                        try
+                        // If anything is null, or the blank image is used, get a new image
+                        if (title.IsGame && (title.Icon == null || (!title.Icon.Equals(title.BoxArtUrl) && !File.Exists(title.Icon))))
                         {
-                            await UpdateSize(item);
+                            try
+                            {
+                                title.Icon = null;
+                                await library.LoadTitleIcon(title, true);
+                            }
+                            catch (HactoolFailedException)
+                            {
+                                Console.WriteLine("WARNING: Hactool failed while getting icon file.");
+                            }
+                            catch (CertificateDeniedException)
+                            {
+                                Console.WriteLine("WARNING: Cert denied while getting icon file.");
+                            }
+                            catch (DownloadFailedException d)
+                            {
+                                Console.WriteLine("WARNING: Downloading a file failed: " + d.Message);
+                            }
+                            catch (Exception)
+                            {
+                                Console.WriteLine("WARNING: WTF something failed while getting icon file.");
+                            }
                         }
-                        catch (HactoolFailedException)
+
+                        if ((item.Size ?? 0) == 0)
                         {
-                            Console.WriteLine("WARNING: Hactool failed while updating size.");
-                        }
-                        catch (CertificateDeniedException)
-                        {
-                            Console.WriteLine("WARNING: Cert denied while updating size.");
-                        }
-                        catch (Exception)
-                        {
-                            Console.WriteLine("WARNING: WTF something failed while updating size.");
+                            await UpdateSize(item).ConfigureAwait(false);
                         }
                     }
                 }
+
             }
         }
 
         private async Task UpdateSize(SwitchCollectionItem item)
         {
-            string titledir = Settings.Default.TempDirectory + System.IO.Path.DirectorySeparatorChar + item?.TitleId;
-            if (!Directory.Exists(titledir))
-                Directory.CreateDirectory(titledir);
-            var result = await library.Loader.GetTitleSize(item?.Title, 0, titledir).ConfigureAwait(false);
-            item.Size = result;
+            try
+            {
+                string titledir = Settings.Default.TempDirectory + System.IO.Path.DirectorySeparatorChar + item?.TitleId;
+                if (!Directory.Exists(titledir))
+                    Directory.CreateDirectory(titledir);
+
+                uint version = 0;
+                var title = item?.Title;
+
+                if (title.IsUpdate)
+                    version = ((SwitchUpdate)title).Version;
+                else if (title.IsDLC)
+                    version = await library.Loader.GetLatestVersion(title);
+        
+                var result = await library.Loader.GetTitleSize(item?.Title, version, titledir).ConfigureAwait(false);
+                item.Size = result;
+            }
+            catch (HactoolFailedException)
+            {
+                Console.WriteLine("WARNING: Hactool failed while updating size.");
+            }
+            catch (CertificateDeniedException)
+            {
+                Console.WriteLine("WARNING: Cert denied while updating size.");
+            }
+            catch (DownloadFailedException d)
+            {
+                Console.WriteLine("WARNING: Downloading a file failed: " + d.Message);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("WARNING: WTF something failed while updating size.");
+            }
         }
     }
 }
