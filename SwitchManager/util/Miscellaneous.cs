@@ -169,5 +169,12 @@ namespace SwitchManager.util
             else
                 return null;
         }
+
+        internal static void DeleteDirectory(string dir, bool recursive = false)
+        {
+            if (string.IsNullOrWhiteSpace(dir)) return;
+
+            Directory.Delete(dir, recursive);
+        }
     }
 }
