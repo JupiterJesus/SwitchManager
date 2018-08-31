@@ -21,10 +21,10 @@ namespace SwitchManager.nx.library
         [Description("Hidden")]
         Hidden,
 
-        [Description("Title Key Missing")]
+        [Description("Preloadable")]
         NoKey,
 
-        [Description("Downloaded")]
+        [Description("Preloaded")]
         Downloaded,
     }
 }
