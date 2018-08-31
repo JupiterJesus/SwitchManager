@@ -1,15 +1,13 @@
-﻿using SwitchManager.nx.library;
-using SwitchManager.nx.system;
+﻿using SwitchManager.nx.system;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using SwitchManager.util;
 using SwitchManager.nx.cdn;
+using SwitchManager.io;
 
 namespace SwitchManager.nx.library
 {
@@ -152,6 +150,9 @@ namespace SwitchManager.nx.library
                     certDenied = true;
                 }
 
+                ProgressJob job = new ProgressJob("Load library data", metadata.Count(), 0);
+                job.Start();
+
                 foreach (var item in metadata)
                 {
                     SwitchCollectionItem ci = GetTitleByID(item.TitleID);
@@ -212,7 +213,10 @@ namespace SwitchManager.nx.library
                         {
                             AddUpdateTitle(update.TitleID, item.TitleID, item.Name, update.Version, update.TitleKey);
                         }
+
+                    job.UpdateProgress(1);
                 }
+                job.Finish();
 
                 if (certDenied) throw new CertificateDeniedException();
             }
