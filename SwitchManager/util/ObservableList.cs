@@ -9,17 +9,33 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SwitchManager.nx.library
+namespace SwitchManager.util
 {
-    public class ObservableList<T> : INotifyCollectionChanged, IList<T>, ICollection<T>, IEnumerable<T>, IListSource
+    public class ObservableList<T> : INotifyCollectionChanged, INotifyPropertyChanged, IList<T>, ICollection<T>, IEnumerable<T>, IListSource
     {
+        #region Private Members
+
         private List<T> list;
+
+        #endregion
+
+        #region Properties
+
+        #endregion
+
+        #region Properties - ICollection
 
         public int Count => list.Count;
 
         public bool IsReadOnly => ((IList<T>)list).IsReadOnly;
 
-        public bool ContainsListCollection => throw new NotImplementedException();
+        #endregion
+
+        #region Properties - IListSource
+
+        public bool ContainsListCollection => true;
+
+        #endregion
 
         public T this[int index]
         {
@@ -31,7 +47,15 @@ namespace SwitchManager.nx.library
                 CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace,  list[index], old, index));
             }
         }
+
+        #region Events for collectionchanged and propertychanged
+
         public event NotifyCollectionChangedEventHandler CollectionChanged;
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        #endregion
+
+        #region Constructors
 
         public ObservableList()
         {
@@ -43,10 +67,15 @@ namespace SwitchManager.nx.library
             this.list = new List<T>(list);
         }
 
+        #endregion
+
+        #region IList and ICollection implementation
+
         public void Add(T item)
         {
             list.Add(item);
             CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, item));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Count"));
         }
 
         public int IndexOf(T item)
@@ -91,6 +120,10 @@ namespace SwitchManager.nx.library
             return r;
         }
 
+        #endregion
+
+        #region IEnumberable implementation
+
         public IEnumerator<T> GetEnumerator()
         {
             return list.GetEnumerator();
@@ -101,9 +134,15 @@ namespace SwitchManager.nx.library
             return list.GetEnumerator();
         }
 
+        #endregion
+
+        #region IListSource implementation
+
         public IList GetList()
         {
             return list;
         }
+
+        #endregion
     }
 }
