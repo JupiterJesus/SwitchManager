@@ -317,7 +317,7 @@ namespace SwitchManager.nx.system
         public void Dispose()
         {
             if (this.CnmtDirectory != null)
-                Directory.Delete(this.CnmtDirectory, true);
+                Miscellaneous.DeleteDirectory(this.CnmtDirectory, true);
         }
     }
 }
