@@ -34,6 +34,7 @@ namespace SwitchManager.io
 
         public new void Dispose()
         {
+            if (str != null) str.Dispose();
             Finish();
         }
 
