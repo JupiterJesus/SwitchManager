@@ -1,4 +1,5 @@
-﻿using SwitchManager.nx.library;
+﻿using SwitchManager.io;
+using SwitchManager.util;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +12,31 @@ namespace SwitchManager.nx.system
     public class NSP
     {
         private Dictionary<NCAType, List<string>> NCAs = new Dictionary<NCAType, List<string>>();
+
+        public long TotalSize
+        {
+            get
+            {
+                return HeaderSize + FilesSize;
+            }
+        }
+
+        public long FilesSize
+        {
+            get
+            {
+                return this.Files.Sum((s) => s == null ? 0 : Miscellaneous.GetFileSystemSize(s) ?? 0);
+            }
+        }
+
+        public long HeaderSize
+        {
+            get
+            {
+                return GenerateHeader(this.Files.ToArray()).Length;
+            }
+        }
+
         public List<string> Files
         {
             get
@@ -69,7 +95,7 @@ namespace SwitchManager.nx.system
             // DEBUGGING NOTES  MY ICONOCLASTS HEADER IS 624 BYTES TOO LONG FIX THIS ASAP
 
             // Use lambda to sum sizes of all files in files array
-            long totalSize = hd.Length + files.Sum(s => new FileInfo(s).Length);
+            long totalSize = this.FilesSize + hd.Length;
 
             FileInfo finfo = new FileInfo(path);
             if (finfo.Exists && finfo.Length == totalSize)
@@ -77,17 +103,18 @@ namespace SwitchManager.nx.system
                 Console.WriteLine($"NSP already exists {path}");
                 return true;
             }
-            using (FileStream nspFilestream = File.OpenWrite(path))
+
+            using (JobFileStream str = new JobFileStream(path, "NSP repack of " + Title.Name, totalSize, 0))
             {
-                await nspFilestream.WriteAsync(hd, 0, hd.Length).ConfigureAwait(false);
+                await str.WriteAsync(hd, 0, hd.Length).ConfigureAwait(false);
                 // Copy each file to the end of the NSP in sequence. Nothing special here just copy them all.
                 foreach (var file in files)
                 {
                     using (FileStream fs = File.OpenRead(file))
-                        await fs.CopyToAsync(nspFilestream).ConfigureAwait(false);
+                        await str.CopyFromAsync(fs);
                 }
             }
-
+            
             finfo.Refresh();
             if (finfo.Exists && finfo.Length == totalSize)
             {
