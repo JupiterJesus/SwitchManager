@@ -7,11 +7,24 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 
 namespace SwitchManager.util
 {
     public static class Extensions
     {
+        public static void InvokeOrExecute(this Dispatcher dispatcher, Action action)
+        {
+            if (dispatcher.CheckAccess())
+            {
+                action();
+            }
+            else
+            {
+                dispatcher.BeginInvoke(DispatcherPriority.Normal, action);
+            }
+        }
+
         public static IEnumerable<SwitchCollectionItem> GetFavoriteTitles(this IEnumerable<SwitchCollectionItem> list)
         {
             return list.Where(i => i.IsFavorite);
