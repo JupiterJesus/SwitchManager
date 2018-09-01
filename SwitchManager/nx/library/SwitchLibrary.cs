@@ -763,13 +763,13 @@ namespace SwitchManager.nx.library
             Dictionary<string, uint> versions = null;
             try
             {
-                versions = await Loader.GetLatestVersions().ConfigureAwait(false);
-                if (versions == null) return;
-
+                // I figure it might be faster to get individual versions for a small number instead of all at once
+                if (titles.Count > 10) versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+                
                 foreach (var i in this.Collection)
                 {
                     var t = i.Title;
-                    if (versions.TryGetValue(t.TitleID, out uint ver))
+                    if (versions != null && versions.TryGetValue(t.TitleID, out uint ver))
                     {
                         UpdateVersion(t, ver);
                     }

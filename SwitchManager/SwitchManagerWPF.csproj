@@ -78,6 +78,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Interactivity, Version=4.5.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\MahApps.Metro.1.2.4.0\lib\net45\System.Windows.Interactivity.dll</HintPath>
     </Reference>
@@ -113,6 +114,11 @@
     <Compile Include="nx\system\SwitchDLC.cs" />
     <Compile Include="nx\system\SwitchUpdate.cs" />
     <Compile Include="nx\system\SwitchGame.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="ui\VersionsConverter.cs" />
     <Compile Include="ui\WindowBehavior.cs" />
     <Compile Include="ui\DownloadMethod.cs" />
@@ -180,11 +186,6 @@
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Settings.settings</DependentUpon>
@@ -195,9 +196,6 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="certs\ca-certificates.crt" />
-    <AdditionalFiles Include="certs\Certificate.cert">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AdditionalFiles>
     <None Include="certs\client-cert.cert" />
     <None Include="certs\client-pkey.pem" />
     <AdditionalFiles Include="certs\client.pfx">
@@ -210,17 +208,19 @@
     <None Include="certs\eshop-pkey.pem" />
     <None Include="certs\ShopN.p12" />
     <None Include="packages.config" />
+    <None Include="Properties\Certificate.cert" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <None Include="certs\eshop-cert.cert" />
-    <AdditionalFiles Include="certs\Ticket.tik">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AdditionalFiles>
+    <Content Include="blank.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="Properties\Ticket.tik" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
@@ -983,9 +983,6 @@
     <None Include="Images\0100ff60051e2000.jpg" />
     <None Include="Images\0100ff8005eb2000.jpg" />
     <None Include="Images\0100ff9003f10000.jpg" />
-    <Content Include="blank.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="hactool\keys.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

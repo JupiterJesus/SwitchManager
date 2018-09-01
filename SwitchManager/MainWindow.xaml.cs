@@ -1136,14 +1136,11 @@ namespace SwitchManager
             e.Handled = true;
         }
 
-        private void DataGridRow_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!(sender is DataGridRow row)) return;
+            var grid = sender as DataGrid;
 
-            row.Focusable = true;
-            row.Focus();
-
-            if (row.Item is SwitchCollectionItem item)
+            if (grid.CurrentItem is SwitchCollectionItem item)
             {
                 if (item != null && item.Title != null)
                 {
@@ -1158,61 +1155,47 @@ namespace SwitchManager
                     }
                 }
             }
-            /*
-            var focusDirection = FocusNavigationDirection.Next;
-            var request = new TraversalRequest(focusDirection);
-            var elementWithFocus = Keyboard.FocusedElement as UIElement;
-            if (elementWithFocus != null)
-            {
-                elementWithFocus.MoveFocus(request);
-            }
-            */
         }
 
         private async void DataGrid_RowDetailsVisibilityChanged(object sender, DataGridRowDetailsEventArgs e)
         {
-            if (e?.DetailsElement?.IsVisible ?? false)
+            var grid = sender as DataGrid;
+            
+            if (grid.CurrentItem is SwitchCollectionItem item)
             {
-                ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
-                if (cv == null) return;
-                if (cv.CurrentItem == null) return;
-
-                if (cv.CurrentItem is SwitchCollectionItem item)
+                if (item != null && item.Title != null)
                 {
-                    if (item != null && item.Title != null)
-                    {
-                        var title = item.Title;
-                     
-                        // If anything is null, or the blank image is used, get a new image
-                        if (title.IsGame && (title.Icon == null || (!title.Icon.Equals(title.BoxArtUrl) && !File.Exists(title.Icon))))
-                        {
-                            try
-                            {
-                                title.Icon = null;
-                                await library.LoadTitleIcon(title, true);
-                            }
-                            catch (HactoolFailedException)
-                            {
-                                logger.Error("Hactool failed while getting icon file.");
-                            }
-                            catch (CertificateDeniedException)
-                            {
-                                logger.Error("Cert denied while getting icon file.");
-                            }
-                            catch (DownloadFailedException d)
-                            {
-                                logger.Error("WARNING: Downloading a file failed: " + d.Message);
-                            }
-                            catch (Exception)
-                            {
-                                logger.Error("WTF something failed while getting icon file.");
-                            }
-                        }
+                    var title = item.Title;
 
-                        if ((item.Size ?? 0) == 0)
+                    // If anything is null, or the blank image is used, get a new image
+                    if (title.IsGame && (title.Icon == null || (!title.Icon.Equals(title.BoxArtUrl) && !File.Exists(title.Icon))))
+                    {
+                        try
                         {
-                            await UpdateSize(item).ConfigureAwait(false);
+                            title.Icon = null;
+                            await library.LoadTitleIcon(title, true);
                         }
+                        catch (HactoolFailedException)
+                        {
+                            logger.Error("Hactool failed while getting icon file.");
+                        }
+                        catch (CertificateDeniedException)
+                        {
+                            logger.Error("Cert denied while getting icon file.");
+                        }
+                        catch (DownloadFailedException d)
+                        {
+                            logger.Error("WARNING: Downloading a file failed: " + d.Message);
+                        }
+                        catch (Exception)
+                        {
+                            logger.Error("WTF something failed while getting icon file.");
+                        }
+                    }
+
+                    if ((item.Size ?? 0) == 0)
+                    {
+                        await UpdateSize(item).ConfigureAwait(false);
                     }
                 }
             }
