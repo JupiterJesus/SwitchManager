@@ -20,6 +20,7 @@ using SwitchManager.ui;
 using SwitchManager.nx.cdn;
 using System.Xml.Serialization;
 using Newtonsoft.Json.Linq;
+using log4net;
 
 namespace SwitchManager
 {
@@ -28,6 +29,8 @@ namespace SwitchManager
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static readonly ILog logger = LogManager.GetLogger(typeof(MainWindow));
+
         private SwitchLibrary library;
         private ProgressWindow downloadWindow;
         private string metadataFile;
@@ -51,8 +54,8 @@ namespace SwitchManager
 
             EshopDownloader downloader = new EshopDownloader(Settings.Default.ClientCertPath,
                                                          Settings.Default.EShopCertPath,
-                                                         Settings.Default.TitleCertPath,
-                                                         Settings.Default.TitleTicketPath,
+                                                         Properties.Resources.TitleCertTemplate,
+                                                         Properties.Resources.TitleTicketTemplate,
                                                          Settings.Default.DeviceID,
                                                          Settings.Default.Firmware,
                                                          Settings.Default.Environment,
@@ -921,7 +924,7 @@ namespace SwitchManager
 
             if (tempTkeys.Exists && tempTkeys.Length >= 0)
             {
-                Console.WriteLine("Successfully downloaded new title keys file");
+                logger.Info("Successfully downloaded new title keys file");
                 var newTitles = library.UpdateTitleKeysFile(tkeysFile);
 
                 if (newTitles.Count > 0)
@@ -1190,19 +1193,19 @@ namespace SwitchManager
                             }
                             catch (HactoolFailedException)
                             {
-                                Console.WriteLine("WARNING: Hactool failed while getting icon file.");
+                                logger.Error("Hactool failed while getting icon file.");
                             }
                             catch (CertificateDeniedException)
                             {
-                                Console.WriteLine("WARNING: Cert denied while getting icon file.");
+                                logger.Error("Cert denied while getting icon file.");
                             }
                             catch (DownloadFailedException d)
                             {
-                                Console.WriteLine("WARNING: Downloading a file failed: " + d.Message);
+                                logger.Error("WARNING: Downloading a file failed: " + d.Message);
                             }
                             catch (Exception)
                             {
-                                Console.WriteLine("WARNING: WTF something failed while getting icon file.");
+                                logger.Error("WTF something failed while getting icon file.");
                             }
                         }
 
@@ -1236,19 +1239,19 @@ namespace SwitchManager
             }
             catch (HactoolFailedException)
             {
-                Console.WriteLine("WARNING: Hactool failed while updating size.");
+                logger.Error("Hactool failed while updating size.");
             }
             catch (CertificateDeniedException)
             {
-                Console.WriteLine("WARNING: Cert denied while updating size.");
+                logger.Error("Cert denied while updating size.");
             }
             catch (DownloadFailedException d)
             {
-                Console.WriteLine("WARNING: Downloading a file failed: " + d.Message);
+                logger.Error("Downloading a file failed: " + d.Message);
             }
             catch (Exception)
             {
-                Console.WriteLine("WARNING: WTF something failed while updating size.");
+                logger.Error("WTF something failed while updating size.");
             }
         }
     }

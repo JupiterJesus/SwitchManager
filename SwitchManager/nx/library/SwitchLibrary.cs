@@ -8,6 +8,7 @@ using System.Xml.Serialization;
 using SwitchManager.util;
 using SwitchManager.nx.cdn;
 using SwitchManager.io;
+using log4net;
 
 namespace SwitchManager.nx.library
 {
@@ -22,6 +23,8 @@ namespace SwitchManager.nx.library
     [XmlRoot(ElementName = "Library")]
     public class SwitchLibrary
     {
+        private static readonly ILog logger = LogManager.GetLogger(typeof(SwitchLibrary));
+
         [XmlElement(ElementName = "CollectionItem")]
         public ObservableList<SwitchCollectionItem> Collection { get; set; }
 
@@ -120,7 +123,7 @@ namespace SwitchManager.nx.library
 
             if (!File.Exists(path))
             {
-                Console.WriteLine("Library metadata XML file doesn't exist, one will be created when the app closes.");
+                logger.Warn("Library metadata XML file doesn't exist, one will be created when the app closes.");
                 return;
             }
 
@@ -128,7 +131,7 @@ namespace SwitchManager.nx.library
                 metadata = xml.Deserialize(fs) as LibraryMetadata;
 
             LoadMetadata(metadata?.Items);
-            Console.WriteLine($"Finished loading library metadata from {path}");
+            logger.Info($"Finished loading library metadata from {path}");
         }
 
         /// <summary>
@@ -223,7 +226,7 @@ namespace SwitchManager.nx.library
             xml.Serialize(fs, this);
             fs.Dispose();
 
-            Console.WriteLine($"Finished saving library metadata to {path}");
+            logger.Info($"Finished saving library metadata to {path}");
         }
 
         /// <summary>
@@ -369,12 +372,12 @@ namespace SwitchManager.nx.library
             var baseT = GetTitleByID(update.GameID); // Let's try adding this to the base game's list
             if (baseT == null)
             {
-                Console.WriteLine("WARNING: Found an update for a game that doesn't exist.");
+                logger.Warn("Found an update for a game that doesn't exist.");
                 return null;
             }
             else if (baseT.Title == null)
             {
-                Console.WriteLine("WARNING: Found a collection item in the library with a null title.");
+                logger.Warn("Found a collection item in the library with a null title.");
                 return null;
             }
             else if (baseT.Title.IsGame)
@@ -738,7 +741,7 @@ namespace SwitchManager.nx.library
                 catch (Exception)
                 {
                     if (GetBaseTitleByID(baseGameID) == null)
-                        Console.WriteLine($"WARNING: Couldn't find base game ID {baseGameID} for DLC {dlc.Name}");
+                        logger.Warn("Couldn't find base game ID {baseGameID} for DLC {dlc.Name}");
                 }
             }
             else

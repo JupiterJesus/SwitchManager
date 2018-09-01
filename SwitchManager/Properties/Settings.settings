@@ -38,12 +38,6 @@
     <Setting Name="ImageCache" Type="System.String" Scope="User">
       <Value Profile="(Default)">Images</Value>
     </Setting>
-    <Setting Name="TitleCertPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\Certificate.cert</Value>
-    </Setting>
-    <Setting Name="TitleTicketPath" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">certs\Ticket.tik</Value>
-    </Setting>
     <Setting Name="NSPDirectory" Type="System.String" Scope="User">
       <Value Profile="(Default)">E:\Emulation\nws\roms\nsp</Value>
     </Setting>

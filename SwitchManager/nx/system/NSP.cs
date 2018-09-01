@@ -1,4 +1,5 @@
-﻿using SwitchManager.io;
+﻿using log4net;
+using SwitchManager.io;
 using SwitchManager.util;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,8 @@ namespace SwitchManager.nx.system
 {
     public class NSP
     {
+        private static readonly ILog logger = LogManager.GetLogger(typeof(NSP));
+
         private Dictionary<NCAType, List<string>> NCAs = new Dictionary<NCAType, List<string>>();
 
         public long TotalSize
@@ -85,7 +88,7 @@ namespace SwitchManager.nx.system
         /// <param name="path"></param>
         public async Task<bool> Repack(string path)
         {
-            Console.WriteLine($"Repacking to NSP file {path}.");
+            logger.Info($"Repacking to NSP file {path}.");
 
             string[] files = this.Files.ToArray();
             int nFiles = files.Length;
@@ -100,7 +103,7 @@ namespace SwitchManager.nx.system
             FileInfo finfo = new FileInfo(path);
             if (finfo.Exists && finfo.Length == totalSize)
             {
-                Console.WriteLine($"NSP already exists {path}");
+                logger.Warn($"NSP already exists {path}. Delete and try again.");
                 return true;
             }
 
@@ -118,13 +121,14 @@ namespace SwitchManager.nx.system
             finfo.Refresh();
             if (finfo.Exists && finfo.Length == totalSize)
             {
-                Console.WriteLine($"Successfully repacked NSP to {path}");
+                logger.Info($"Successfully repacked NSP to {path}");
                 return true;
             }
 
-            Console.WriteLine($"Failed to repack NSP to {path}");
+            logger.Error($"Failed to repack NSP to {path}");
             return false;
         }
+
         public static byte[] GenerateHeader(string[] files)
         {
             // Calculate the file sizes array (size of file for each file)

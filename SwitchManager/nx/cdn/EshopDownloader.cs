@@ -1,5 +1,4 @@
-﻿using SwitchManager.nx.library;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,11 +14,14 @@ using System.Security.Cryptography;
 using SwitchManager.nx.system;
 using System.Text;
 using SwitchManager.io;
+using log4net;
 
 namespace SwitchManager.nx.cdn
 {
     public class EshopDownloader
     {
+        private static readonly ILog logger = LogManager.GetLogger(typeof(EshopDownloader));
+
         private readonly string environment;
         private readonly string firmware;
 
@@ -31,8 +33,10 @@ namespace SwitchManager.nx.cdn
         private readonly string keysPath;
         private readonly string clientCertPath;
         private readonly string eShopCertPath;
-        private readonly string titleCertPath;
-        private readonly string titleTicketPath;
+
+        private readonly byte[] titleCertTemplateData;
+        private readonly byte[] titleTicketTemplateData;
+
         private string CDNUserAgent { get; set; }
 
         public int DownloadBuffer { get; set; }
@@ -40,14 +44,17 @@ namespace SwitchManager.nx.cdn
         public X509Certificate ClientCert { get; private set; }
         public X509Certificate EshopCert { get; private set; }
 
-        public List<Task> DownloadTasks { get; } = new List<Task>();
-
-        public EshopDownloader(string clientCertPath, string eShopCertificate, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath)
+        public EshopDownloader(string clientCertPath, string eShopCertificate, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath) :
+           this(clientCertPath, eShopCertificate, File.ReadAllBytes(titleCertPath), File.ReadAllBytes(titleTicketPath), deviceId, firmware, environment, region, imagesPath, hactoolPath, keysPath)
+        {
+        }
+        
+        public EshopDownloader(string clientCertPath, string eShopCertificate, byte[] certTemplateData, byte[] ticketTemplateData, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath)
         {
             this.clientCertPath = clientCertPath;
             this.eShopCertPath = eShopCertificate;
-            this.titleCertPath = titleCertPath;
-            this.titleTicketPath = titleTicketPath;
+            this.titleCertTemplateData = certTemplateData;
+            this.titleTicketTemplateData = ticketTemplateData;
             this.deviceId = deviceId;
             this.firmware = firmware;
             this.environment = environment;
@@ -120,7 +127,7 @@ namespace SwitchManager.nx.cdn
         /// <returns></returns>
         public async Task<NSP> DownloadTitle(SwitchTitle title, uint version, string titleDir, bool nspRepack = false, bool verify = false)
         {
-            Console.WriteLine($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
+            logger.Info($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
 
             var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false);
 
@@ -138,13 +145,11 @@ namespace SwitchManager.nx.cdn
                     certPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".cert";
                     if (cnmt.Type == TitleType.Application || cnmt.Type == TitleType.AddOnContent)
                     {
-                        File.Copy(this.titleCertPath, certPath, true);
-                        Console.WriteLine($"Generated certificate {certPath}.");
+                        File.WriteAllBytes(certPath, this.titleCertTemplateData);
+                        logger.Info($"Generated title certificate {certPath}.");
 
                         if (title.IsTitleKeyValid)
                         {
-                            byte[] data = File.ReadAllBytes(this.titleTicketPath);
-
                             // The ticket file starts with the bytes 4 0 1 0, reversed for endianness that gives
                             // 0x00010004, which indicates a RSA_2048 SHA256 signature method.
                             // The signature requires 4 bytes for the type, 0x100 for the signature and 0x3C for padding
@@ -154,10 +159,10 @@ namespace SwitchManager.nx.cdn
                             for (int n = 0; n < 0x10; n++)
                             {
                                 string byteValue = title.TitleKey.Substring(n * 2, 2);
-                                data[0x180 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                                this.titleTicketTemplateData[0x180 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
                             }
 
-                            data[0x286] = cnmt.MasterKeyRevision;
+                            this.titleTicketTemplateData[0x286] = cnmt.MasterKeyRevision;
                             // switchbrew says this should be at 0x285, not 0x286...
                             // Who's right? Does it even matter?
 
@@ -165,12 +170,12 @@ namespace SwitchManager.nx.cdn
                             for (int n = 0; n < 0x10; n++)
                             {
                                 string byteValue = rightsID.Substring(n * 2, 2);
-                                data[0x2A0 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                                this.titleTicketTemplateData[0x2A0 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
                             }
-                            Miscellaneous.HexToBytes(rightsID?.Substring(0, 32), data, 0x2A0);
-                            File.WriteAllBytes(ticketPath, data);
+                            Miscellaneous.HexToBytes(rightsID?.Substring(0, 32), this.titleTicketTemplateData, 0x2A0);
+                            File.WriteAllBytes(ticketPath, this.titleTicketTemplateData);
 
-                            Console.WriteLine($"Generated ticket {ticketPath}.");
+                            logger.Info($"Generated ticket {ticketPath}.");
                         }
                     }
                     else if (cnmt.Type == TitleType.Patch)
@@ -252,7 +257,7 @@ namespace SwitchManager.nx.cdn
                         // Unfortunately I did cancelling via returning false instead of true,
                         // when really I should have thrown a cancelled exception
                         // Perhaps I will update it some day.
-                        Console.WriteLine("Download didn't complete. It may have been cancelled. NSPs will not be repacked, and you should try the download again later");
+                        logger.Warn("Download didn't complete. It may have been cancelled. NSPs will not be repacked, and you should try the download again later");
                         return null;
                     }
                 }
@@ -287,7 +292,7 @@ namespace SwitchManager.nx.cdn
 
         private async Task<bool> DoDownloadNCA(string ncaID, string path, byte[] expectedHash, SwitchTitle title = null)
         {
-            Console.WriteLine($"Downloading NCA {ncaID}.");
+            logger.Info($"Downloading NCA {ncaID}.");
             bool completed = await DownloadNCA(ncaID, path, title).ConfigureAwait(false);
             if (!completed) return false;
 
@@ -299,14 +304,14 @@ namespace SwitchManager.nx.cdn
                     byte[] hash = new SHA256Managed().ComputeHash(fs);
                     if (expectedHash.Length != hash.Length) // hash has to be 32 bytes = 256 bit
                     {
-                        Console.WriteLine($"Bad parsed hash file for {ncaID}, not the right length");
+                        logger.Error($"Bad parsed hash file for {ncaID}, not the right length");
                         return false;
                     }
                     for (int i = 0; i < hash.Length; i++)
                     {
                         if (hash[i] != expectedHash[i])
                         {
-                            Console.WriteLine($"Hash of downloaded NCA file does not match expected hash from CNMT content entry!");
+                            logger.Error($"Hash of downloaded NCA file does not match expected hash from CNMT content entry!");
                             return false;
                         }
                     }
@@ -430,7 +435,7 @@ namespace SwitchManager.nx.cdn
                 if (errors.Contains("Error: section 0 is corrupted!") ||
                     errors.Contains("Error: section 1 is corrupted!"))
                 {
-                    Console.WriteLine("NCA title key verification failed");
+                    logger.Error("NCA title key verification failed");
                     return false;
                 }
             }
@@ -439,7 +444,7 @@ namespace SwitchManager.nx.cdn
                 throw new Exception("Hactool decryption failed!", e);
             }
 
-            Console.WriteLine("NCA title key verification successful");
+            logger.Info("NCA title key verification successful");
             return true;
         }
 
@@ -471,7 +476,7 @@ namespace SwitchManager.nx.cdn
 
                 if (!result.Headers.Server.First().ToString().Equals("openresty/1.9.7.4")) // Completed download
                 {
-                    Console.WriteLine("Download complete, skipping: " + fpath);
+                    logger.Info("Download complete, skipping: " + fpath);
                     return true;
                 }
                 else if (result.Content.Headers.ContentRange == null) // CDN doesn't return a range if request >= filesize
@@ -487,17 +492,17 @@ namespace SwitchManager.nx.cdn
 
                 if (downloaded == expectedSize)
                 {
-                    Console.WriteLine("Download complete, skipping: " + fpath);
+                    logger.Info("Download complete, skipping: " + fpath);
                     return true;
                 }
                 else if (downloaded < expectedSize)
                 {
-                    Console.WriteLine("Resuming previous download: " + fpath);
+                    logger.Info("Resuming previous download: " + fpath);
                     fs = File.Open(fpath, FileMode.Append, FileAccess.Write);
                 }
                 else
                 {
-                    Console.WriteLine("Existing file is larger than it should be, restarting: " + fpath);
+                    logger.Warn("Existing file is larger than it should be, restarting: " + fpath);
                     downloaded = 0;
                     fs = File.Create(fpath);
                 }
@@ -926,9 +931,8 @@ namespace SwitchManager.nx.cdn
             {
                 var cnmtSize = Miscellaneous.GetFileSystemSize(cnmt.CnmtFilePath) ?? 0;
                 
-                string ticketPath = this.titleTicketPath, certPath = this.titleCertPath;
-                var ticketSize = Miscellaneous.GetFileSystemSize(ticketPath) ?? 0;
-                var certSize = Miscellaneous.GetFileSystemSize(certPath) ?? 0;
+                var ticketSize = this.titleTicketTemplateData?.Length ?? 0;
+                var certSize = this.titleCertTemplateData?.Length ?? 0;
 
                 string cnmtXml = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFilePath) + ".xml";
                 cnmt.GenerateXml(cnmtXml);
@@ -968,8 +972,10 @@ namespace SwitchManager.nx.cdn
 
                 files.Add(cnmt.CnmtFilePath); sizes.Add(cnmtSize);
                 files.Add(cnmtXml); sizes.Add(cnmtXmlSize);
-                files.Add(certPath); sizes.Add(certSize);
-                files.Add(ticketPath); sizes.Add(ticketSize);
+
+                string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
+                files.Add(titleDir + Path.DirectorySeparatorChar + rightsID + ".tik"); sizes.Add(certSize);
+                files.Add(titleDir + Path.DirectorySeparatorChar + rightsID + ".cert"); sizes.Add(ticketSize);
                 
                 // Extract the images and add their file names and sizes
                 if (controlPath != null)

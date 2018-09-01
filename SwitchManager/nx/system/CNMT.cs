@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using log4net;
+using Newtonsoft.Json.Linq;
 using SwitchManager.nx.library;
 using SwitchManager.util;
 using System;
@@ -20,6 +21,8 @@ namespace SwitchManager.nx.system
     [XmlRootAttribute("ContentMeta", Namespace = null, IsNullable = false)]
     public class CNMT : IDisposable
     {
+        private static readonly ILog logger = LogManager.GetLogger(typeof(CNMT));
+
         // below are XML attributes
         [XmlElement(ElementName = "Type")]
         public TitleType Type { get; set; }
@@ -310,7 +313,7 @@ namespace SwitchManager.nx.system
                 xmls.Serialize(writer, this, ns);
             }
 
-            Console.WriteLine("Generated XML file {0}!", Path.GetFileName(outFile));
+            logger.Info($"Generated XML file {Path.GetFileName(outFile)}!");
             return (outFile);
         }
 

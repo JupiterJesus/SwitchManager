@@ -8,6 +8,7 @@ using System.Globalization;
 using SwitchManager.util;
 using System.Threading.Tasks;
 using SwitchManager.io;
+using log4net;
 
 namespace SwitchManager.ui
 {
@@ -16,6 +17,8 @@ namespace SwitchManager.ui
     /// </summary>
     public partial class ProgressWindow : Window
     {
+        private static readonly ILog logger = LogManager.GetLogger(typeof(ProgressWindow));
+
         private SwitchLibrary library;
         private Dictionary<ProgressJob, JobTracker> jobs = new Dictionary<ProgressJob, JobTracker>();
 
@@ -83,29 +86,32 @@ namespace SwitchManager.ui
             {
                 string kind = dj is DownloadJob ? "download" : "file write";
                 if (job.ProgressCompleted == 0)
-                    Console.WriteLine($"Starting {kind} of size {Miscellaneous.ToFileSize(job.ExpectedSize)}, File: '{dj.FileName}'.");
+                    logger.Info($"Starting {kind} of size {Miscellaneous.ToFileSize(job.ExpectedSize)}, File: '{dj.FileName}'.");
                 else
-                    Console.WriteLine($"Resuming {kind} at {Miscellaneous.ToFileSize(job.ProgressCompleted)}/{Miscellaneous.ToFileSize(job.ExpectedSize)}, File: '{dj.FileName}'.");
+                    logger.Info($"Resuming {kind} at {Miscellaneous.ToFileSize(job.ProgressCompleted)}/{Miscellaneous.ToFileSize(job.ExpectedSize)}, File: '{dj.FileName}'.");
             }
             else
-                Console.WriteLine($"Starting job ['{job.JobName}'");
+                logger.Info($"Starting job '{job.JobName}'");
         }
 
         private void JobFinished(ProgressJob job)
         {
-            JobTracker dl = jobs[job];
+            JobTracker j = jobs[job];
 
             //downloads.Remove(download.FileName);
 
             Dispatcher?.InvokeOrExecute(async delegate
             {
-                while (dl.Container == null)
+                while (j.Container == null)
                     await Task.Delay(100);
-                DownloadsPanel.Children.Remove(dl.Container);
-                DownloadsPanel.Children.Insert(DownloadsPanel.Children.Count, dl.Container);
+                DownloadsPanel.Children.Remove(j.Container);
+                DownloadsPanel.Children.Insert(DownloadsPanel.Children.Count, j.Container);
             });
 
-            //Console.WriteLine($"Finished download, File: '{download.FileName}'.");
+            if (job is DownloadJob dl)
+                logger.Info($"Finished downloading file '{dl.FileName}'.");
+            else
+                logger.Info($"Finished task '{job.JobName}'.");
         }
 
         private void JobProgress(ProgressJob download, int progressSinceLast)
