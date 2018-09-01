@@ -88,8 +88,13 @@
             SelectionUnit="FullRow"
             SelectionMode="Single"
             CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeRows="False" CanUserSortColumns="True"
-            RowDetailsVisibilityChanged="DataGrid_RowDetailsVisibilityChanged"
-            >
+            RowDetailsVisibilityChanged="DataGrid_RowDetailsVisibilityChanged">
+      <DataGrid.RowStyle>
+        <Style TargetType="{x:Type DataGridRow}"  BasedOn="{StaticResource {x:Type DataGridRow}}">
+          <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridRow_PreviewMouseLeftButtonDown"/>
+        </Style>
+      </DataGrid.RowStyle>
+
       <DataGrid.Resources>
         <!-- The below triggers editing on mouseover, so that once you actually click you are already in editing mode - thus, single click editing -->
         <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">

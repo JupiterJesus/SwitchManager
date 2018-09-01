@@ -234,9 +234,23 @@ namespace SwitchManager
             uint version = title.BaseVersion;
 
             if (title.IsUpdate)
-                version = SelectedVersion ?? item.Title.LatestVersion ?? await library.Loader.GetLatestVersion(item.Title);
+            {
+                if (SelectedVersion.HasValue)
+                    version = SelectedVersion.Value;
+                else
+                {
+                    var update = title as SwitchUpdate;
+                    version = update.Version;
+                }
+            }
+            else if (title.IsGame)
+            {
+                version = SelectedVersion ?? title.LatestVersion ?? title.BaseVersion;
+            }
             else if (title.IsDLC)
-                version = await library.Loader.GetLatestVersion(title);
+            {
+                version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+            }
 
             DownloadOptions o = DLOption ?? DownloadOptions.BaseGameOnly;
 
@@ -766,7 +780,7 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = await library.Loader.GetLatestVersion(title);
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
 
                 switch (type)
                 {
@@ -811,7 +825,7 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = await library.Loader.GetLatestVersion(title);
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
 
                 switch (type)
                 {
@@ -859,7 +873,7 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = await library.Loader.GetLatestVersion(title);
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
 
                 switch (type)
                 {
@@ -1119,6 +1133,39 @@ namespace SwitchManager
             e.Handled = true;
         }
 
+        private void DataGridRow_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (!(sender is DataGridRow row)) return;
+
+            row.Focusable = true;
+            row.Focus();
+
+            if (row.Item is SwitchCollectionItem item)
+            {
+                if (item != null && item.Title != null)
+                {
+                    var title = item.Title;
+                    if (title.IsGame)
+                    {
+                        DLOption = DownloadOptions.BaseGameOnly;
+                    }
+                    else if (title.IsDLC)
+                    {
+                        DLOption = DownloadOptions.AllDLC;
+                    }
+                }
+            }
+            /*
+            var focusDirection = FocusNavigationDirection.Next;
+            var request = new TraversalRequest(focusDirection);
+            var elementWithFocus = Keyboard.FocusedElement as UIElement;
+            if (elementWithFocus != null)
+            {
+                elementWithFocus.MoveFocus(request);
+            }
+            */
+        }
+
         private async void DataGrid_RowDetailsVisibilityChanged(object sender, DataGridRowDetailsEventArgs e)
         {
             if (e?.DetailsElement?.IsVisible ?? false)
@@ -1132,15 +1179,7 @@ namespace SwitchManager
                     if (item != null && item.Title != null)
                     {
                         var title = item.Title;
-                        if (title.IsGame)
-                        {
-                            DLOption = DownloadOptions.BaseGameOnly;
-                        }
-                        else if (title.IsDLC)
-                        {
-                            DLOption = DownloadOptions.AllDLC;
-                        }
-
+                     
                         // If anything is null, or the blank image is used, get a new image
                         if (title.IsGame && (title.Icon == null || (!title.Icon.Equals(title.BoxArtUrl) && !File.Exists(title.Icon))))
                         {
@@ -1173,7 +1212,6 @@ namespace SwitchManager
                         }
                     }
                 }
-
             }
         }
 
@@ -1185,14 +1223,14 @@ namespace SwitchManager
                 if (!Directory.Exists(titledir))
                     Directory.CreateDirectory(titledir);
 
-                uint version = 0;
                 var title = item?.Title;
+                uint version = title.BaseVersion;
 
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = await library.Loader.GetLatestVersion(title);
-        
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+
                 var result = await library.Loader.GetTitleSize(item?.Title, version, titledir).ConfigureAwait(false);
                 item.Size = result;
             }
