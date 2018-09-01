@@ -66,22 +66,9 @@ namespace SwitchManager
             library = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory, Settings.Default.TempDirectory);
 
             downloadWindow = new ProgressWindow(library);
+            downloadWindow.Show();
 
             //library.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
-
-            this.metadataFile = Settings.Default.MetadataFile + ".xml";
-            try
-            {
-                MakeBackup(Settings.Default.NumMetadataBackups);
-                library.LoadMetadata(this.metadataFile).Wait();
-            }
-            catch (AggregateException e)
-            {
-                if (e.InnerException is CertificateDeniedException)
-                    MaterialMessageBox.ShowError("The current certificate was denied. You can view your library but you can't make any CDN requests.");
-                else
-                    MaterialMessageBox.ShowError("Error reading library metadata file, it will be recreated on exit or when you force save it.\nIf your library is empty, make sure to update title keys and scan your library to get a fresh start.");
-            }
 
             // WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN
             CollectionViewSource itemCollectionViewSource;
@@ -89,23 +76,6 @@ namespace SwitchManager
             itemCollectionViewSource.Source = library.Collection;
             //
 
-            // Add a filter to the datagrid based on text filtering and checkboxes
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
-            Predicate<object> datagridFilter = (o =>
-            {
-                SwitchCollectionItem i = o as SwitchCollectionItem;
-                return ((this.showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
-                       ((this.showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
-                       (!this.showFavoritesOnly || (i.IsFavorite)) &&
-                       (!this.showNewOnly || (i.State == SwitchCollectionState.New)) &&
-                       ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
-                       ((this.showNotOwned && (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
-                       ((this.showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
-                       (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
-            });
-            cv.Filter = datagridFilter;
-
-            SortGrid(1);
         }
 
         /// <summary>
@@ -136,7 +106,53 @@ namespace SwitchManager
             File.Copy(metadataFile, $"{metadataFile}.{nextIndex}");
         }
 
-        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        #region Window functions & events
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+
+            this.metadataFile = Settings.Default.MetadataFile + ".xml";
+            FileInfo fInfo = new FileInfo(metadataFile);
+            try
+            {
+                if (fInfo.Exists && fInfo.Length > 0)
+                {
+                    MakeBackup(Settings.Default.NumMetadataBackups);
+                    library.LoadMetadata(this.metadataFile);
+                    Task.Run(()=>library.UpdateVersions().ConfigureAwait(false));
+                }
+            }
+            catch (AggregateException ex)
+            {
+                if (ex.InnerException is CertificateDeniedException)
+                    ShowError("The current certificate was denied. You can view your library but you can't make any CDN requests.");
+                else
+                    ShowError("Error reading library metadata file, it will be recreated on exit or when you force save it.\nIf your library is empty, make sure to update title keys and scan your library to get a fresh start.");
+            }
+
+            // Add a filter to the datagrid based on text filtering and checkboxes
+            Dispatcher?.InvokeOrExecute(delegate
+            {
+                ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+                Predicate<object> datagridFilter = (o =>
+                {
+                    SwitchCollectionItem i = o as SwitchCollectionItem;
+                    return ((this.showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
+                           ((this.showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
+                           (!this.showFavoritesOnly || (i.IsFavorite)) &&
+                           (!this.showNewOnly || (i.State == SwitchCollectionState.New)) &&
+                           ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
+                           ((this.showNotOwned && (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
+                           ((this.showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
+                           (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
+                });
+                cv.Filter = datagridFilter;
+
+                SortGrid(1);
+            });
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
         {
             // Save window dimensions!
             if (WindowState == WindowState.Maximized)
@@ -203,6 +219,8 @@ namespace SwitchManager
             }
         }
 
+        #endregion
+
         #region Buttons and other controls on the datagrid
 
         private uint? SelectedVersion { get; set; }
@@ -266,19 +284,19 @@ namespace SwitchManager
                 }
                 catch (CertificateDeniedException)
                 {
-                    Application.Current.Dispatcher.Invoke(() => MaterialMessageBox.ShowError("Can't download because the certificate was denied."));
+                    ShowError("Can't download because the certificate was denied.");
                 }
-                catch (CnmtMissingException c)
+                catch (CnmtMissingException)
                 {
-                    Application.Current.Dispatcher.Invoke(() => MaterialMessageBox.ShowError("Can't download because we couldn't find the CNMT ID for the title"));
+                    ShowError("Can't download because we couldn't find the CNMT ID for the title");
                 }
                 catch (DownloadFailedException f)
                 {
-                    Application.Current.Dispatcher.Invoke(() => MaterialMessageBox.ShowError("Can't download because the download failed - " + f.Message));
+                    ShowError("Can't download because the download failed - " + f.Message);
                 }
                 catch (Exception e)
                 {
-                    Application.Current.Dispatcher.Invoke(() => MaterialMessageBox.ShowError("Can't download because of an unknown error - " + e.Message));
+                    ShowError("Can't download because of an unknown error - " + e.Message);
                 }
             });
         }
@@ -329,10 +347,11 @@ namespace SwitchManager
 
             if (cb.SelectedValue != null)
             {
-                uint v = (uint)cb.SelectedValue;
+                uint v = (uint)vcon.Convert(cb.SelectedValue, typeof(uint), null, CultureInfo.InvariantCulture);
                 SelectedVersion = v;
             }
         }
+        VersionsConverter vcon = new VersionsConverter();
 
         #endregion 
 
@@ -626,7 +645,7 @@ namespace SwitchManager
             }
             catch (CertificateDeniedException)
             {
-                MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
+                ShowError("Can't download because the certificate was denied.");
             }
         }
 
@@ -676,7 +695,7 @@ namespace SwitchManager
             }
             catch (CertificateDeniedException)
             {
-                MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
+                ShowError("Can't download because the certificate was denied.");
             }
         }
 
@@ -726,7 +745,7 @@ namespace SwitchManager
             }
             catch (CertificateDeniedException)
             {
-                MaterialMessageBox.ShowError("Can't download because the certificate was denied.");
+                ShowError("Can't download because the certificate was denied.");
             }
         }
 
@@ -889,28 +908,28 @@ namespace SwitchManager
             if (tempTkeys.Exists && tempTkeys.Length >= 0)
             {
                 Console.WriteLine("Successfully downloaded new title keys file");
-                var newTitles = await library.UpdateTitleKeysFile(tkeysFile).ConfigureAwait(false);
-                
-                Dispatcher.Invoke(delegate
+                var newTitles = library.UpdateTitleKeysFile(tkeysFile);
+
+                if (newTitles.Count > 0)
                 {
-                    if (newTitles.Count > 0)
-                    {
-                        // New titles to show you!
-                        var message = string.Join(Environment.NewLine, newTitles);
-                        ShowMessage(message, "New Title Keys Found!", "Awesome!");
-                    }
-                    else
-                    {
-                        ShowMessage("NO new titles found... :(", "Nothing new...", "Darn...");
-                    }
-                });
+                    // Update versions for the new titles!
+                    await library.UpdateVersions(newTitles);
+
+                    // New titles to show you!
+                    var message = string.Join(Environment.NewLine, newTitles);
+                    ShowMessage(message, "New Title Keys Found!", "Awesome!");
+                }
+                else
+                {
+                    ShowMessage("NO new titles found... :(", "Nothing new...", "Darn...");
+                }
             }
             else
             {
-                MaterialMessageBox.ShowError("Failed to download new title keys.");
+                ShowError("Failed to download new title keys.");
                 File.Delete(tkeysFile);
             }
-            Dispatcher.Invoke(()=> DataGrid_Collection.Items.Refresh());
+            Dispatcher?.InvokeOrExecute(()=> DataGrid_Collection.Items.Refresh());
         }
 
         private void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
@@ -933,7 +952,7 @@ namespace SwitchManager
             }
         }
 
-        private async void ImportGameInfo_Click(object sender, RoutedEventArgs e)
+        private void ImportGameInfo_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
             {
@@ -941,7 +960,7 @@ namespace SwitchManager
                 Filter = "Game Info (JSON) (*.json)|*.json|Gmae Info (XML) (*.xml)|*.xml|All Files (*.*)|*.*"
             };
 
-                Nullable<bool> result = dlg.ShowDialog();
+            Nullable<bool> result = dlg.ShowDialog();
             if (result == true)
             {
                 // Open document 
@@ -1015,25 +1034,35 @@ namespace SwitchManager
                         games = lib.Items;
                     }
 
-                    await library.LoadMetadata(games).ConfigureAwait(false);
+                    library.LoadMetadata(games);
+                    Task.Run(() => library.UpdateVersions().ConfigureAwait(false));
+                    ShowMessage("Imported game metadata.", "Finished");
                 }
             }
         }
 
+        private void ShowError(string text)
+        {
+            Dispatcher?.InvokeOrExecute(()=>MaterialMessageBox.ShowError(text));
+        }
+
         private void ShowMessage(string text, string title, string okButton = null, string cancel = null)
         {
-            var msg = new CustomMaterialMessageBox
+            Dispatcher?.InvokeOrExecute(delegate
             {
-                MainContentControl = { Background = Brushes.White },
-                TitleBackgroundPanel = { Background = Brushes.Black },
-                BorderBrush = Brushes.Black,
-                TxtMessage = { Text = text, Foreground = Brushes.Black },
-                TxtTitle = { Text = title, Foreground = Brushes.White },
-                BtnOk = { Content = okButton ?? "OK" },
-                BtnCancel = { Content = cancel ?? "Cancel", Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible},
-            };
-            msg.BtnOk.Focus();
-            msg.Show();
+                var msg = new CustomMaterialMessageBox
+                {
+                    MainContentControl = { Background = Brushes.White },
+                    TitleBackgroundPanel = { Background = Brushes.Black },
+                    BorderBrush = Brushes.Black,
+                    TxtMessage = { Text = text, Foreground = Brushes.Black },
+                    TxtTitle = { Text = title, Foreground = Brushes.White },
+                    BtnOk = { Content = okButton ?? "OK" },
+                    BtnCancel = { Content = cancel ?? "Cancel", Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible },
+                };
+                msg.BtnOk.Focus();
+                msg.Show();
+            });
         }
 
         private void ScanLibrary_Click(object sender, RoutedEventArgs e)
@@ -1047,7 +1076,7 @@ namespace SwitchManager
                     if (Directory.Exists(dialog.SelectedPath))
                     {
                         this.library.ScanRomsFolder(dialog.SelectedPath);
-                        MaterialMessageBox.Show("Library scan completed!", "Scan complete");
+                        ShowMessage("Library scan completed!", "Scan complete");
                     }
                 }
             }

@@ -55,7 +55,7 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "RatingContent")]
         public string RatingContent { get { return title?.RatingContent; } set { if (title != null) title.RatingContent = value; } }
 
-        [XmlElement(ElementName = "BoxArtUrl")]
+        [XmlElement(ElementName = "BoxArt")]
         public string BoxArtUrl { get { return title?.BoxArtUrl; } set { if (title != null) title.BoxArtUrl = value; } }
 
         [XmlElement(ElementName = "Category")]
@@ -81,6 +81,9 @@ namespace SwitchManager.nx.library
 
         [XmlElement(ElementName = "ReleaseDate")]
         public DateTime? ReleaseDate { get { return title?.ReleaseDate; } set { if (title != null) title.ReleaseDate = value; } }
+
+        [XmlElement(ElementName = "LatestVersion")]
+        public uint? LatestVersion { get { return title?.LatestVersion; } set { if (title != null) title.LatestVersion = value; } }
 
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State
@@ -159,10 +162,12 @@ namespace SwitchManager.nx.library
                 {
                     foreach (var update in game.Updates)
                     {
-                        var meta = new UpdateMetadataItem();
-                        meta.TitleID = update.TitleID;
-                        meta.TitleKey = update.TitleKey;
-                        meta.Version = update.Version;
+                        var meta = new UpdateMetadataItem
+                        {
+                            TitleID = update.TitleID,
+                            TitleKey = update.TitleKey,
+                            Version = update.Version
+                        };
                         updates.Add(meta);
                     }
                 }

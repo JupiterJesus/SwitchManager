@@ -8,7 +8,9 @@
         xmlns:ui="clr-namespace:SwitchManager.ui"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="Switch Library and CDN Downloader">
+        Title="Switch Library and CDN Downloader"
+        Loaded="Window_Loaded"
+        Closed="Window_Closed">
 
   <Window.Resources>
     <!-- WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN-->
@@ -18,7 +20,9 @@
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <ui:TextInputToVisibilityConverter x:Key="TextInputToVisibilityConverter" />
     <ui:FileSizeConverter x:Key="FileSizeConverter" />
-                             
+
+    <ui:VersionsConverter x:Key="VersionsConverter" />
+    
     <!-- This style is for displaying an title icon on a button for clicking to go to the eShop url -->
     <Style TargetType="{x:Type Button}" x:Key="ImageButtonStyle">
       <Setter Property="Template">
@@ -148,7 +152,7 @@
 
             <StackPanel Margin="20,10" Orientation="Vertical">
               <TextBlock Margin="5" FontSize="13" Text="Versions" />
-              <ComboBox Margin="5" ItemsSource="{Binding Path=Title.Versions, Mode=OneWay}" SelectedItem="{Binding Title.Versions[0]}" SelectionChanged="VersionChanged">
+              <ComboBox Margin="5" ItemsSource="{Binding Path=Title.Versions, Mode=OneWay, Converter={StaticResource VersionsConverter}}" SelectedIndex="0" SelectionChanged="VersionChanged">
               </ComboBox>
 
               <TextBlock Margin="5">What do you want to download?</TextBlock>

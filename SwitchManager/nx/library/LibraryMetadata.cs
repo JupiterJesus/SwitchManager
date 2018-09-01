@@ -26,6 +26,9 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Name")]
         public string Name { get; set; }
 
+        [XmlElement(ElementName = "LatestVersion")]
+        public uint? LatestVersion { get; set; }
+
         [XmlElement(ElementName = "Intro")]
         public string Intro { get; set; }
 

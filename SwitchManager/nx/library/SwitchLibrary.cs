@@ -110,7 +110,7 @@ namespace SwitchManager.nx.library
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal async Task LoadMetadata(string path)
+        internal void LoadMetadata(string path)
         {
             path = Path.GetFullPath(path);
 
@@ -127,7 +127,7 @@ namespace SwitchManager.nx.library
             using (FileStream fs = File.OpenRead(path))
                 metadata = xml.Deserialize(fs) as LibraryMetadata;
 
-            await LoadMetadata(metadata?.Items).ConfigureAwait(false);
+            LoadMetadata(metadata?.Items);
             Console.WriteLine($"Finished loading library metadata from {path}");
         }
 
@@ -135,21 +135,10 @@ namespace SwitchManager.nx.library
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal async Task LoadMetadata(IEnumerable<LibraryMetadataItem> metadata)
+        internal void LoadMetadata(IEnumerable<LibraryMetadataItem> metadata)
         {
             if (metadata != null)
             {
-                bool certDenied = false;
-                Dictionary<string, uint> versions = null;
-                try
-                {
-                    versions = await Loader.GetLatestVersions().ConfigureAwait(false);
-                }
-                catch (CertificateDeniedException)
-                {
-                    certDenied = true;
-                }
-
                 ProgressJob job = new ProgressJob("Load library data", metadata.Count(), 0);
                 job.Start();
 
@@ -158,7 +147,7 @@ namespace SwitchManager.nx.library
                     SwitchCollectionItem ci = GetTitleByID(item.TitleID);
                     if (ci == null)
                     {
-                        ci = LoadTitle(item.TitleID, item.TitleKey, item.Name, versions);
+                        ci = LoadTitle(item.TitleID, item.TitleKey, item.Name);
                     }
                     else
                     {
@@ -183,6 +172,9 @@ namespace SwitchManager.nx.library
 
                     // long?
                     if (item.Size.HasValue) ci.Size = item.Size;
+
+                    // uint?
+                    if (item.LatestVersion.HasValue) ci.LatestVersion = item.LatestVersion;
 
                     // bool?
                     if (item.IsFavorite.HasValue) ci.IsFavorite = item.IsFavorite.Value;
@@ -217,8 +209,6 @@ namespace SwitchManager.nx.library
                     job.UpdateProgress(1);
                 }
                 job.Finish();
-
-                if (certDenied) throw new CertificateDeniedException();
             }
         }
 
@@ -643,21 +633,9 @@ namespace SwitchManager.nx.library
         public static string BlankImage { get { return "blank.jpg"; } }
 
 
-        public async Task LoadTitleKeysFile(string filename)
+        public void LoadTitleKeysFile(string filename)
         {
             var lines = File.ReadLines(filename);
-            bool certDenied = false;
-
-            Dictionary<string, uint> versions = null;
-            try
-            {
-                versions = await Loader.GetLatestVersions().ConfigureAwait(false);
-            }
-            catch (CertificateDeniedException)
-            {
-                certDenied = true;
-            }
-
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
@@ -665,16 +643,13 @@ namespace SwitchManager.nx.library
                 string tkey = split[1]?.Trim()?.Substring(0, 32);
                 string name = split[2]?.Trim();
 
-                var item = LoadTitle(tid, tkey, name, versions);
+                var item = LoadTitle(tid, tkey, name);
             }
-
-            if (certDenied) throw new CertificateDeniedException();
         }
 
-        public async Task<ICollection<SwitchCollectionItem>> UpdateTitleKeysFile(string file)
+        public ICollection<SwitchCollectionItem> UpdateTitleKeysFile(string file)
         {
             var lines = File.ReadLines(file);
-            var versions = await Loader.GetLatestVersions().ConfigureAwait(false);
 
             var newTitles = new List<SwitchCollectionItem>();
             foreach (var line in lines)
@@ -698,7 +673,7 @@ namespace SwitchManager.nx.library
                         // New title!!
 
                         // A missing tkey can always be added in later
-                        item = LoadTitle(tid, tkey, name, versions);
+                        item = LoadTitle(tid, tkey, name);
 
                         // If the key is missing, mark it as such, otherwise it is a properly working New title
                         if (item.Title.IsTitleKeyValid)
@@ -734,7 +709,7 @@ namespace SwitchManager.nx.library
         /// <param name="name">The name of game or DLC</param>
         /// <param name="versions">The dictionary of all the latest versions for every game. Get this via the CDN.</param>
         /// <returns></returns>
-        private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, Dictionary<string,uint> versions)
+        private SwitchCollectionItem LoadTitle(string tid, string tkey, string name)
         {
             if (string.IsNullOrWhiteSpace(tid)) return null;
             else tid = tid.ToLower();
@@ -746,11 +721,6 @@ namespace SwitchManager.nx.library
             {
                 var item = NewGame(name, tid, tkey);
                 var game = item?.Title as SwitchGame;
-                if (versions != null && versions.ContainsKey(game.TitleID))
-                {
-                    uint v = versions[game.TitleID];
-                    game.LatestVersion = v;
-                }
 
                 AddTitle(item);
                 return item;
@@ -776,6 +746,50 @@ namespace SwitchManager.nx.library
                 // ?? huh ??
             }
             return null;
+        }
+
+        public async Task UpdateVersions()
+        {
+            await UpdateVersions(this.Collection).ConfigureAwait(false);
+        }
+
+        public async Task UpdateVersions(ICollection<SwitchCollectionItem> titles)
+        {
+            if (this.Collection == null || this.Loader == null) return;
+
+            Dictionary<string, uint> versions = null;
+            try
+            {
+                versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+                if (versions == null) return;
+
+                foreach (var i in this.Collection)
+                {
+                    var t = i.Title;
+                    if (versions.TryGetValue(t.TitleID, out uint ver))
+                    {
+                        UpdateVersion(t, ver);
+                    }
+                    else
+                    {
+                        ver = await Loader.GetLatestVersion(t).ConfigureAwait(false);
+                        UpdateVersion(t, ver);
+                    }
+                }
+            }
+            finally
+            {
+
+            }
+        }
+
+        public void UpdateVersion(SwitchTitle title, uint ver)
+        {
+            if (!title.LatestVersion.HasValue || ver > title.LatestVersion.Value)
+            {
+                title.LatestVersion = ver;
+                // TODO: move code that generates update titles here instead of inside the SwitchCollectionItem.Updates property
+            }
         }
 
         /// <summary>
