@@ -6,8 +6,8 @@ using System.Windows.Data;
 using SwitchManager.nx.library;
 using System.Globalization;
 using SwitchManager.util;
-using System.Diagnostics;
-using SwitchManager.nx.cdn;
+using System.Threading.Tasks;
+using SwitchManager.io;
 
 namespace SwitchManager.ui
 {
@@ -17,115 +17,127 @@ namespace SwitchManager.ui
     public partial class ProgressWindow : Window
     {
         private SwitchLibrary library;
-        private Dictionary<string, Download> downloads = new Dictionary<string, Download>();
+        private Dictionary<ProgressJob, JobTracker> jobs = new Dictionary<ProgressJob, JobTracker>();
 
         public ProgressWindow(SwitchLibrary library)
         {
             InitializeComponent();
             this.library = library;
             
-            library.Loader.DownloadStarted += Downloader_DownloadStarted;
-            library.Loader.DownloadProgress += Downloader_DownloadProgress;
-            library.Loader.DownloadFinished += Downloader_DownloadFinished;
+            ProgressJob.DownloadStarted += JobStarted;
+            //ProgressJob.DownloadProgress += JobProgress;
+            ProgressJob.DownloadFinished += JobFinished;
             
         }
 
         #region Download Progress
         
-        private void Downloader_DownloadStarted(DownloadTask download)
+        private void JobStarted(ProgressJob job)
         {
-            Download dl = new Download();
-            dl.Task = download;
-            downloads.Add(download.FileName, dl);
+            JobTracker tracker = new JobTracker { Job = job };
+            jobs.Add(job, tracker);
 
-            if (Application.Current != null)
-                Application.Current.Dispatcher.Invoke(delegate 
+            Dispatcher?.InvokeOrExecute(delegate 
+            {
+                // New progress bar
+                ProgressBar bar = new ProgressBar
                 {
-                    // New progress bar
-                    ProgressBar bar = new ProgressBar
-                    {
-                        Minimum=0, Maximum=download.ExpectedSize,
-                        Height=25, Name = $"ProgressBar_{downloads.Count - 1}",
-                    };
+                    Minimum=0, Maximum=job.ExpectedSize,
+                    Height=25, Name = $"ProgressBar_{jobs.Count - 1}",
+                };
                     
-                    // Bind the Progress value to the Value property
-                    bar.SetBinding(ProgressBar.ValueProperty, 
-                        new Binding("BytesDownloaded")
-                        {
-                            Source = download,
-                            Mode = BindingMode.OneWay,
-                            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                        });
-                    bar.MouseDoubleClick += (s, a) => download.Cancel();
-
-                    TextBlock t = new TextBlock
+                // Bind the Progress value to the Value property
+                bar.SetBinding(ProgressBar.ValueProperty, 
+                    new Binding("ProgressCompleted")
                     {
-                        Name = $"ProgressLabel_{downloads.Count - 1}",
-                    };
-                    t.SetBinding(TextBlock.TextProperty,
-                        new Binding("BytesDownloaded")
-                        {
-                            Source = download,
-                            Mode = BindingMode.OneWay,
-                            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                            Converter = new DownloadProgressTextConverter(download)
-                        });
+                        Source = job,
+                        Mode = BindingMode.OneWay,
+                        UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+                    });
+                bar.MouseDoubleClick += (s, a) => job.Cancel();
 
-                    dl.Container = new StackPanel ();
-                    dl.Container.Children.Add(bar);
-                    dl.Container.Children.Add(t);
-                    dl.Container.UpdateLayout();
+                TextBlock t = new TextBlock
+                {
+                    Name = $"ProgressLabel_{jobs.Count - 1}",
+                };
+                t.SetBinding(TextBlock.TextProperty,
+                    new Binding("ProgressSinceLastUpdate")
+                    {
+                        Source = job,
+                        Mode = BindingMode.OneWay,
+                        UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+                        Converter = new DownloadProgressTextConverter(job)
+                    });
 
-                    DownloadsPanel.Children.Insert(0, dl.Container);
-                    DownloadsPanel.ScrollOwner?.ScrollToTop();
-                    DownloadsPanel.UpdateLayout();
-                });
+                tracker.Container = new StackPanel ();
+                tracker.Container.Children.Add(bar);
+                tracker.Container.Children.Add(t);
+                tracker.Container.UpdateLayout();
 
-            if (download.BytesDownloaded == 0)
-                Console.WriteLine($"Starting download of size {Miscellaneous.ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
+                DownloadsPanel.Children.Insert(0, tracker.Container);
+                DownloadsPanel.ScrollOwner?.ScrollToTop();
+                DownloadsPanel.UpdateLayout();
+            });
+
+            if (job is FileWriteJob dj)
+            {
+                string kind = dj is DownloadJob ? "download" : "file write";
+                if (job.ProgressCompleted == 0)
+                    Console.WriteLine($"Starting {kind} of size {Miscellaneous.ToFileSize(job.ExpectedSize)}, File: '{dj.FileName}'.");
+                else
+                    Console.WriteLine($"Resuming {kind} at {Miscellaneous.ToFileSize(job.ProgressCompleted)}/{Miscellaneous.ToFileSize(job.ExpectedSize)}, File: '{dj.FileName}'.");
+            }
             else
-                Console.WriteLine($"Resuming download at {Miscellaneous.ToFileSize(download.BytesDownloaded)}/{Miscellaneous.ToFileSize(download.ExpectedSize)}, File: '{download.FileName}'.");
+                Console.WriteLine($"Starting job ['{job.JobName}'");
         }
 
-        private void Downloader_DownloadFinished(DownloadTask download)
+        private void JobFinished(ProgressJob job)
         {
-            Download dl = downloads[download.FileName];
+            JobTracker dl = jobs[job];
+
             //downloads.Remove(download.FileName);
 
-            if (Application.Current != null)
-                Application.Current.Dispatcher.Invoke(delegate
-                {
-                    DownloadsPanel.Children.Remove(dl.Container);
-                    DownloadsPanel.Children.Insert(DownloadsPanel.Children.Count, dl.Container);
-                });
+            Dispatcher?.InvokeOrExecute(async delegate
+            {
+                while (dl.Container == null)
+                    await Task.Delay(100);
+                DownloadsPanel.Children.Remove(dl.Container);
+                DownloadsPanel.Children.Insert(DownloadsPanel.Children.Count, dl.Container);
+            });
 
             //Console.WriteLine($"Finished download, File: '{download.FileName}'.");
         }
 
-        private void Downloader_DownloadProgress(DownloadTask download, int progressSinceLast)
+        private void JobProgress(ProgressJob download, int progressSinceLast)
         {
             //Download dl = downloads[download.FileName];
         }
 
         #endregion
-        private class Download
+
+        #region JobTracker (helper for tracking jobs)
+
+        private struct JobTracker
         {
-            internal DownloadTask Task { get; set; }
-            internal Panel Container { get; set; }
+            public ProgressJob Job { get; set; }
+            public Panel Container { get; set; }
         }
+
+        #endregion
 
         private void Button_Clear_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var d in downloads)
+            foreach (var d in jobs.Values)
             {
-                if (d.Value.Task.IsComplete)
+                if (d.Job.IsComplete)
                 {
-                    downloads.Remove(d.Key);
-                    if (Application.Current != null && d.Value.Container != null)
-                        Application.Current.Dispatcher.Invoke(delegate
-                        {
-                             DownloadsPanel.Children.Remove(d.Value.Container);
-                        });
+                    jobs.Remove(d.Job);
+                    Dispatcher?.InvokeOrExecute(async delegate
+                    {
+                        while (d.Container == null)
+                            await Task.Delay(100);
+                        DownloadsPanel.Children.Remove(d.Container);
+                    });
                 }
             }
         }
@@ -133,40 +145,49 @@ namespace SwitchManager.ui
 
     public class DownloadProgressTextConverter : IValueConverter
     {
-        private Stopwatch clock = new Stopwatch();
         private DateTime completed;
 
-        DownloadTask download = null;
-        public DownloadProgressTextConverter(DownloadTask download)
+        ProgressJob job = null;
+        public DownloadProgressTextConverter(ProgressJob job)
         {
-            this.download = download;
-            this.clock.Restart();
+            this.job = job;
         }
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            string name = download?.Title?.Name;
-            if (name == null) name = ""; else name = name + "\n";
+            long progressSinceLast = (long)value; 
 
-            long progress = (long)value; 
-
-            if (progress == download.ExpectedSize)
+            if (job.IsComplete)
             {
                 if (this.completed == default(DateTime)) // bugfix, it cant be null it is a value type apparently, so always would say min-value 1/1/0001 if you check against null
                     this.completed = DateTime.Now;
 
-                return $"{name}{download.FileName}\nCompleted on {this.completed.ToLongDateString()}";
+                if (job is FileWriteJob dj)
+                    return $"{dj.JobName}\n{dj.FileName}\nCompleted on {this.completed.ToLongDateString()}";
+                else
+                    return $"Task \"{job.JobName}\" finished! Completed on {this.completed.ToLongDateString()}";
             }
-            else if (progress > 0)
+            else if (job.ProgressCompleted > 0)
             {
-                double speed = ((double)progress / clock.Elapsed.TotalSeconds);
-                double remainingSeconds = download.BytesLeft / speed;
+                if (job is FileWriteJob dj)
+                {
+                    double speed = 0;// job.ProgressSpeed;
 
-                DateTime time = DateTime.Now.AddSeconds(remainingSeconds);
-                return $"{name}{download.FileName}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(download.ExpectedSize)}  -  {Miscellaneous.ToFileSize(speed)} / sec (avg) - Complete on {time.ToLongTimeString()}\nDouble-click progress bar to cancel";    
+                    string ts = speed == 0 ? "Unknown Date" : DateTime.Now.AddSeconds(job.ProgressRemaining / speed).ToLongDateString();
+
+                    return $"{dj.JobName}\n{dj.FileName}\n{Miscellaneous.ToFileSize(job.ProgressCompleted)} / {Miscellaneous.ToFileSize(job.ExpectedSize)}  -  {Miscellaneous.ToFileSize(speed)} / sec (avg) - Complete on {ts}\nDouble-click progress bar to cancel";
+                }
+                else
+                {
+                    double percent = job.PercentCompleted;
+                    return $"Task \"{job.JobName}\" is {percent:P1} complete.";
+                }
             }
             else
             {
-                return $"{name}{download.FileName}\n{Miscellaneous.ToFileSize(progress)} / {Miscellaneous.ToFileSize(download.ExpectedSize)}\nDouble-click progress bar to cancel";
+                if (job is FileWriteJob dj)
+                    return $"{dj.JobName}\n{dj.FileName}\n{Miscellaneous.ToFileSize(job.ProgressCompleted)} / {Miscellaneous.ToFileSize(job.ExpectedSize)}\nDouble-click progress bar to cancel";
+                else
+                   return $"Task \"{job.JobName}\" is starting.";
             }
 
         }

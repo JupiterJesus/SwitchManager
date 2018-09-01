@@ -14,6 +14,7 @@ using SwitchManager.util;
 using System.Security.Cryptography;
 using SwitchManager.nx.system;
 using System.Text;
+using SwitchManager.io;
 
 namespace SwitchManager.nx.cdn
 {
@@ -319,7 +320,7 @@ namespace SwitchManager.nx.cdn
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
 
-            return await DownloadFile(url, path, title).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
+            return await DownloadFile(url, path, title?.Name).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
         }
 
         /// <summary>
@@ -454,7 +455,7 @@ namespace SwitchManager.nx.cdn
         /// </summary>
         /// <param name="url"></param>
         /// <param name="fpath"></param>
-        public async Task<bool> DownloadFile(string url, string fpath, SwitchTitle title = null)
+        public async Task<bool> DownloadFile(string url, string fpath, string jobName = null)
         {
             var finfo = new FileInfo(fpath);
             long downloaded = 0;
@@ -524,7 +525,7 @@ namespace SwitchManager.nx.cdn
             // The thing that calls DownloadFile either uses "await" to wait for it to finish or it can 
             // collect tasks somewhere until they're done. Right? I don't actually know
 
-            bool completed = await StartDownload(fs, result, expectedSize, downloaded, title).ConfigureAwait(false);
+            bool completed = await StartDownload(fs, result, expectedSize, downloaded, jobName).ConfigureAwait(false);
 
             fs.Dispose();
             result.Dispose();
@@ -538,12 +539,6 @@ namespace SwitchManager.nx.cdn
             return completed;
         }
 
-        public delegate void DownloadDelegate(DownloadTask download);
-        public delegate void DownloadProgressDelegate(DownloadTask download, int progress);
-        public event DownloadDelegate DownloadStarted;
-        public event DownloadProgressDelegate DownloadProgress;
-        public event DownloadDelegate DownloadFinished;
-
         /// <summary>
         /// Starts an async file download, which downloads the file in chunks and reports progress, as well
         /// as the start and end of the download.
@@ -552,16 +547,12 @@ namespace SwitchManager.nx.cdn
         /// <param name="result"></param>
         /// <param name="expectedSize"></param>
         /// <returns>true if the download completed and false if it was cancelled</returns>
-        private async Task<bool> StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize, long startingSize = 0, SwitchTitle title = null)
+        private async Task<bool> StartDownload(FileStream fileStream, HttpResponseMessage result, long expectedSize, long startingSize = 0, string jobName = null)
         {
             using (Stream remoteStream = await result.Content.ReadAsStreamAsync().ConfigureAwait(false))
             {
-                DownloadTask download = new DownloadTask(remoteStream, fileStream, expectedSize, startingSize)
-                {
-                    Title = title
-                };
-
-                DownloadStarted?.Invoke(download);
+                DownloadJob job = new DownloadJob(remoteStream, fileStream, jobName, expectedSize, startingSize);
+                job.Start();
 
                 byte[] buffer = new byte[this.DownloadBuffer];
                 while (true)
@@ -569,24 +560,22 @@ namespace SwitchManager.nx.cdn
                     // Read from the web.
                     int n = await remoteStream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
 
-                    if (n == 0 || download.IsCanceled)
+                    if (n == 0 || job.IsCancelled)
                     {
                         // There is nothing else to read.
                         break;
                     }
 
                     // Report progress.
-                    download.UpdateProgress(n);
-
-                    DownloadProgress?.Invoke(download, n);
+                    job.UpdateProgress(n);
 
                     // Write to file.
                     fileStream.Write(buffer, 0, n);
                 }
-                DownloadFinished?.Invoke(download);
+                job.Finish();
                 fileStream.Flush();
 
-                return !download.IsCanceled;
+                return !job.IsCancelled;
             }
         }
 
@@ -879,7 +868,7 @@ namespace SwitchManager.nx.cdn
         public async Task<EshopLogin> EshopLogin()
         {
             string clientId = "93af0acb26258de9"; // whats this? device id or different?
-            string clientId2 = "81333c548b2e876d";
+            //string clientId2 = "81333c548b2e876d";
 
             string challengeUrl = $"https://dauth-{environment}.ndas.srv.nintendo.net/v3-59ed5fa1c25bb2aea8c4d73d74b919a94d89ed48d6865b728f63547943b17404/challenge";
             string deviceAuthTokenUrl = $"https://dauth-{environment}.ndas.srv.nintendo.net/v3-59ed5fa1c25bb2aea8c4d73d74b919a94d89ed48d6865b728f63547943b17404/device_auth_token";

@@ -104,11 +104,13 @@
     <Compile Include="nx\cdn\DownloadFailedException.cs" />
     <Compile Include="nx\cdn\EshopLogin.cs" />
     <Compile Include="nx\cdn\HactoolFailedException.cs" />
+    <Compile Include="io\JobFileStream.cs" />
     <Compile Include="nx\system\NACP.cs" />
     <Compile Include="nx\system\SwitchLanguage.cs" />
     <Compile Include="nx\system\SwitchDLC.cs" />
     <Compile Include="nx\system\SwitchUpdate.cs" />
     <Compile Include="nx\system\SwitchGame.cs" />
+    <Compile Include="ui\VersionsConverter.cs" />
     <Compile Include="ui\WindowBehavior.cs" />
     <Compile Include="ui\DownloadMethod.cs" />
     <Compile Include="ui\TextInputWindow.xaml.cs">
@@ -125,6 +127,7 @@
     <Compile Include="ui\FileSizeConverter.cs" />
     <Compile Include="ui\TextInputToVisibilityConverter.cs" />
     <Compile Include="util\Crypto.cs" />
+    <Compile Include="io\FileCopyJob.cs" />
     <Compile Include="util\Extensions.cs" />
     <Compile Include="util\Miscellaneous.cs" />
     <Page Include="ui\TextInputWindow.xaml">
@@ -155,7 +158,8 @@
   <ItemGroup>
     <Compile Include="nx\system\CNMTContentEntry.cs" />
     <Compile Include="nx\system\CNMTMetaEntry.cs" />
-    <Compile Include="nx\cdn\DownloadTask.cs" />
+    <Compile Include="io\DownloadJob.cs" />
+    <Compile Include="io\ProgressJob.cs" />
     <Compile Include="nx\system\NCAType.cs" />
     <Compile Include="nx\system\NSP.cs" />
     <Compile Include="nx\system\TitleTicket.cs" />
@@ -164,7 +168,7 @@
     <Compile Include="nx\library\LibraryMetadata.cs" />
     <Compile Include="nx\library\SwitchLibrary.cs" />
     <Compile Include="nx\library\SwitchCollectionItem.cs" />
-    <Compile Include="nx\library\SwitchTitleCollection.cs" />
+    <Compile Include="util\ObservableList.cs" />
     <Compile Include="nx\library\SwitchTitleType.cs" />
     <Compile Include="nx\library\SwitchCollectionState.cs" />
     <Compile Include="nx\system\SwitchTitle.cs" />
@@ -188,13 +192,17 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="certs\ca-certificates.crt" />
-    <None Include="certs\Certificate.cert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <AdditionalFiles Include="certs\Certificate.cert">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </AdditionalFiles>
     <None Include="certs\client-cert.cert" />
     <None Include="certs\client-pkey.pem" />
-    <None Include="certs\client.pfx" />
-    <None Include="certs\eshop.pfx" />
+    <AdditionalFiles Include="certs\client.pfx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </AdditionalFiles>
+    <AdditionalFiles Include="certs\eshop.pfx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </AdditionalFiles>
     <None Include="certs\nx_tls_client_cert.pem" />
     <None Include="certs\eshop-pkey.pem" />
     <None Include="certs\ShopN.p12" />
@@ -204,10 +212,12 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <None Include="certs\eshop-cert.cert" />
-    <None Include="certs\Ticket.tik">
+    <AdditionalFiles Include="certs\Ticket.tik">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </AdditionalFiles>
+    <Content Include="README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="README.md" />
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
@@ -215,7 +225,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="hactool\hactool.exe" />
+    <Content Include="hactool\hactool.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Resource Include="TODO.txt" />
     <None Include="Images\0100000000010000.jpg" />
     <None Include="Images\01000040098e4000.jpg" />
@@ -968,13 +980,27 @@
     <None Include="Images\0100ff60051e2000.jpg" />
     <None Include="Images\0100ff8005eb2000.jpg" />
     <None Include="Images\0100ff9003f10000.jpg" />
-    <Resource Include="blank.jpg" />
-    <Resource Include="hactool\keys.txt" />
-    <Content Include="hactool\libmbedcrypto.dll" />
-    <Content Include="hactool\libmbedtls.dll" />
-    <Content Include="hactool\libmbedx509.dll" />
-    <Content Include="hactool\Newtonsoft.Json.dll" />
-    <Resource Include="hactool\Newtonsoft.Json.xml" />
+    <Content Include="blank.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="hactool\keys.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="hactool\libmbedcrypto.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="hactool\libmbedtls.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="hactool\libmbedx509.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="hactool\Newtonsoft.Json.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="hactool\Newtonsoft.Json.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
