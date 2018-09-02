@@ -88,8 +88,7 @@
             SelectionUnit="FullRow"
             SelectionMode="Single"
             CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeRows="False" CanUserSortColumns="True"
-            RowDetailsVisibilityChanged="DataGrid_RowDetailsVisibilityChanged" 
-            SelectionChanged="DataGrid_Collection_SelectionChanged">
+            RowDetailsVisibilityChanged="DataGrid_RowDetailsVisibilityChanged">
 
       <DataGrid.Resources>
         <!-- The below triggers editing on mouseover, so that once you actually click you are already in editing mode - thus, single click editing -->
@@ -157,7 +156,7 @@
               </ComboBox>
 
               <TextBlock Margin="5">What do you want to download?</TextBlock>
-              <ComboBox Margin="5" ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:DownloadOptions}}}" DataContext="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type Window}}}" SelectedItem="{Binding DLOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsSynchronizedWithCurrentItem="True"/>
+              <ComboBox Margin="5" ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:DownloadOptions}}}" DataContext="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type Window}}}" SelectedItem="{Binding DownloadOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsSynchronizedWithCurrentItem="True"/>
               <Button Margin="5" x:Name="Button_Download" Click="Download_Click">Download Title</Button>
 
             </StackPanel>

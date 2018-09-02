@@ -27,7 +27,7 @@ namespace SwitchManager
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private static readonly ILog logger = LogManager.GetLogger(typeof(MainWindow));
 
@@ -227,7 +227,12 @@ namespace SwitchManager
         #region Buttons and other controls on the datagrid
 
         private uint? SelectedVersion { get; set; }
-        public DownloadOptions? DLOption { get; set; }
+        private DownloadOptions? dloption;
+        public DownloadOptions? DownloadOption
+        {
+            get { return dloption; }
+            set { dloption = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("DownloadOption")); }
+        }
          
         private async void Download_Click(object sender, RoutedEventArgs e)
         {
@@ -255,7 +260,7 @@ namespace SwitchManager
                 version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
             }
 
-            DownloadOptions o = DLOption ?? DownloadOptions.BaseGameOnly;
+            DownloadOptions o = DownloadOption ?? DownloadOptions.BaseGameOnly;
 
             DoThreadedDownload(item, version, o);
         }
@@ -382,6 +387,8 @@ namespace SwitchManager
         private bool showOwned = true;
         private bool showNotOwned = true;
         private bool showHidden = false;
+
+        public event PropertyChangedEventHandler PropertyChanged;
 
         private void SortGrid(int columnIndex, ListSortDirection sortDirection = ListSortDirection.Ascending)
         {
@@ -1145,13 +1152,13 @@ namespace SwitchManager
                 if (item != null && item.Title != null)
                 {
                     var title = item.Title;
-                    if (title.IsGame)
+                    if (title.IsGame && (!DownloadOption.HasValue || DownloadOption == DownloadOptions.AllDLC))
                     {
-                        DLOption = DownloadOptions.BaseGameOnly;
+                        DownloadOption = DownloadOptions.BaseGameOnly;
                     }
                     else if (title.IsDLC)
                     {
-                        DLOption = DownloadOptions.AllDLC;
+                        DownloadOption = DownloadOptions.AllDLC;
                     }
                 }
             }
@@ -1166,6 +1173,18 @@ namespace SwitchManager
                 if (item != null && item.Title != null)
                 {
                     var title = item.Title;
+
+                    if (item != null && item.Title != null)
+                    {
+                        if (title.IsGame)
+                        {
+                            DownloadOption = DownloadOptions.BaseGameOnly;
+                        }
+                        else if (title.IsDLC)
+                        {
+                            DownloadOption = DownloadOptions.AllDLC;
+                        }
+                    }
 
                     // If anything is null, or the blank image is used, get a new image
                     if (title.IsGame && (title.Icon == null || (!title.Icon.Equals(title.BoxArtUrl) && !File.Exists(title.Icon))))
