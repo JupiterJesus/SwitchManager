@@ -49,9 +49,6 @@ namespace SwitchManager
             {
                 WindowState = WindowState.Maximized;
             }
-
-            //downloadWindow.Closing += this.Downloads_Closing;
-
             EshopDownloader downloader = new EshopDownloader(Settings.Default.ClientCertPath,
                                                          Settings.Default.EShopCertPath,
                                                          Properties.Resources.TitleCertTemplate,
@@ -78,6 +75,9 @@ namespace SwitchManager
             itemCollectionViewSource = (CollectionViewSource)(FindResource("ItemCollectionViewSource"));
             itemCollectionViewSource.Source = library.Collection;
             //
+
+
+            //downloadWindow.Closing += this.Downloads_Closing;
 
         }
 
@@ -111,9 +111,8 @@ namespace SwitchManager
 
         #region Window functions & events
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
-
             this.metadataFile = Settings.Default.MetadataFile + ".xml";
             FileInfo fInfo = new FileInfo(metadataFile);
             try
@@ -121,8 +120,8 @@ namespace SwitchManager
                 if (fInfo.Exists && fInfo.Length > 0)
                 {
                     MakeBackup(Settings.Default.NumMetadataBackups);
-                    library.LoadMetadata(this.metadataFile);
-                    Task.Run(()=>library.UpdateVersions().ConfigureAwait(false));
+                    await library.LoadMetadata(this.metadataFile);
+                    Task t = Task.Run(()=>library.UpdateVersions().ConfigureAwait(false));
                 }
             }
             catch (AggregateException ex)
@@ -134,25 +133,22 @@ namespace SwitchManager
             }
 
             // Add a filter to the datagrid based on text filtering and checkboxes
-            Dispatcher?.InvokeOrExecute(delegate
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
+            Predicate<object> datagridFilter = (o =>
             {
-                ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
-                Predicate<object> datagridFilter = (o =>
-                {
-                    SwitchCollectionItem i = o as SwitchCollectionItem;
-                    return ((this.showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
-                           ((this.showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
-                           (!this.showFavoritesOnly || (i.IsFavorite)) &&
-                           (!this.showNewOnly || (i.State == SwitchCollectionState.New)) &&
-                           ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
-                           ((this.showNotOwned && (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
-                           ((this.showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
-                           (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
-                });
-                cv.Filter = datagridFilter;
-
-                SortGrid(1);
+                SwitchCollectionItem i = o as SwitchCollectionItem;
+                return ((this.showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
+                        ((this.showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
+                        (!this.showFavoritesOnly || (i.IsFavorite)) &&
+                        (!this.showNewOnly || (i.State == SwitchCollectionState.New)) &&
+                        ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
+                        ((this.showNotOwned && (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
+                        ((this.showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
+                        (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
             });
+            cv.Filter = datagridFilter;
+
+            SortGrid(1);
         }
 
         private void Window_Closed(object sender, EventArgs e)
@@ -233,7 +229,7 @@ namespace SwitchManager
             get { return dloption; }
             set { dloption = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("DownloadOption")); }
         }
-         
+        
         private async void Download_Click(object sender, RoutedEventArgs e)
         {
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
@@ -302,7 +298,7 @@ namespace SwitchManager
             {
                 try
                 {
-                    await DoDownload(item, ver, o);
+                    await DoDownload(item, ver, o).ConfigureAwait(false);
                 }
                 catch (CertificateDeniedException)
                 {
@@ -325,7 +321,7 @@ namespace SwitchManager
 
         private async Task DoDownload(SwitchCollectionItem item, uint v, DownloadOptions o)
         {
-            await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
+            await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads).ConfigureAwait(false);
         }
 
         private void RemoveTitle_Click(object sender, RoutedEventArgs e)
@@ -519,10 +515,10 @@ namespace SwitchManager
 
             using (var client = new WebClient())
             {
-                client.DownloadFile(new Uri(Settings.Default.TitleKeysURL), tempTkeysFile);
+                await client.DownloadFileTaskAsync(new Uri(Settings.Default.TitleKeysURL), tempTkeysFile);
             }
 
-            await LoadTitleKeys(tempTkeysFile).ConfigureAwait(false);
+            await LoadTitleKeys(tempTkeysFile);
             File.Delete(tempTkeysFile);
         }
 
@@ -541,7 +537,7 @@ namespace SwitchManager
             {
                 // Open document 
                 string filename = dlg.FileName;
-                await LoadTitleKeys(filename).ConfigureAwait(false);
+                await LoadTitleKeys(filename);
             }
         }
 
@@ -555,7 +551,7 @@ namespace SwitchManager
                 string keys = win.ResponseText;
                 string temp = Settings.Default.TitleKeysFile + ".tmp";
                 File.WriteAllText(temp, keys);
-                await LoadTitleKeys(temp).ConfigureAwait(false);
+                await LoadTitleKeys(temp);
                 File.Delete(temp);
             }
         }
@@ -575,7 +571,7 @@ namespace SwitchManager
 
             Task.Run(delegate
             {
-                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).ToList().ForEach(async t => await UpdateSize(t));
+                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).ToList().ForEach(async t => await UpdateSize(t).ConfigureAwait(false));
             });
             //Parallel.ForEach(this.library.Collection, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async t => await UpdateSize(t).ConfigureAwait(false));
         }
@@ -585,7 +581,7 @@ namespace SwitchManager
             // Just like regular estimate sizes, but force updates any that don't have a filename
             Task.Run(delegate
             {
-                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && string.IsNullOrWhiteSpace(t.RomPath)).ToList().ForEach(async t => await UpdateSize(t));
+                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && string.IsNullOrWhiteSpace(t.RomPath)).ToList().ForEach(async t => await UpdateSize(t).ConfigureAwait(false));
             });
         }
 
@@ -790,7 +786,7 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title).ConfigureAwait(false)) ?? title.BaseVersion;
 
                 switch (type)
                 {
@@ -835,7 +831,7 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title).ConfigureAwait(false)) ?? title.BaseVersion;
 
                 switch (type)
                 {
@@ -883,7 +879,7 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title).ConfigureAwait(false)) ?? title.BaseVersion;
 
                 switch (type)
                 {
@@ -953,7 +949,7 @@ namespace SwitchManager
                 ShowError("Failed to download new title keys.");
                 File.Delete(tkeysFile);
             }
-            Dispatcher?.InvokeOrExecute(()=> DataGrid_Collection.Items.Refresh());
+            DataGrid_Collection.Items.Refresh();
         }
 
         private void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
@@ -976,7 +972,7 @@ namespace SwitchManager
             }
         }
 
-        private void ImportGameInfo_Click(object sender, RoutedEventArgs e)
+        private async void ImportGameInfo_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
             {
@@ -1058,8 +1054,8 @@ namespace SwitchManager
                         games = lib.Items;
                     }
 
-                    library.LoadMetadata(games);
-                    Task.Run(() => library.UpdateVersions().ConfigureAwait(false));
+                    await library.LoadMetadata(games);
+                    Task t = Task.Run(() => library.UpdateVersions().ConfigureAwait(false));
                     ShowMessage("Imported game metadata.", "Finished");
                 }
             }
@@ -1067,26 +1063,23 @@ namespace SwitchManager
 
         private void ShowError(string text)
         {
-            Dispatcher?.InvokeOrExecute(()=>MaterialMessageBox.ShowError(text));
+            MaterialMessageBox.ShowError(text);
         }
 
         private void ShowMessage(string text, string title, string okButton = null, string cancel = null)
         {
-            Dispatcher?.InvokeOrExecute(delegate
+            var msg = new CustomMaterialMessageBox
             {
-                var msg = new CustomMaterialMessageBox
-                {
-                    MainContentControl = { Background = Brushes.White },
-                    TitleBackgroundPanel = { Background = Brushes.Black },
-                    BorderBrush = Brushes.Black,
-                    TxtMessage = { Text = text, Foreground = Brushes.Black },
-                    TxtTitle = { Text = title, Foreground = Brushes.White },
-                    BtnOk = { Content = okButton ?? "OK" },
-                    BtnCancel = { Content = cancel ?? "Cancel", Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible },
-                };
-                msg.BtnOk.Focus();
-                msg.Show();
-            });
+                MainContentControl = { Background = Brushes.White },
+                TitleBackgroundPanel = { Background = Brushes.Black },
+                BorderBrush = Brushes.Black,
+                TxtMessage = { Text = text, Foreground = Brushes.Black },
+                TxtTitle = { Text = title, Foreground = Brushes.White },
+                BtnOk = { Content = okButton ?? "OK" },
+                BtnCancel = { Content = cancel ?? "Cancel", Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible },
+            };
+            msg.BtnOk.Focus();
+            msg.Show();
         }
 
         private void ScanLibrary_Click(object sender, RoutedEventArgs e)
@@ -1214,7 +1207,7 @@ namespace SwitchManager
 
                     if ((item.Size ?? 0) == 0)
                     {
-                        await UpdateSize(item).ConfigureAwait(false);
+                        await UpdateSize(item);
                     }
                 }
             }
@@ -1234,7 +1227,7 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title).ConfigureAwait(false)) ?? title.BaseVersion;
 
                 var result = await library.Loader.GetTitleSize(item?.Title, version, titledir).ConfigureAwait(false);
                 item.Size = result;

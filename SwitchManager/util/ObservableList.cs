@@ -144,5 +144,10 @@ namespace SwitchManager.util
         }
 
         #endregion
+
+        public void Sort()
+        {
+            if (list != null) list.Sort();
+        }
     }
 }

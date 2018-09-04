@@ -6,9 +6,9 @@ using System.Windows.Data;
 using SwitchManager.nx.library;
 using System.Globalization;
 using SwitchManager.util;
-using System.Threading.Tasks;
 using SwitchManager.io;
 using log4net;
+using System.Linq;
 
 namespace SwitchManager.ui
 {
@@ -40,13 +40,15 @@ namespace SwitchManager.ui
             JobTracker tracker = new JobTracker { Job = job };
             jobs.Add(job, tracker);
 
-            Dispatcher?.InvokeOrExecute(delegate 
+            Dispatcher?.InvokeOrExecute(delegate
             {
+                var p = new StackPanel();
+                tracker.Container = p;
+
                 // New progress bar
                 ProgressBar bar = new ProgressBar
                 {
-                    Minimum=0, Maximum=job.ExpectedSize,
-                    Height=25, Name = $"ProgressBar_{jobs.Count - 1}",
+                    Minimum=0, Maximum=job.ExpectedSize, Height=25,
                 };
                     
                 // Bind the Progress value to the Value property
@@ -59,10 +61,7 @@ namespace SwitchManager.ui
                     });
                 bar.MouseDoubleClick += (s, a) => job.Cancel();
 
-                TextBlock t = new TextBlock
-                {
-                    Name = $"ProgressLabel_{jobs.Count - 1}",
-                };
+                TextBlock t = new TextBlock();
                 t.SetBinding(TextBlock.TextProperty,
                     new Binding("ProgressSinceLastUpdate")
                     {
@@ -72,16 +71,15 @@ namespace SwitchManager.ui
                         Converter = new DownloadProgressTextConverter(job)
                     });
 
-                tracker.Container = new StackPanel ();
-                tracker.Container.Children.Add(bar);
-                tracker.Container.Children.Add(t);
-                tracker.Container.UpdateLayout();
-
-                DownloadsPanel.Children.Insert(0, tracker.Container);
+                p.Children.Add(bar);
+                p.Children.Add(t);
+                p.UpdateLayout();
+                
+                DownloadsPanel.Children.Insert(0, p);
                 DownloadsPanel.ScrollOwner?.ScrollToTop();
                 DownloadsPanel.UpdateLayout();
             });
-
+            
             if (job is FileWriteJob dj)
             {
                 string kind = dj is DownloadJob ? "download" : "file write";
@@ -97,17 +95,13 @@ namespace SwitchManager.ui
         private void JobFinished(ProgressJob job)
         {
             JobTracker j = jobs[job];
+            //jobs.Remove(job);
 
-            //downloads.Remove(download.FileName);
-
-            Dispatcher?.InvokeOrExecute(async delegate
+            Dispatcher?.InvokeOrExecute(delegate
             {
-                while (j.Container == null)
-                    await Task.Delay(100);
                 DownloadsPanel.Children.Remove(j.Container);
                 DownloadsPanel.Children.Insert(DownloadsPanel.Children.Count, j.Container);
             });
-
             if (job is DownloadJob dl)
                 logger.Info($"Finished downloading file '{dl.FileName}'.");
             else
@@ -123,7 +117,7 @@ namespace SwitchManager.ui
 
         #region JobTracker (helper for tracking jobs)
 
-        private struct JobTracker
+        private class JobTracker
         {
             public ProgressJob Job { get; set; }
             public Panel Container { get; set; }
@@ -133,18 +127,11 @@ namespace SwitchManager.ui
 
         private void Button_Clear_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var d in jobs.Values)
+            foreach (var j in jobs.Keys.Where(j => j.IsComplete).ToList())
             {
-                if (d.Job.IsComplete)
-                {
-                    jobs.Remove(d.Job);
-                    Dispatcher?.InvokeOrExecute(async delegate
-                    {
-                        while (d.Container == null)
-                            await Task.Delay(100);
-                        DownloadsPanel.Children.Remove(d.Container);
-                    });
-                }
+                var t = jobs[j];
+                DownloadsPanel.Children.Remove(t.Container);
+                jobs.Remove(j);
             }
         }
     }

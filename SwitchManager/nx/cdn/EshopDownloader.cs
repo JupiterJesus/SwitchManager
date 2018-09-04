@@ -183,7 +183,7 @@ namespace SwitchManager.nx.cdn
                         // We have to download the CETK file and get the ticket and the certificate from it
 
                         string cetkPath = $"{titleDir}{Path.DirectorySeparatorChar}{rightsID}.cetk";
-                        bool completed = await DownloadCETK(rightsID, cetkPath);
+                        bool completed = await DownloadCETK(rightsID, cetkPath).ConfigureAwait(false);
                         if (completed)
                         {
                             using (var cetkStream = File.OpenRead(cetkPath))
@@ -244,7 +244,7 @@ namespace SwitchManager.nx.cdn
                     }
                 }
 
-                bool[] results = await Task.WhenAll(tasks);
+                bool[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
                 foreach (var r in results)
                 {
                     if (verify && !r)
@@ -450,7 +450,7 @@ namespace SwitchManager.nx.cdn
 
         public async Task<long> GetContentLength(string url)
         {
-            var result = await CDNRequest(HttpMethod.Get, url, null, false);
+            var result = await CDNRequest(HttpMethod.Get, url, null, false).ConfigureAwait(false);
             long cLength = result.Content.Headers.ContentLength ?? 0;
             return cLength;
         }
@@ -513,22 +513,10 @@ namespace SwitchManager.nx.cdn
                 fs = File.Create(fpath);
                 downloaded = 0;
 
-                result = await CDNRequest(HttpMethod.Get, url, null, false);
+                result = await CDNRequest(HttpMethod.Get, url, null, false).ConfigureAwait(false);
                 long cLength = result.Content.Headers.ContentLength ?? 0;
                 expectedSize = cLength;
             }
-
-            // this is where I download the file
-            // I can either not have any progress indicators and just DO IT
-            // Or I can  create some asynchronous class that maintains a download in a separate thread that communicates with a UI element
-
-            // For now I'm going to do a basic download
-            // ...
-            // On second though, a bit of research brings up this await and async crap
-            // It is confusing because you don't return stuff, you "await" an async task and that implicitly returns a Task
-            // but otherwise you always just return with no argument
-            // The thing that calls DownloadFile either uses "await" to wait for it to finish or it can 
-            // collect tasks somewhere until they're done. Right? I don't actually know
 
             bool completed = await StartDownload(fs, result, expectedSize, downloaded, jobName).ConfigureAwait(false);
 
@@ -610,7 +598,7 @@ namespace SwitchManager.nx.cdn
         {
             //string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", env);
             string url = string.Format("https://superfly.hac.{0}.d4c.nintendo.net/v1/t/{1}/dv", environment, game.TitleID);
-            string r = await CDNGet(url);
+            string r = await CDNGet(url).ConfigureAwait(false);
 
             JObject json = JObject.Parse(r);
             uint latestVersion = json?.Value<uint>("version") ?? 0;
@@ -681,7 +669,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="args"></param>
         private async Task<HttpResponseHeaders> CDNHead(string url, Dictionary<string, string> args = null)
         {
-            var response = await CDNRequest(HttpMethod.Head, url, args);
+            var response = await CDNRequest(HttpMethod.Head, url, args).ConfigureAwait(false);
             return response.Headers;
         }
 
@@ -859,7 +847,7 @@ namespace SwitchManager.nx.cdn
         {
             string url = $"https://bugyo.hac.{environment}.eshop.nintendo.net/shogun/v1/contents/ids?shop_id=4&lang={lang}&country={region}&type=title&title_ids={title.TitleID}";
 
-            var response = await WebRequest(HttpMethod.Get, url, EshopCert);
+            var response = await WebRequest(HttpMethod.Get, url, EshopCert).ConfigureAwait(false);
 
             return response;
         }

@@ -113,7 +113,7 @@ namespace SwitchManager.nx.library
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal void LoadMetadata(string path)
+        internal async Task LoadMetadata(string path)
         {
             path = Path.GetFullPath(path);
 
@@ -130,7 +130,7 @@ namespace SwitchManager.nx.library
             using (FileStream fs = File.OpenRead(path))
                 metadata = xml.Deserialize(fs) as LibraryMetadata;
 
-            LoadMetadata(metadata?.Items);
+            await LoadMetadata(metadata?.Items).ConfigureAwait(false);
             logger.Info($"Finished loading library metadata from {path}");
         }
 
@@ -138,80 +138,82 @@ namespace SwitchManager.nx.library
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal void LoadMetadata(IEnumerable<LibraryMetadataItem> metadata)
+        internal async Task LoadMetadata(IEnumerable<LibraryMetadataItem> metadata)
         {
             if (metadata != null)
             {
                 ProgressJob job = new ProgressJob("Load library data", metadata.Count(), 0);
-                job.Start();
-
-                foreach (var item in metadata)
+                await Task.Run(delegate
                 {
-                    SwitchCollectionItem ci = GetTitleByID(item.TitleID);
-                    if (ci == null)
+                    job.Start();
+                    
+                    foreach (var item in metadata)
                     {
-                        ci = LoadTitle(item.TitleID, item.TitleKey, item.Name);
-                    }
-                    else
-                    {
-                        // UPDATE TITLE KEY JUST IN CASE IT IS MISSING
-                        if (item.TitleKey != null) ci.Title.TitleKey = item.TitleKey;
-
-                        // ONLY UPDATE NAME IF IT IS MISSING
-                        // I USED TO LET IT UPDATE NAMES FROM THE OFFICIAL SOURCE
-                        // BUT THE NAMES ARE OFTEN LOW QUALITY OR MISSING REGION SIGNIFIERS OR DEMO LABELS AND FILLED
-                        // WITH UNICODE SYMBOLS
-                        if (item.Name != null)
+                        SwitchCollectionItem ci = GetTitleByID(item.TitleID);
+                        if (ci == null)
                         {
-                            if (string.IsNullOrWhiteSpace(ci.TitleName))
-                                ci.Title.Name = item.Name;
-                            //else if (ci.Title.IsDemo && !(item.Name.ToUpper().Contains("DEMO") || item.Name.ToUpper().Contains("SPECIAL TRIAL") || item.Name.ToUpper().Contains("TRIAL VER")))
-                            //    ci.Title.Name = item.Name + " Demo";
+                            ci = LoadTitle(item.TitleID, item.TitleKey, item.Name);
                         }
-                    }
-
-                    // Collection State enum
-                    if (item.State.HasValue) ci.State = item.State.Value;
-
-                    // long?
-                    if (item.Size.HasValue) ci.Size = item.Size;
-
-                    // uint?
-                    if (item.LatestVersion.HasValue) ci.LatestVersion = item.LatestVersion;
-
-                    // bool?
-                    if (item.IsFavorite.HasValue) ci.IsFavorite = item.IsFavorite.Value;
-                    if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC.Value;
-                    if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo.Value;
-
-                    // datetime
-                    if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
-
-                    // string
-                    if (!string.IsNullOrWhiteSpace(item.Path)) ci.RomPath = item.Path;
-                    if (!string.IsNullOrWhiteSpace(item.Developer)) ci.Developer = item.Developer;
-                    if (!string.IsNullOrWhiteSpace(item.Publisher)) ci.Publisher = item.Publisher;
-                    if (!string.IsNullOrWhiteSpace(item.Description)) ci.Description = item.Description;
-                    if (!string.IsNullOrWhiteSpace(item.Intro)) ci.Intro = item.Intro;
-                    if (!string.IsNullOrWhiteSpace(item.Category)) ci.Category = item.Category;
-                    if (!string.IsNullOrWhiteSpace(item.BoxArtUrl)) ci.BoxArtUrl = item.BoxArtUrl;
-                    if (!string.IsNullOrWhiteSpace(item.Icon)) ci.Icon = item.Icon;
-                    if (!string.IsNullOrWhiteSpace(item.Rating)) ci.Rating = item.Rating;
-                    if (!string.IsNullOrWhiteSpace(item.NumPlayers)) ci.NumPlayers = item.NumPlayers;
-                    if (!string.IsNullOrWhiteSpace(item.NsuId)) ci.NsuId = item.NsuId;
-                    if (!string.IsNullOrWhiteSpace(item.Code)) ci.Code = item.Code;
-                    if (!string.IsNullOrWhiteSpace(item.RatingContent)) ci.RatingContent = item.RatingContent;
-                    if (!string.IsNullOrWhiteSpace(item.Price)) ci.Price = item.Price;
-
-                    if (item.Updates != null)
-                        foreach (var update in item.Updates)
+                        else
                         {
-                            AddUpdateTitle(update.TitleID, item.TitleID, item.Name, update.Version, update.TitleKey);
+                            // UPDATE TITLE KEY JUST IN CASE IT IS MISSING
+                            if (item.TitleKey != null) ci.Title.TitleKey = item.TitleKey;
+
+                            // ONLY UPDATE NAME IF IT IS MISSING
+                            // I USED TO LET IT UPDATE NAMES FROM THE OFFICIAL SOURCE
+                            // BUT THE NAMES ARE OFTEN LOW QUALITY OR MISSING REGION SIGNIFIERS OR DEMO LABELS AND FILLED
+                            // WITH UNICODE SYMBOLS
+                            if (item.Name != null)
+                            {
+                                if (string.IsNullOrWhiteSpace(ci.TitleName))
+                                    ci.Title.Name = item.Name;
+                                //else if (ci.Title.IsDemo && !(item.Name.ToUpper().Contains("DEMO") || item.Name.ToUpper().Contains("SPECIAL TRIAL") || item.Name.ToUpper().Contains("TRIAL VER")))
+                                //    ci.Title.Name = item.Name + " Demo";
+                            }
                         }
 
-                    job.UpdateProgress(1);
-                }
-                job.Finish();
+                        // Collection State enum
+                        if (item.State.HasValue) ci.State = item.State.Value;
+
+                        // long?
+                        if (item.Size.HasValue) ci.Size = item.Size;
+
+                        // uint?
+                        if (item.LatestVersion.HasValue) ci.LatestVersion = item.LatestVersion;
+
+                        // bool?
+                        if (item.IsFavorite.HasValue) ci.IsFavorite = item.IsFavorite.Value;
+                        if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC.Value;
+                        if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo.Value;
+
+                        // datetime
+                        if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
+
+                        // string
+                        if (!string.IsNullOrWhiteSpace(item.Path)) ci.RomPath = item.Path;
+                        if (!string.IsNullOrWhiteSpace(item.Developer)) ci.Developer = item.Developer;
+                        if (!string.IsNullOrWhiteSpace(item.Publisher)) ci.Publisher = item.Publisher;
+                        if (!string.IsNullOrWhiteSpace(item.Description)) ci.Description = item.Description;
+                        if (!string.IsNullOrWhiteSpace(item.Intro)) ci.Intro = item.Intro;
+                        if (!string.IsNullOrWhiteSpace(item.Category)) ci.Category = item.Category;
+                        if (!string.IsNullOrWhiteSpace(item.BoxArtUrl)) ci.BoxArtUrl = item.BoxArtUrl;
+                        if (!string.IsNullOrWhiteSpace(item.Icon)) ci.Icon = item.Icon;
+                        if (!string.IsNullOrWhiteSpace(item.Rating)) ci.Rating = item.Rating;
+                        if (!string.IsNullOrWhiteSpace(item.NumPlayers)) ci.NumPlayers = item.NumPlayers;
+                        if (!string.IsNullOrWhiteSpace(item.NsuId)) ci.NsuId = item.NsuId;
+                        if (!string.IsNullOrWhiteSpace(item.Code)) ci.Code = item.Code;
+                        if (!string.IsNullOrWhiteSpace(item.RatingContent)) ci.RatingContent = item.RatingContent;
+                        if (!string.IsNullOrWhiteSpace(item.Price)) ci.Price = item.Price;
+
+                        if (item.Updates != null)
+                            foreach (var update in item.Updates)
+                            {
+                                AddUpdateTitle(update.TitleID, item.TitleID, item.Name, update.Version, update.TitleKey);
+                            }
+                        job.UpdateProgress(1);
+                    }
+                    job.Finish();
+                }).ConfigureAwait(false);
             }
         }
 
@@ -764,9 +766,9 @@ namespace SwitchManager.nx.library
             try
             {
                 // I figure it might be faster to get individual versions for a small number instead of all at once
-                if (titles.Count > 10) versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+                if (titles.Count > 2) versions = await Loader.GetLatestVersions().ConfigureAwait(false);
                 
-                foreach (var i in this.Collection)
+                foreach (var i in titles)
                 {
                     var t = i.Title;
                     if (versions != null && versions.TryGetValue(t.TitleID, out uint ver))
