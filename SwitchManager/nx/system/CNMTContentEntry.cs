@@ -14,16 +14,20 @@ namespace SwitchManager.nx.system
     /// Represents a CNMT content entry
     /// See http://switchbrew.org/index.php?title=NCA
     /// </summary>
-    [Serializable]
+    [XmlRoot(ElementName = "Content")]
     public class CnmtContentEntry
     {
+        public CnmtContentEntry()
+        {
+
+        }
+
         [XmlElement(ElementName = "Type")]
         public NCAType Type { get; set; }
 
-        private string id;
-
         [XmlElement(ElementName = "Id")]
         public string Id { get { return id; } set { this.id = value?.ToLower(); } }
+        private string id;
 
         [XmlElement(ElementName = "Size")]
         public long Size { get; set; }
@@ -42,8 +46,8 @@ namespace SwitchManager.nx.system
         [XmlElement(ElementName = "KeyGeneration")]
         public byte MasterKeyRevision { get; set; }
 
-        [XmlIgnore]
-        public byte Unknown { get; internal set; }
+        [XmlElement(ElementName = "IdOffset")]
+        public byte IdOffset { get; set; }
 
         [XmlIgnore]
         public byte[] HashData { get; internal set; }

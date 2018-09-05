@@ -532,7 +532,7 @@ namespace SwitchManager
                 InitialDirectory = new FileInfo(Settings.Default.TitleKeysFile).Directory.FullName,
             };
 
-            Nullable<bool> result = dlg.ShowDialog();
+            bool? result = dlg.ShowDialog();
             if (result == true)
             {
                 // Open document 
@@ -960,7 +960,7 @@ namespace SwitchManager
                 Filter = "OpenSSL Certificate (*.pem)|*.pem|PKCS12 Certificate (*.pfx)|*.pfx|All Files (*.*)|*.*"
             };
 
-            Nullable<bool> result = dlg.ShowDialog();
+            bool? result = dlg.ShowDialog();
             if (result == true)
             {
                 // Open document 
@@ -980,7 +980,7 @@ namespace SwitchManager
                 Filter = "Game Info (JSON) (*.json)|*.json|Gmae Info (XML) (*.xml)|*.xml|All Files (*.*)|*.*"
             };
 
-            Nullable<bool> result = dlg.ShowDialog();
+            bool? result = dlg.ShowDialog();
             if (result == true)
             {
                 // Open document 
@@ -1061,27 +1061,6 @@ namespace SwitchManager
             }
         }
 
-        private void ShowError(string text)
-        {
-            MaterialMessageBox.ShowError(text);
-        }
-
-        private void ShowMessage(string text, string title, string okButton = null, string cancel = null)
-        {
-            var msg = new CustomMaterialMessageBox
-            {
-                MainContentControl = { Background = Brushes.White },
-                TitleBackgroundPanel = { Background = Brushes.Black },
-                BorderBrush = Brushes.Black,
-                TxtMessage = { Text = text, Foreground = Brushes.Black },
-                TxtTitle = { Text = title, Foreground = Brushes.White },
-                BtnOk = { Content = okButton ?? "OK" },
-                BtnCancel = { Content = cancel ?? "Cancel", Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible },
-            };
-            msg.BtnOk.Focus();
-            msg.Show();
-        }
-
         private void ScanLibrary_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.NSPDirectory, Description = "Choose a directory to scan for titles" };
@@ -1119,6 +1098,212 @@ namespace SwitchManager
         {
             this.library.SaveMetadata(Settings.Default.MetadataFile);
         }
+
+        #region NSP Menu
+
+        private async void UnpackNSP_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".nsp",
+                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
+                InitialDirectory = Settings.Default.NSPDirectory,
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string nspFile = dlg.FileName;
+                try
+                {
+                    await NSP.Unpack(nspFile, false);
+                }
+                catch (InvalidNspException n)
+                {
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                }
+            }
+        }
+
+        private async void UnpackNSPVerify_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".nsp",
+                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
+                InitialDirectory = Settings.Default.NSPDirectory,
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string nspFile = dlg.FileName;
+                try
+                {
+                    await NSP.Unpack(nspFile, true);
+                }
+                catch (BadNcaException b)
+                {
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                }
+                catch (InvalidNspException n)
+                {
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                }
+            }
+        }
+
+        private async void UnpackNSPFiles_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".nsp",
+                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
+                InitialDirectory = Settings.Default.NSPDirectory,
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string nspFile = dlg.FileName;
+                try
+                {
+                    // First, unpack the NSP
+                    NSP nsp = await NSP.Unpack(nspFile, true);
+                    CNMT cnmt = nsp.CNMT;
+                    var item = library.GetTitleByID(cnmt.Id);
+                    string titlekey = item?.TitleKey;
+
+                    // Once unpacked, decrypt all the NCAs.They all go into subdirectories inside of the 
+                    // NSP directory. The directory names are the NCA ID / file name without extension.
+                    foreach (var nca in nsp.NcaFiles)
+                    {
+                        Hactool hactool = new Hactool(Settings.Default.HactoolPath, Settings.Default.KeysPath);
+                        await hactool.DecryptNCA(nca, titlekey).ConfigureAwait(false);
+                    }
+                }
+                catch (BadNcaException b)
+                {
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                }
+                catch (InvalidNspException n)
+                {
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                }
+                catch (HactoolFailedException h)
+                {
+                    ShowError($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nReason: {h.Message}");
+                }
+            }
+        }
+
+        private async void RepackNSP_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".nsp",
+                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
+                InitialDirectory = Settings.Default.NSPDirectory,
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string nspFile = dlg.FileName;
+                try
+                {
+                    // First, unpack the NSP
+                    NSP nsp = await NSP.Unpack(nspFile, false);
+                    File.Move(nspFile, nspFile + ".old");
+                    await nsp.Repack(nspFile);
+                }
+                catch (BadNcaException b)
+                {
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                }
+                catch (InvalidNspException n)
+                {
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                }
+            }
+        }
+
+        private async void RepackNSPVerify_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".nsp",
+                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
+                InitialDirectory = Settings.Default.NSPDirectory,
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string nspFile = dlg.FileName;
+                try
+                {
+                    // First, unpack the NSP
+                    NSP nsp = await NSP.Unpack(nspFile, true);
+                    File.Move(nspFile, nspFile + ".old");
+                    await nsp.Repack(nspFile);
+                }
+                catch (BadNcaException b)
+                {
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                }
+                catch (InvalidNspException n)
+                {
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                }
+                catch (IOException i)
+                {
+                    ShowError($"Error while reading or writing files.\nFile: {nspFile}\nReason: {i.Message}");
+                }
+            }
+        }
+
+        private void RepackDir_Click(object sender, RoutedEventArgs e)
+        {
+            ShowMessage("Repacking a directory into an NSP is not yet implemented", "Not Yet Implemented", "Oh...");
+        }
+
+        private void RepackDirVerify_Click(object sender, RoutedEventArgs e)
+        {
+            ShowMessage("Repacking a directory into an NSP is not yet implemented", "Not Yet Implemented", "Oh...");
+        }
+
+        private void VerifyNSP_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".nsp",
+                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
+                InitialDirectory = Settings.Default.NSPDirectory,
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string nspFile = dlg.FileName;
+                try
+                {
+                    NSP.Verify(nspFile);
+                }
+                catch (BadNcaException b)
+                {
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                }
+                catch (InvalidNspException n)
+                {
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                }
+            }
+        }
+
+        #endregion
+
+
 
         #endregion
 
@@ -1248,6 +1433,27 @@ namespace SwitchManager
             {
                 logger.Error("WTF something failed while updating size.");
             }
+        }
+
+        private void ShowError(string text)
+        {
+            MaterialMessageBox.ShowError(text);
+        }
+
+        private void ShowMessage(string text, string title, string okButton = null, string cancel = null)
+        {
+            var msg = new CustomMaterialMessageBox
+            {
+                MainContentControl = { Background = Brushes.White },
+                TitleBackgroundPanel = { Background = Brushes.Black },
+                BorderBrush = Brushes.Black,
+                TxtMessage = { Text = text, Foreground = Brushes.Black },
+                TxtTitle = { Text = title, Foreground = Brushes.White },
+                BtnOk = { Content = okButton ?? "OK" },
+                BtnCancel = { Content = cancel ?? "Cancel", Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible },
+            };
+            msg.BtnOk.Focus();
+            msg.Show();
         }
     }
 }

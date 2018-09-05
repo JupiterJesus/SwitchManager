@@ -101,7 +101,8 @@ namespace SwitchManager.nx.cdn
                 string fpath = gamePath + Path.DirectorySeparatorChar + "control.nca";
                 if (await DownloadNCA(ncaID, fpath).ConfigureAwait(false))
                 {
-                    var controlDir = DecryptNCA(fpath);
+                    Hactool hactool = new Hactool(hactoolPath, keysPath);
+                    var controlDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
 
                     DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
 
@@ -214,7 +215,7 @@ namespace SwitchManager.nx.cdn
                 }
 
                 List<Task<bool>> tasks = new List<Task<bool>>();
-                NSP nsp = new NSP(title, certPath, ticketPath, cnmt.CnmtNcaFilePath, cnmtXml);
+                NSP nsp = new NSP(title, certPath, ticketPath, cnmt, cnmtXml);
                 foreach (var type in new[] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
                 {
                     // To verify, we need to parse the CNMT more thoroughly, which is a waste of effort if we aren't verifying
@@ -267,17 +268,25 @@ namespace SwitchManager.nx.cdn
 
                     string controlID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
                     string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
-                    var controlDir = DecryptNCA(controlPath);
+
+                    Hactool hactool = new Hactool(hactoolPath, keysPath);
+                    var controlDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
                     DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
 
                     foreach (var image in imageDir.EnumerateFiles("icon_*.dat"))
                     {
-                        string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
+                        string name = Path.GetFileNameWithoutExtension(image.Name).Replace("icon_", controlID + ".nx.");
+                        string destFile = titleDir + Path.DirectorySeparatorChar + name + ".jpg";
                         if (!File.Exists(destFile))
                             image.MoveTo(destFile);
                         nsp.AddImage(destFile);
                     }
+                    // TODO Parse nacp file from control nca, generate *.nacp.xml
                     controlDir.Delete(true);
+
+                    // TODO unpack and parse legalinfo nca, generate *.legalinfo.xml
+                    // TODO unpack and parse program nca, generate *.programinfo.xml
+
                 }
 
                 // Repack to NSP if requested AND if the title has a key
@@ -299,24 +308,7 @@ namespace SwitchManager.nx.cdn
             // A null hash means no verification necessary, just return true
             if (expectedHash != null)
             {
-                using (FileStream fs = File.OpenRead(path))
-                {
-                    byte[] hash = new SHA256Managed().ComputeHash(fs);
-                    if (expectedHash.Length != hash.Length) // hash has to be 32 bytes = 256 bit
-                    {
-                        logger.Error($"Bad parsed hash file for {ncaID}, not the right length");
-                        return false;
-                    }
-                    for (int i = 0; i < hash.Length; i++)
-                    {
-                        if (hash[i] != expectedHash[i])
-                        {
-                            logger.Error($"Hash of downloaded NCA file does not match expected hash from CNMT content entry!");
-                            return false;
-                        }
-                    }
-                    return true;
-                }
+                return Crypto.VerifySha256Hash(path, expectedHash);
             }
             return true;
         }
@@ -328,71 +320,6 @@ namespace SwitchManager.nx.cdn
             return await DownloadFile(url, path, title?.Name).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
         }
 
-        /// <summary>
-        /// Decrypts the NCA specified by ncaPath and spits it out into the provided directory, or into a directory named after the base file name if no output directory is provided.
-        /// </summary>
-        /// <param name="fpath"></param>
-        /// <returns></returns>
-        private DirectoryInfo DecryptNCA(string ncaPath, string outDir = null)
-        {
-            string fName = Path.GetFileNameWithoutExtension(ncaPath); // fName = os.path.basename(fPath).split()[0]
-            if (outDir == null)
-                outDir = Path.GetDirectoryName(ncaPath) + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(ncaPath);
-            DirectoryInfo outDirInfo = new DirectoryInfo(outDir);
-            outDirInfo.Create();
-
-            string hactoolExe = (this.hactoolPath);
-            string keysFile = (this.keysPath);
-            string exefsPath = (outDir + Path.DirectorySeparatorChar + "exefs");
-            string romfsPath = (outDir + Path.DirectorySeparatorChar + "romfs");
-            string section0Path = (outDir + Path.DirectorySeparatorChar + "section0");
-            string section1Path = (outDir + Path.DirectorySeparatorChar + "section1");
-            string section2Path = (outDir + Path.DirectorySeparatorChar + "section2");
-            string section3Path = (outDir + Path.DirectorySeparatorChar + "section3");
-            string headerPath = (outDir + Path.DirectorySeparatorChar + "Header.bin");
-
-            // NOTE: Using single quotes here instead of single quotes fucks up windows, it CANNOT handle single quotes
-            // Anything surrounded in single quotes will throw an error because the file/folder isn't found
-            // Must use escaped double quotes!
-            string commandLine = $" -k \"{keysFile}\"" +
-                                 $" --exefsdir=\"{exefsPath}\"" +
-                                 $" --romfsdir=\"{romfsPath}\"" +
-                                 $" --section0dir=\"{section0Path}\"" +
-                                 $" --section1dir=\"{section1Path}\"" +
-                                 $" --section2dir=\"{section2Path}\"" +
-                                 $" --section3dir=\"{section3Path}\"" +
-                                 $" --header=\"{headerPath}\"" +
-                                 $" \"{ncaPath}\"";
-            try
-            {
-                ProcessStartInfo hactoolSI = new ProcessStartInfo()
-                {
-                    FileName = hactoolExe,
-                    WorkingDirectory = System.IO.Directory.GetCurrentDirectory(),
-                    Arguments = commandLine,
-                    UseShellExecute = false,
-                    //RedirectStandardOutput = true,
-                    //RedirectStandardError = true,
-                    CreateNoWindow = true,
-                };
-                Process hactool = Process.Start(hactoolSI);
-
-                //string errors = hactool.StandardError.ReadToEnd();
-                //string output = hactool.StandardOutput.ReadToEnd();
-
-                hactool.WaitForExit();
-
-                if (outDirInfo.GetDirectories().Length == 0)
-                    throw new HactoolFailedException($"Running hactool failed, output directory {outDir} is empty!");
-            }
-            catch (Exception e)
-            {
-                throw new Exception("Hactool decryption failed!", e);
-            }
-
-            return outDirInfo;
-        }
-
         internal void UpdateClientCert(string clientCertPath)
         {
             this.ClientCert = Crypto.LoadCertificate(clientCertPath);
@@ -401,51 +328,6 @@ namespace SwitchManager.nx.cdn
         internal void UpdateEshopCert(string clientCertPath)
         {
             this.EshopCert = Crypto.LoadCertificate(eShopCertPath);
-        }
-
-        private bool VerifyNCA(string ncaPath, SwitchTitle title)
-        {
-            string hactoolExe = (this.hactoolPath);
-            string keysFile = (this.keysPath);
-            string tkey = title.TitleKey;
-
-            // NOTE: Using single quotes here instead of single quotes fucks up windows, it CANNOT handle single quotes
-            // Anything surrounded in single quotes will throw an error because the file/folder isn't found
-            // Must use escaped double quotes!
-            string commandLine = $" -k \"{keysFile}\"" +
-                                 $" --titlekey=\"{tkey}\"" +
-                                 $" \"{ncaPath}\"";
-            try
-            {
-                ProcessStartInfo hactoolSI = new ProcessStartInfo()
-                {
-                    FileName = hactoolExe,
-                    WorkingDirectory = System.IO.Directory.GetCurrentDirectory(),
-                    Arguments = commandLine,
-                    UseShellExecute = false,
-                    //RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                };
-                Process hactool = Process.Start(hactoolSI);
-
-                string errors = hactool.StandardError.ReadToEnd();
-                hactool.WaitForExit();
-
-                if (errors.Contains("Error: section 0 is corrupted!") ||
-                    errors.Contains("Error: section 1 is corrupted!"))
-                {
-                    logger.Error("NCA title key verification failed");
-                    return false;
-                }
-            }
-            catch (Exception e)
-            {
-                throw new Exception("Hactool decryption failed!", e);
-            }
-
-            logger.Info("NCA title key verification successful");
-            return true;
         }
 
         public async Task<long> GetContentLength(string url)
@@ -819,7 +701,8 @@ namespace SwitchManager.nx.cdn
 
             // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
             // Hactool does the job for us
-            DirectoryInfo cnmtDir = DecryptNCA(ncaPath);
+            Hactool hactool = new Hactool(hactoolPath, keysPath);
+            DirectoryInfo cnmtDir = await hactool.DecryptNCA(ncaPath).ConfigureAwait(false);
 
             CNMT cnmt = GetDownloadedCnmt(cnmtDir, ncaPath);
             return cnmt;
@@ -968,7 +851,8 @@ namespace SwitchManager.nx.cdn
                 // Extract the images and add their file names and sizes
                 if (controlPath != null)
                 {
-                    var controlDir = DecryptNCA(controlPath);
+                    Hactool hactool = new Hactool(hactoolPath, keysPath);
+                    var controlDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
                     var romfs = controlDir.EnumerateDirectories("romfs");
                     if (romfs.Count() == 1)
                     {

@@ -16,6 +16,14 @@ namespace SwitchManager.nx.system
 
         private Dictionary<NCAType, List<string>> NCAs = new Dictionary<NCAType, List<string>>();
 
+        public List<string> NcaFiles
+        {
+            get
+            {
+                return NCAs.SelectMany(e => e.Value).ToList();
+            }
+        }
+
         public long TotalSize
         {
             get
@@ -60,25 +68,47 @@ namespace SwitchManager.nx.system
                     files.AddRange(NCAs[NCAType.Control]);
 
                 files.AddRange(this.IconFiles);
+                files.AddRange(this.miscFiles);
 
                 return files;
             }
         }
         
         public SwitchTitle Title { get; set; }
+
+        // The ticket and cert files, .tik and .cert
         public string Certificate { get; private set; }
         public string Ticket { get; private set; }
-        public string CnmtNCA { get; private set; }
-        public string CnmtXML { get; private set; }
-        public List<string> IconFiles { get; private set; } = new List<string>();
 
-        public NSP(SwitchTitle title, string certificate, string ticket, string cnmtNca, string cnmtXml)
+        // The meta NCA, I keep it here because it is special
+        public string CnmtNCA { get; private set; }
+
+        // Four types of XML files - .cnmt.xml, .programinfo.xml, .legalinfo.xml and .nacp.xml
+        public string CnmtXML { get; private set; }
+        public string PrograminfoXML { get; private set; }
+        public string LegalinfoXML { get; private set; }
+        public string NacpXML { get; private set; }
+
+        // Images/icons from the control file
+        public List<string> IconFiles { get; private set; } = new List<string>();
+        public CNMT CNMT { get; internal set; }
+
+        // Any other unknown files, since NSPs can hold anything
+        private List<string> miscFiles = new List<string>();
+
+        public NSP(SwitchTitle title, string certificate, string ticket, CNMT cnmt, string cnmtXml)
         {
             this.Title = title;
             this.Certificate = certificate;
             this.Ticket = ticket;
-            this.CnmtNCA = cnmtNca;
+            this.CnmtNCA = cnmt.CnmtNcaFilePath;
             this.CnmtXML = cnmtXml;
+            this.CNMT = cnmt;
+        }
+
+        public NSP()
+        {
+            // Default constructor, all fields must be added manually
         }
 
         /// <summary>
@@ -95,7 +125,6 @@ namespace SwitchManager.nx.system
 
 
             var hd = GenerateHeader(files);
-            // DEBUGGING NOTES  MY ICONOCLASTS HEADER IS 624 BYTES TOO LONG FIX THIS ASAP
 
             // Use lambda to sum sizes of all files in files array
             long totalSize = this.FilesSize + hd.Length;
@@ -114,10 +143,10 @@ namespace SwitchManager.nx.system
                 foreach (var file in files)
                 {
                     using (FileStream fs = File.OpenRead(file))
-                        await str.CopyFromAsync(fs);
+                        await str.CopyFromAsync(fs).ConfigureAwait(false);
                 }
             }
-            
+
             finfo.Refresh();
             if (finfo.Exists && finfo.Length == totalSize)
             {
@@ -144,7 +173,7 @@ namespace SwitchManager.nx.system
         public static byte[] GenerateHeader(string[] files, long[] fileSizes)
         {
             int nFiles = files.Length;
-            
+
             // The size of the header is 0x10, plus one 0x18 size entry for each file, plus the size of the string table
             // The string table is all of the file names, terminated by nulls
             int stringTableSize = files.Sum((s) => Path.GetFileName(s).Length + 1);
@@ -161,13 +190,13 @@ namespace SwitchManager.nx.system
 
             // Calculate the filename lengths array (length of file names)
             var fileNamesLengths = files.Select(f => Path.GetFileName(f).Length + 1).ToArray(); // fileNamesLengths = [len(os.path.basename(file))+1 for file in self.files] # +1 for the \x00
-            
+
             var stringTableOffsets = new int[nFiles];
             for (int i = 0; i < stringTableOffsets.Length; i++) // = [sum(fileNamesLengths[:n]) for n in range(filesNb)]
                 for (int j = 0; j < i; j++)
                     stringTableOffsets[i] += fileNamesLengths[j];
 
-            byte[] header = new byte[headerSize]; 
+            byte[] header = new byte[headerSize];
             int n = 0;
 
             // 0x0 + 0x4 PFS0 magic number
@@ -177,10 +206,10 @@ namespace SwitchManager.nx.system
             header[n++] = unchecked('0' & 0xFF);
 
             // 0x4 + 0x4 number of files
-            byte[] nfBytes = BitConverter.GetBytes(nFiles); nfBytes.CopyTo(header, n); n += nfBytes.Length ;
+            byte[] nfBytes = BitConverter.GetBytes(nFiles); nfBytes.CopyTo(header, n); n += nfBytes.Length;
 
             // 0x8 + 0x4 (plus remainder so it reaches a multple of 0x10) size of string table
-            byte[] stBytes = BitConverter.GetBytes(stringTableSize+remainder); stBytes.CopyTo(header, n); n += stBytes.Length;
+            byte[] stBytes = BitConverter.GetBytes(stringTableSize + remainder); stBytes.CopyTo(header, n); n += stBytes.Length;
 
             // 0xC + 0x4 Zero/Reserved
             header[n++] = header[n++] = header[n++] = header[n++] = 0x00;
@@ -206,14 +235,188 @@ namespace SwitchManager.nx.system
             // Encode every string in UTF8, then terminate with a 0
             foreach (var str in files)
             {
-                byte[] strBytes = Encoding.UTF8.GetBytes(Path.GetFileName(str )); strBytes.CopyTo(header, n); n += strBytes.Length;
+                byte[] strBytes = Encoding.UTF8.GetBytes(Path.GetFileName(str)); strBytes.CopyTo(header, n); n += strBytes.Length;
                 header[n++] = 0;
             }
-            
+
             while (remainder-- > 0)
                 header[n++] = 0;
-            
+
             return header;
+        }
+
+        /// <summary>
+        /// Repacks this NSP from a set of files into a single file and writes the file out to the given path.
+        /// TODO: Bugfix and test.
+        /// </summary>
+        /// <param name="path"></param>
+        public static async Task<NSP> ParseNSP(string path, bool unpack, bool verify)
+        {
+            if (unpack == false && verify == false) return null;
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                logger.Error("Empty path passed to NSP.Unpack.");
+                return null;
+            }
+
+            FileInfo finfo = new FileInfo(path);
+            if (!finfo.Exists)
+            {
+                logger.Error($"Non-existent file passed to NSP.Unpack: {path}");
+                return null;
+            }
+            
+            using (JobFileStream nspReadStream = new JobFileStream(path, "NSP unpack of " + path, finfo.Length, 0))
+            {
+                using (BinaryReader br = new BinaryReader(nspReadStream))
+                {
+                    if (br.ReadChar() != 'P') throw new InvalidNspException("Wrong header");
+                    if (br.ReadChar() != 'F') throw new InvalidNspException("Wrong header");
+                    if (br.ReadChar() != 'S') throw new InvalidNspException("Wrong header");
+                    if (br.ReadChar() != '0') throw new InvalidNspException("Wrong header");
+
+                    // 0x4 + 0x4 number of files
+                    int numFiles = br.ReadInt32();
+                    if (numFiles < 1) throw new InvalidNspException("No files inside NSP");
+
+                    // 0x8 + 0x4  size of string table (plus remainder so it reaches a multple of 0x10)
+                    int stringTableSize = br.ReadInt32();
+                    if (stringTableSize < 1) throw new InvalidNspException("Invalid or zero string table size");
+
+                    // 0xC + 0x4 Zero/Reserved
+                    br.ReadUInt32();
+
+                    long[] fileOffsets = new long[numFiles];
+                    long[] fileSizes = new long[numFiles];
+                    int[] stringTableOffsets = new int[numFiles];
+
+                    // 0x10 + 0x18 * nFiles File Entry Table
+                    // One File Entry for each file
+                    for (int i = 0; i < numFiles; i++)
+                    {
+                        // 0x0 + 0x8 Offset of this file from start of file data block
+                        fileOffsets[i] = br.ReadInt64();
+
+                        // 0x8 + 0x8 Size of this specific file within the file data block
+                        fileSizes[i] = br.ReadInt64();
+
+                        // 0x10 + 0x4 Offset of this file's filename within the string table
+                        stringTableOffsets[i] = br.ReadInt32();
+
+                        // 0x14 + 0x4 Zero?
+                        br.ReadInt32();
+                    }
+
+                    // (0x10 + X) + Y string table, where X is file table size and Y is string table size
+                    // Encode every string in UTF8, then terminate with a 0
+                    byte[] strBytes = br.ReadBytes(stringTableSize);
+                    var files = new string[numFiles];
+                    for (int i = 0; i < numFiles; i++)
+                    {
+                        // Start of the string is in the string table offsets table
+                        int thisOffset = stringTableOffsets[i];
+
+                        // Decode UTF8 string and assign to files array
+                        string name = strBytes.DecodeAsciiZ(thisOffset);
+                        //string name = Encoding.UTF8.GetString(strBytes, thisOffset, thisLength);
+                        files[i] = name;
+                    }
+
+                    // The header is always aligned to a multiple of 0x10 bytes
+                    // It is padded with 0s until the header size is a multiple of 0x10.
+                    // However, these 0s are INCLUDED as part of the string table. Thus, they've already been
+                    // read (and skipped)
+
+                    // Create a directory right next to the NSP, using the NSP's file name (no extension)
+                    DirectoryInfo parentDir = finfo.Directory;
+                    DirectoryInfo nspDir = parentDir.CreateSubdirectory(Path.GetFileNameWithoutExtension(finfo.Name));
+                    NSP nsp = new NSP();
+                    List<string> ncas = new List<string>();
+
+                    // Copy each file in the NSP to a new file.
+                    for (int i = 0; i < files.Length; i++)
+                    {
+                        // NSPs are just groups of files, but switch titles have very specific files in them
+                        // So we allow quick reference to these files
+                        string filePath = nspDir.FullName + Path.DirectorySeparatorChar + files[i];
+                        if (filePath.ToLower().EndsWith(".cnmt.xml"))
+                            nsp.CnmtXML = filePath;
+                        else if (filePath.ToLower().EndsWith(".programinfo.xml"))
+                            nsp.PrograminfoXML = filePath;
+                        else if (filePath.ToLower().EndsWith(".legalinfo.xml"))
+                            nsp.LegalinfoXML = filePath;
+                        else if (filePath.ToLower().EndsWith(".nacp.xml"))
+                            nsp.NacpXML = filePath;
+                        else if (filePath.ToLower().EndsWith(".cert"))
+                            nsp.Certificate = filePath;
+                        else if (filePath.ToLower().EndsWith(".tik"))
+                            nsp.Ticket = filePath;
+                        else if (filePath.ToLower().StartsWith("icon_") || filePath.ToLower().EndsWith(".jpg"))
+                            nsp.AddImage(filePath);
+                        else if (filePath.ToLower().EndsWith(".nca"))
+                        {
+                            if (filePath.ToLower().EndsWith(".cnmt.nca"))
+                                nsp.CnmtNCA = filePath;
+                            ncas.Add(filePath);
+                        }
+                        else
+                        {
+                            logger.Warn($"Unknown file type found in NSP, {filePath}");
+                            nsp.AddFile(filePath);
+                        }
+
+                        if (unpack)
+                        {
+                            logger.Info($"Unpacking NSP from file {path}.");
+                            FileStream fs = File.Exists(filePath) ?
+                                File.Open(filePath, FileMode.Truncate, FileAccess.Write) :
+                                File.Open(filePath, FileMode.CreateNew, FileAccess.Write);
+
+                            await nspReadStream.CopyToAsync(fs, fileSizes[i]).ConfigureAwait(false);
+                            logger.Info($"Copied NSP contents to file {filePath}");
+                            fs.Dispose();
+                        }
+                    }
+
+                    if (nsp.CnmtXML == null)
+                        return null;
+
+                    CNMT cnmt = nsp.CNMT = CNMT.FromXml(nsp.CnmtXML);
+                    var cnmtNcas = cnmt.ParseContent();
+                    foreach (string n in ncas)
+                    {
+                        // Do it twice to handle both .nca and .cnmt.nca
+                        string ncaid = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(n));
+                        var entry = cnmtNcas[ncaid];
+
+                        if (verify)
+                        {
+                            logger.Info($"Verifying NSP from file {path}.");
+                            bool good = Crypto.VerifySha256Hash(n, entry.HashData);
+                            if (!good) throw new BadNcaException(n, "Hash of NCA file didn't match expected hash from CNMT");
+                            else logger.Info($"Verification succeeded.");
+                        }
+                        nsp.AddNCA(entry.Type, n);
+                    }
+                    return nsp;
+                }
+            }
+        }
+
+        public async static void Verify(string nspFile)
+        {
+            await ParseNSP(nspFile, false, true).ConfigureAwait(false);
+        }
+
+        public async static Task<NSP> Unpack(string nspFile, bool verify = false)
+        {
+            return await ParseNSP(nspFile, true, verify).ConfigureAwait(false);
+        }
+
+        public void AddFile(string filePath)
+        {
+            this.miscFiles.Add(filePath);
         }
 
         internal void AddNCA(NCAType type, string path)

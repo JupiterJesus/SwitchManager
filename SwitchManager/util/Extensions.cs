@@ -13,6 +13,14 @@ namespace SwitchManager.util
 {
     public static class Extensions
     {
+        public unsafe static string DecodeAsciiZ(this byte[] buffer, int index = 0)
+        {
+            fixed (byte* bytes = &buffer[index])
+            {
+                return new string((sbyte*)bytes);
+            }
+        }
+
         public static void InvokeOrExecute(this Dispatcher dispatcher, Action action)
         {
             if (dispatcher.CheckAccess())

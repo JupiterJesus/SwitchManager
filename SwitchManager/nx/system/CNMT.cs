@@ -17,8 +17,7 @@ namespace SwitchManager.nx.system
     /// Represents a CNMT file, which is a type of metadata file for NSPs (I think).
     /// See http://switchbrew.org/index.php?title=NCA
     /// </summary>
-    [Serializable]
-    [XmlRootAttribute("ContentMeta", Namespace = null, IsNullable = false)]
+    [XmlRoot("ContentMeta", Namespace = null, IsNullable = false)]
     public class CNMT : IDisposable
     {
         private static readonly ILog logger = LogManager.GetLogger(typeof(CNMT));
@@ -33,8 +32,8 @@ namespace SwitchManager.nx.system
             set
             {
                 string id = value.StartsWith("0x") ? value.Substring(2) : value;
-                if (id.Length != 32) throw new Exception("Couldn't read CNMT XmlId from string");
-                this.Id = id;
+                if (id?.Length < 16) throw new Exception("Couldn't read CNMT XmlId from string");
+                this.Id = id.Substring(0, 16);
             }
         }
 
@@ -43,32 +42,27 @@ namespace SwitchManager.nx.system
 
         [XmlElement(ElementName = "RequiredDownloadSystemVersion")]
         public string RequiredDownloadSystemVersion { get; set; }
-
-
+        
         [XmlElement(ElementName = "Content")]
         public CnmtContentEntry[] Content
         {
             get
             {
-                var meta = new CnmtContentEntry();
-                meta.Type = NCAType.Meta;
-                meta.Id = this.CnmtNcaFile.Name.Replace(".cnmt.nca", string.Empty);
-                meta.Size = this.CnmtNcaFile.Length;
-                meta.MasterKeyRevision = MasterKeyRevision;
-                using (FileStream stream = File.OpenRead(this.CnmtNcaFilePath))
-                {
-                    meta.HashData = new SHA256Managed().ComputeHash(stream);
-                }
-                var content = ParseContent();
-                content.Add(meta.Id, meta);
-                return content.Values.ToArray();
+                this.parsedContent = ParseContent();
+
+                return parsedContent.Values.ToArray();
+
             }
             set
             {
-                // this is awkward. There's nowhere to actually store this content, since it is always parsed on the fly
-                // from the cnmt file
+                this.parsedContent = new Dictionary<string, CnmtContentEntry>(value.Length);
+                foreach (var entry in value)
+                {
+                    parsedContent.Add(entry.Id, entry);
+                }
             }
         }
+        private Dictionary<string, CnmtContentEntry> parsedContent;
 
         [XmlElement(ElementName = "Digest")]
         public string Digest
@@ -96,7 +90,7 @@ namespace SwitchManager.nx.system
             }
             set
             {
-                // do nothing, the value is derived from Id
+                
             }
         }
 
@@ -117,11 +111,20 @@ namespace SwitchManager.nx.system
         private ushort numMetaEntries;
         private byte[] hash;
 
+        /// <summary>
+        /// Constructor for reading from XML or building up from scratch using data rather than files on disk
+        /// </summary>
         public CNMT()
         {
-
         }
 
+        /// <summary>
+        /// Builds an XML from a CNMT on disk.
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <param name="headerPath"></param>
+        /// <param name="cnmtDir"></param>
+        /// <param name="ncaPath"></param>
         public CNMT(string filePath, string headerPath, string cnmtDir, string ncaPath)
         {
             this.CnmtFilePath = filePath;
@@ -260,45 +263,63 @@ namespace SwitchManager.nx.system
 
         public Dictionary<string, CnmtContentEntry> ParseContent(NCAType? ncaType = null)
         {
-            // ParseContent is for everything other than system updates
-            // This might be more elegant with subclasses or an interface or something,
-            // but I would still come right back to having to have a single data type returned by the
-            // virtual function that encompassed both content and metadata entries, and I just don't want to
-            // They are completely different and shouldn't be combined into one class
-            if (this.Type == TitleType.SystemUpdate)
-                throw new Exception("Do not call Parse on a System Update title!!! Only for other types!");
-
-            var data = new Dictionary<string, CnmtContentEntry>();
-            FileStream fs = File.OpenRead(this.CnmtFilePath);
-            BinaryReader br = new BinaryReader(fs);
-
-            // Reach each content entry, starting at 0x20 + tableOffset
-            // each entry is 0x38 in size, and their are nEntries of them
-            // With patch, update and addon types, there's a secondary header from 0x20 to 0x30
-            // 0xE tells you how many bytes to skip from 0x20 to the start of the content entries and 0x10 says how many there are
-            br.BaseStream.Seek(0x20 + this.tableOffset, SeekOrigin.Begin);
-            for (int i = 0; i < this.numContentEntries; i++)
+            if (parsedContent == null)
             {
-                // Parse a content entry
-                var content = new CnmtContentEntry();
-                content.HashData = br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
-                content.Id = Miscellaneous.BytesToHex(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
-                byte[] sizeBuffer = new byte[8];
-                br.Read(sizeBuffer, 0, 6);
-                content.Size = BitConverter.ToInt64(sizeBuffer, 0); // Size, offset 0x30, 6 bytes (8 byte long converted from only 6 bytes)
-                content.Type = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
-                content.Unknown = br.ReadByte(); // Unknown, offset 0x37, 1 byte
-                content.MasterKeyRevision = this.MasterKeyRevision;
+                parsedContent = new Dictionary<string, CnmtContentEntry>();
 
-                // Only keep entries of the type we care about, or keep all of them if no type was specified
-                if (content.Type == ncaType || !ncaType.HasValue)
+                // First thing - add the content entry for THIS, the CNMT entry (called "Meta" type)
+                var meta = new CnmtContentEntry
                 {
-                    data[content.Id] = content;
+                    Type = NCAType.Meta,
+                    Id = this.CnmtNcaFile.Name.Replace(".cnmt.nca", string.Empty),
+                    Size = this.CnmtNcaFile.Length,
+                    MasterKeyRevision = MasterKeyRevision
+                };
+                using (FileStream stream = File.OpenRead(this.CnmtNcaFilePath))
+                {
+                    meta.HashData = new SHA256Managed().ComputeHash(stream);
                 }
-                // restart loop 0x38 higher than the last loop read to read next meta entry
+                parsedContent.Add(meta.Id, meta);
+
+                // ParseContent is for everything other than system updates
+                // This might be more elegant with subclasses or an interface or something,
+                // but I would still come right back to having to have a single data type returned by the
+                // virtual function that encompassed both content and metadata entries, and I just don't want to
+                // They are completely different and shouldn't be combined into one class
+                if (this.Type == TitleType.SystemUpdate)
+                    throw new Exception("Do not call Parse on a System Update title!!! Only for other types!");
+                
+                FileStream fs = File.OpenRead(this.CnmtFilePath);
+                BinaryReader br = new BinaryReader(fs);
+
+                // Reach each content entry, starting at 0x20 + tableOffset
+                // each entry is 0x38 in size, and their are nEntries of them
+                // With patch, update and addon types, there's a secondary header from 0x20 to 0x30
+                // 0xE tells you how many bytes to skip from 0x20 to the start of the content entries and 0x10 says how many there are
+                br.BaseStream.Seek(0x20 + this.tableOffset, SeekOrigin.Begin);
+                for (int i = 0; i < this.numContentEntries; i++)
+                {
+                    // Parse a content entry
+                    var content = new CnmtContentEntry();
+                    content.HashData = br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
+                    content.Id = Miscellaneous.BytesToHex(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
+                    byte[] sizeBuffer = new byte[8];
+                    br.Read(sizeBuffer, 0, 6);
+                    content.Size = BitConverter.ToInt64(sizeBuffer, 0); // Size, offset 0x30, 6 bytes (8 byte long converted from only 6 bytes)
+                    content.Type = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
+                    content.IdOffset = br.ReadByte(); // IdOffset, offset 0x37, 1 byte
+                    content.MasterKeyRevision = this.MasterKeyRevision;
+
+                    parsedContent[content.Id] = content;
+                    // restart loop 0x38 higher than the last loop read to read next meta entry
+                }
+                br.Close();
             }
-            br.Close();
-            return data;
+
+            if (!ncaType.HasValue)
+                return parsedContent;
+            else
+                return parsedContent.Where(e => e.Value.Type == ncaType).ToDictionary(e => e.Key, e => e.Value);
         }
 
         public string GenerateXml(string outFile)
@@ -315,6 +336,16 @@ namespace SwitchManager.nx.system
 
             logger.Info($"Generated XML file {Path.GetFileName(outFile)}!");
             return (outFile);
+        }
+
+        public static CNMT FromXml(string inFile)
+        {
+            using (TextReader reader = new StreamReader(inFile))
+            {
+                XmlSerializer xmls = new XmlSerializer(typeof(CNMT));
+                CNMT cnmt = xmls.Deserialize(reader) as CNMT;
+                return cnmt;
+            }
         }
 
         public void Dispose()

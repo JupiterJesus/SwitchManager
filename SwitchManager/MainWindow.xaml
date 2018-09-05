@@ -60,6 +60,16 @@
         <MenuItem Header="Select _Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="SelectLibraryLocation_Click"/>
         <MenuItem Header="Save Library _Metadata" Click="SaveLibrary_Click"/>
       </MenuItem>
+      <MenuItem Header="_NSP">
+        <MenuItem Header="Unpack NSP" ToolTip="" Click="UnpackNSP_Click"/>
+        <MenuItem Header="Unpack NSP (and all NCAs within)" ToolTip="" Click="UnpackNSPFiles_Click"/>
+        <MenuItem Header="Unpack NSP (and verify)" ToolTip="" Click="UnpackNSPVerify_Click"/>
+        <MenuItem Header="Repack NSP" ToolTip="" Click="RepackNSP_Click"/>
+        <MenuItem Header="Repack NSP (and verify)" ToolTip="" Click="RepackNSPVerify_Click"/>
+        <MenuItem Header="Repack Directory" ToolTip="" Click="RepackDir_Click"/>
+        <MenuItem Header="Repack Directory (and verify)" ToolTip="" Click="RepackDirVerify_Click"/>
+        <MenuItem Header="Verify NSP" ToolTip="" Click="VerifyNSP_Click"/>
+      </MenuItem>
       <MenuItem Header="_Options">
       </MenuItem>
     </Menu>

@@ -478,8 +478,6 @@ namespace SwitchManager.nx.library
 
         /// <summary>
         /// Executes a download of a title and/or updates/DLC, according to the options presented.
-        /// TODO: Test this
-        /// TODO: DLC
         /// </summary>
         /// <param name="titleItem"></param>
         /// <param name="v"></param>

@@ -11,11 +11,14 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Encodings;
 using Org.BouncyCastle.Crypto.Engines;
 using System.Security.Cryptography.X509Certificates;
+using log4net;
 
 namespace SwitchManager.util
 {
     public class Crypto
     {
+        private static readonly ILog logger = LogManager.GetLogger(typeof(Hactool));
+
         /*
         public static void Pkcs12ToPfx(string certFile, string keyFile, string pfxFile)
         {
@@ -386,6 +389,28 @@ namespace SwitchManager.util
             Array.Copy(encResult, encResult.Length - HashValue.Length, HashValue, 0, HashValue.Length);
 
             return HashValue;
+        }
+
+        public static bool VerifySha256Hash(string path, byte[] expectedHash)
+        {
+            using (FileStream fs = File.OpenRead(path))
+            {
+                byte[] hash = new SHA256Managed().ComputeHash(fs);
+                if (expectedHash.Length != hash.Length) // hash has to be 32 bytes = 256 bit
+                {
+                    logger.Error($"Bad parsed hash file for {path}, not the right length");
+                    return false;
+                }
+                for (int i = 0; i < hash.Length; i++)
+                {
+                    if (hash[i] != expectedHash[i])
+                    {
+                        logger.Error($"Hash of downloaded file does not match expected hash!");
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace SwitchManager.nx.cdn
+namespace SwitchManager.util
 {
     [Serializable]
     internal class HactoolFailedException : Exception

@@ -18,7 +18,7 @@ namespace SwitchManager.io
             job.Start();
         }
 
-        public JobFileStream(string path, string jobName, long expectedSize, int startingSize, int bufferSize = 8192) : this(File.OpenWrite(path), jobName, expectedSize, startingSize, bufferSize)
+        public JobFileStream(string path, string jobName, long expectedSize, int startingSize, int bufferSize = 8192) : this(File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite), jobName, expectedSize, startingSize, bufferSize)
         {
         }
 
@@ -156,7 +156,7 @@ namespace SwitchManager.io
             while (true)
             {
                 // Read from the web.
-                int n = await source.ReadAsync(buffer, 0, buffer.Length);
+                int n = await source.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
 
                 if (n == 0 || job.IsCancelled)
                 {
@@ -168,7 +168,7 @@ namespace SwitchManager.io
                 job.UpdateProgress(n);
 
                 // Write to file.
-                await str.WriteAsync(buffer, 0, n);
+                await str.WriteAsync(buffer, 0, n).ConfigureAwait(false);
                 written += n;
             }
 
@@ -206,28 +206,39 @@ namespace SwitchManager.io
 
         public new async Task<long> CopyToAsync(Stream dest)
         {
+            return await CopyToAsync(dest, -1).ConfigureAwait(false);
+        }
+
+        public async Task<long> CopyToAsync(Stream dest, long howManyBytes)
+        {
             if (str == null) return 0;
             if (dest == null) return 0;
 
             byte[] buffer = new byte[chunkSize];
             long written = 0;
+            long bytesLeft = howManyBytes;
             while (true)
             {
-                // Read from the web.
-                int n = await str.ReadAsync(buffer, 0, buffer.Length);
+                // Cancelled job
+                if (job.IsCancelled) break;
 
-                if (n == 0 || job.IsCancelled)
-                {
-                    // There is nothing else to read.
-                    break;
-                }
+                // Read from the source.
+                int b = howManyBytes > 0 && bytesLeft < chunkSize ? (int)bytesLeft : chunkSize;
+                int n = await str.ReadAsync(buffer, 0, b).ConfigureAwait(false);
+
+                // There is nothing else to read.
+                if (n == 0) break;
 
                 // Report progress.
                 job.UpdateProgress(n);
 
                 // Write to file.
-                await dest.WriteAsync(buffer, 0, n);
+                await dest.WriteAsync(buffer, 0, n).ConfigureAwait(false);
                 written += n;
+                bytesLeft -= n;
+
+                // Finished writing all the requested bytes
+                if (howManyBytes > 0 && written >= howManyBytes) break;
             }
 
             return written;
