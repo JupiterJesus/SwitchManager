@@ -1,14 +1,10 @@
 ﻿using log4net;
-using Newtonsoft.Json.Linq;
-using SwitchManager.nx.library;
 using SwitchManager.util;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Serialization;
 
 namespace SwitchManager.nx.system
@@ -42,7 +38,7 @@ namespace SwitchManager.nx.system
 
         [XmlElement(ElementName = "RequiredDownloadSystemVersion")]
         public string RequiredDownloadSystemVersion { get; set; }
-        
+
         [XmlElement(ElementName = "Content")]
         public CnmtContentEntry[] Content
         {
@@ -63,6 +59,8 @@ namespace SwitchManager.nx.system
             }
         }
         private Dictionary<string, CnmtContentEntry> parsedContent;
+
+        private Dictionary<string, CnmtMetaEntry> parsedMeta;
 
         [XmlElement(ElementName = "Digest")]
         public string Digest
@@ -184,41 +182,45 @@ namespace SwitchManager.nx.system
 
         public Dictionary<string, CnmtMetaEntry> ParseSystemUpdate()
         {
-            // System updates are different and get their own parser
-            // Don't try to call parsesystemupdate if it isn't one!
-            // This was the easiest solution to coding a file with drastically different file formats
-            // in a strongly typed language.
-            // I also considered storing everything in a dictionary of strings, or in a generic json container
-            // but I ultimately settled on having one parse for system update that handles system updates and
-            // one that handles other stuff
-            // I might even have two different CNMTs with different parse methods, subclassing CNMT, I dunno
-            if (this.Type != TitleType.SystemUpdate)
-                throw new Exception("Do not call ParseSystemUpdate unless the CNMT is for a System Update title!!!");
-
-            var data = new Dictionary<string, CnmtMetaEntry>();
-            FileStream fs = File.OpenRead(CnmtFilePath);
-            BinaryReader br = new BinaryReader(fs);
-
-            // Reach each entry, starting at 0x20 (after the header ends)
-            // each entry is 0x10 in size, and their are numMetaEntries (stored at 0x12) of them
-            // With patch, update and addon types, there's a secondary header from 0x20 to 0x30
-            // 0xE tells you how many bytes to skip from 0x20 to the start of the content entries and 0x10 says how many there are
-            // With System Update, 0xE is blank, but 0x12 tells you how many metadata entries there are, starting at 0x20
-            // See http://switchbrew.org/index.php?title=NCA
-            br.BaseStream.Seek(0x20, SeekOrigin.Begin);
-            for (int i = 0; i < this.numMetaEntries; i++)
+            if (parsedMeta == null)
             {
-                var meta = new CnmtMetaEntry();
-                // Parse a meta entry
-                meta.TitleID = $"{br.ReadUInt64():X16}"; // Title ID, offset 0x0, 8 bytes, we store it in hex to match other title ids
-                meta.Version = br.ReadUInt32(); // Version, offset 0x8, 4 bytes, store it as uint to match other versions, even though in hex it is always in the format 0xN0000, where N is the version number OMG why don't I fucking store this shit in hex? oh well whatever
-                meta.Type = (TitleType)br.ReadByte(); // Title Type, offset 0xC, 1 byte
-                meta.Flag = br.ReadByte(); // Unknown flag bit?, not using, offset 0xD, 1 byte
-                meta.Unknown = br.ReadUInt16(); // Unused? Skip, offset 0xE, 2 bytes
-                // restart loop 0x10 higher than the last loop read to read next meta entry
-                data[meta.TitleID] = meta;
+                parsedMeta = new Dictionary<string, CnmtMetaEntry>();
+
+                // System updates are different and get their own parser
+                // Don't try to call parsesystemupdate if it isn't one!
+                // This was the easiest solution to coding a file with drastically different file formats
+                // in a strongly typed language.
+                // I also considered storing everything in a dictionary of strings, or in a generic json container
+                // but I ultimately settled on having one parse for system update that handles system updates and
+                // one that handles other stuff
+                // I might even have two different CNMTs with different parse methods, subclassing CNMT, I dunno
+                if (this.Type != TitleType.SystemUpdate)
+                    throw new Exception("Do not call ParseSystemUpdate unless the CNMT is for a System Update title!!!");
+
+                FileStream fs = File.OpenRead(CnmtFilePath);
+                BinaryReader br = new BinaryReader(fs);
+
+                // Reach each entry, starting at 0x20 (after the header ends)
+                // each entry is 0x10 in size, and their are numMetaEntries (stored at 0x12) of them
+                // With patch, update and addon types, there's a secondary header from 0x20 to 0x30
+                // 0xE tells you how many bytes to skip from 0x20 to the start of the content entries and 0x10 says how many there are
+                // With System Update, 0xE is blank, but 0x12 tells you how many metadata entries there are, starting at 0x20
+                // See http://switchbrew.org/index.php?title=NCA
+                br.BaseStream.Seek(0x20, SeekOrigin.Begin);
+                for (int i = 0; i < this.numMetaEntries; i++)
+                {
+                    var meta = new CnmtMetaEntry();
+                    // Parse a meta entry
+                    meta.TitleID = $"{br.ReadUInt64():X16}"; // Title ID, offset 0x0, 8 bytes, we store it in hex to match other title ids
+                    meta.Version = br.ReadUInt32(); // Version, offset 0x8, 4 bytes, store it as uint to match other versions, even though in hex it is always in the format 0xN0000, where N is the version number OMG why don't I fucking store this shit in hex? oh well whatever
+                    meta.Type = (TitleType)br.ReadByte(); // Title Type, offset 0xC, 1 byte
+                    meta.Flag = br.ReadByte(); // Unknown flag bit?, not using, offset 0xD, 1 byte
+                    meta.Unknown = br.ReadUInt16(); // Unused? Skip, offset 0xE, 2 bytes
+                    // restart loop 0x10 higher than the last loop read to read next meta entry
+                    parsedMeta[meta.TitleID] = meta;
+                }
             }
-            return data;
+            return parsedMeta;
         }
 
         /// <summary>
@@ -232,6 +234,9 @@ namespace SwitchManager.nx.system
             if (this.Type == TitleType.SystemUpdate)
                 throw new Exception("Do not call Parse on a System Update title!!! Only for other types!");
 
+            var content = Content.Where(e => e.Type == desiredType).Select(e => e.Id);
+            return content.ToList();
+            /*
             var data = new List<string>();
             FileStream fs = File.OpenRead(this.CnmtFilePath);
             BinaryReader br = new BinaryReader(fs);
@@ -259,6 +264,7 @@ namespace SwitchManager.nx.system
             }
             br.Close();
             return data;
+            */
         }
 
         public Dictionary<string, CnmtContentEntry> ParseContent(NCAType? ncaType = null)
@@ -324,7 +330,6 @@ namespace SwitchManager.nx.system
 
         public string GenerateXml(string outFile)
         {
-
             // Create a new file stream to write the serialized object to a file
             using (TextWriter writer = new StreamWriter(outFile))
             {
