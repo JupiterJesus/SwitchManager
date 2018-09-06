@@ -54,18 +54,14 @@ namespace SwitchManager.nx.system
             {
                 List<string> files = new List<string> { Certificate };
 
-                if (!string.IsNullOrWhiteSpace(Title.TitleKey))
-                    files.Add(Ticket);
-                foreach (var type in new[] { NCAType.Program, NCAType.LegalInformation, NCAType.Data, NCAType.HtmlDocument, NCAType.DeltaFragment })
-                {
-                    if (NCAs.ContainsKey(type))
-                        files.AddRange(NCAs[type]);
-                }
-                files.Add(CnmtNCA);
-                files.Add(CnmtXML);
+                if (!string.IsNullOrWhiteSpace(Title.TitleKey)) files.Add(Ticket);
 
-                if (NCAs.ContainsKey(NCAType.Control))
-                    files.AddRange(NCAs[NCAType.Control]);
+                files.AddRange(NcaFiles);
+
+                if (!string.IsNullOrWhiteSpace(CnmtXML)) files.Add(CnmtXML);
+                if (!string.IsNullOrWhiteSpace(LegalinfoXML)) files.Add(LegalinfoXML);
+                if (!string.IsNullOrWhiteSpace(PrograminfoXML)) files.Add(PrograminfoXML);
+                if (!string.IsNullOrWhiteSpace(NacpXML)) files.Add(NacpXML);
 
                 files.AddRange(this.IconFiles);
                 files.AddRange(this.miscFiles);
@@ -84,10 +80,10 @@ namespace SwitchManager.nx.system
         public string CnmtNCA { get; private set; }
 
         // Four types of XML files - .cnmt.xml, .programinfo.xml, .legalinfo.xml and .nacp.xml
-        public string CnmtXML { get; private set; }
-        public string PrograminfoXML { get; private set; }
-        public string LegalinfoXML { get; private set; }
-        public string NacpXML { get; private set; }
+        public string CnmtXML { get; set; }
+        public string PrograminfoXML { get; set; }
+        public string LegalinfoXML { get; set; }
+        public string NacpXML { get; set; }
 
         // Images/icons from the control file
         public List<string> IconFiles { get; private set; } = new List<string>();
@@ -318,7 +314,7 @@ namespace SwitchManager.nx.system
                         int thisOffset = stringTableOffsets[i];
 
                         // Decode UTF8 string and assign to files array
-                        string name = strBytes.DecodeAsciiZ(thisOffset);
+                        string name = strBytes.DecodeUTF8NullTerminated(thisOffset);
                         //string name = Encoding.UTF8.GetString(strBytes, thisOffset, thisLength);
                         files[i] = name;
                     }

@@ -13,11 +13,33 @@ namespace SwitchManager.util
 {
     public static class Extensions
     {
-        public unsafe static string DecodeAsciiZ(this byte[] buffer, int index = 0)
+        public unsafe static string DecodeAsciiNullTerminated(this byte[] buffer, int index = 0)
         {
             fixed (byte* bytes = &buffer[index])
             {
                 return new string((sbyte*)bytes);
+            }
+        }
+
+        public unsafe static string DecodeUTF32NullTerminated(this byte[] buffer, int index = 0)
+        {
+            int count = 0;
+            while (buffer[count] != 0) count++;
+
+            fixed (byte* bytes = &buffer[index])
+            {
+                return Encoding.UTF32.GetString(bytes, count);
+            }
+        }
+
+        public unsafe static string DecodeUTF8NullTerminated(this byte[] buffer, int index = 0)
+        {
+            int count = 0;
+            while (buffer[count] != 0) count++;
+
+            fixed (byte* bytes = &buffer[index])
+            {
+                return Encoding.UTF8.GetString(bytes, count);
             }
         }
 
