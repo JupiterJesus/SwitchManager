@@ -38,6 +38,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -47,6 +48,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject>SwitchManager.App</StartupObject>
@@ -107,9 +109,12 @@
     <Compile Include="nx\cdn\CnmtMissingException.cs" />
     <Compile Include="nx\cdn\DownloadFailedException.cs" />
     <Compile Include="nx\cdn\EshopLogin.cs" />
-    <Compile Include="nx\cdn\HactoolFailedException.cs" />
+    <Compile Include="nx\system\BadNcaException.cs" />
+    <Compile Include="nx\system\RatingOrganisation.cs" />
+    <Compile Include="util\HactoolFailedException.cs" />
     <Compile Include="io\JobFileStream.cs" />
-    <Compile Include="nx\system\NACP.cs" />
+    <Compile Include="nx\system\InvalidNspException.cs" />
+    <Compile Include="nx\system\ControlData.cs" />
     <Compile Include="nx\system\SwitchLanguage.cs" />
     <Compile Include="nx\system\SwitchDLC.cs" />
     <Compile Include="nx\system\SwitchUpdate.cs" />
@@ -138,6 +143,7 @@
     <Compile Include="util\Crypto.cs" />
     <Compile Include="io\FileCopyJob.cs" />
     <Compile Include="util\Extensions.cs" />
+    <Compile Include="util\Hactool.cs" />
     <Compile Include="util\Miscellaneous.cs" />
     <Page Include="ui\TextInputWindow.xaml">
       <Generator>MSBuild:Compile</Generator>

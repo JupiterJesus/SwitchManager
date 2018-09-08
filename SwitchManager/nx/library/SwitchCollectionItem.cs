@@ -135,6 +135,9 @@ namespace SwitchManager.nx.library
         }
         private long? size;
 
+        [XmlElement(ElementName = "Added")]
+        public DateTime? Added { get; set; }
+
         [XmlElement(ElementName = "Path")]
         public string RomPath
         {

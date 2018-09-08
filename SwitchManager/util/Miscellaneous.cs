@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -117,9 +118,25 @@ namespace SwitchManager.util
             return BitConverter.ToString(v).Replace("-", "").ToLower();
         }
 
+        public static string LongToHex(ulong l)
+        {
+            return l.ToString("x16");
+        }
+        
         public static byte HexToByte(string byteValue)
         {
             return byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        public static ulong HexToLong(string hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex)) return 0;
+
+            if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                hex = hex.Substring(2);
+            }
+            return ulong.Parse(hex, NumberStyles.HexNumber);
         }
 
         /// <summary>
@@ -175,6 +192,13 @@ namespace SwitchManager.util
             if (string.IsNullOrWhiteSpace(dir)) return;
 
             Directory.Delete(dir, recursive);
+        }
+
+        internal static void DeleteFile(string file)
+        {
+            if (string.IsNullOrWhiteSpace(file)) return;
+
+            File.Delete(file);
         }
     }
 }

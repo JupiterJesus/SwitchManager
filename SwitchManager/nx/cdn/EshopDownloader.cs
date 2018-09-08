@@ -104,11 +104,14 @@ namespace SwitchManager.nx.cdn
                     Hactool hactool = new Hactool(hactoolPath, keysPath);
                     var controlDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
 
-                    DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
+                    DirectoryInfo romfs = controlDir.EnumerateDirectories("romfs").First();
 
-                    var iconFile = imageDir.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
+                    var iconFile = romfs.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
                     iconFile.MoveTo(imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg");
+
+                    GetControlFile(title, romfs.FullName); // this is just to update the name and publisher
                 }
+
                 gameDir.Delete(true);
             }
             else
@@ -130,17 +133,12 @@ namespace SwitchManager.nx.cdn
         {
             logger.Info($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
 
-            var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false);
-
-            if (cnmt != null)
+            using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false))
             {
                 // Now that the CNMT NCA was downloaded and decrypted, read it f
-                string ticketPath = null, certPath = null, cnmtXml = null;
+                string ticketPath = null, certPath = null;
                 if (nspRepack)
                 {
-                    cnmtXml = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFilePath) + ".xml";
-                    cnmt.GenerateXml(cnmtXml);
-
                     string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
                     ticketPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".tik";
                     certPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".cert";
@@ -215,31 +213,31 @@ namespace SwitchManager.nx.cdn
                 }
 
                 List<Task<bool>> tasks = new List<Task<bool>>();
-                NSP nsp = new NSP(title, certPath, ticketPath, cnmt, cnmtXml);
-                foreach (var type in new[] { NCAType.Meta, NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
+
+                // The NSP handles setting up the CNMT as part of the NSP in the constructor
+                // This includes generating the XML, adding the NCA and anything else.
+                NSP nsp = new NSP(title, titleDir, cnmt)
                 {
-                    // To verify, we need to parse the CNMT more thoroughly, which is a waste of effort if we aren't verifying
-                    if (verify)
+                    Ticket = ticketPath,
+                    Certificate = certPath
+                };
+
+                // Parse all types except for Meta (which is the CNMT)
+                foreach (var type in new[] { NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
+                {
+                    var parsedNCAs = cnmt.ParseContent(type);
+                    foreach (var content in parsedNCAs)
                     {
-                        var parsedNCAs = cnmt.ParseContent(type);
-                        foreach (var content in parsedNCAs)
+                        string ncaID = content.Key;
+                        byte[] hash = verify ? content.Value.HashData : null;
+
+                        // When you add an NCA ID, the NSP generates the proper path using its base directory and the ID
+                        string path = nsp.AddNCAByID(type, ncaID);
+
+                        // Dont redownload the cnmt. It wont work anyway, not at this url.
+                        if (content.Value.Type != NCAType.Meta)
                         {
-                            string ncaID = content.Key;
-                            byte[] hash = content.Value.HashData;
-                            string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
-                            nsp.AddNCA(type, path);
                             Task<bool> t = DoDownloadNCA(ncaID, path, hash, title);
-                            tasks.Add(t);
-                        }
-                    }
-                    else
-                    {
-                        var parsedNCAFiles = cnmt.ParseNCAs(type);
-                        foreach (var ncaID in parsedNCAFiles)
-                        {
-                            string path = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
-                            nsp.AddNCA(type, path);
-                            Task<bool> t = DoDownloadNCA(ncaID, path, null, title);
                             tasks.Add(t);
                         }
                     }
@@ -265,26 +263,52 @@ namespace SwitchManager.nx.cdn
 
                 if (cnmt.Type == TitleType.Application)
                 {
+                    Hactool hactool = new Hactool(hactoolPath, keysPath);
 
                     string controlID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
                     string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
 
-                    Hactool hactool = new Hactool(hactoolPath, keysPath);
-                    var controlDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
-                    DirectoryInfo imageDir = controlDir.EnumerateDirectories("romfs").First();
-
-                    foreach (var image in imageDir.EnumerateFiles("icon_*.dat"))
+                    var ncaDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
+                    if (ncaDir != null)
                     {
-                        string name = Path.GetFileNameWithoutExtension(image.Name).Replace("icon_", controlID + ".nx.");
-                        string destFile = titleDir + Path.DirectorySeparatorChar + name + ".jpg";
-                        if (!File.Exists(destFile))
-                            image.MoveTo(destFile);
-                        nsp.AddImage(destFile);
-                    }
-                    // TODO Parse nacp file from control nca, generate *.nacp.xml
-                    controlDir.Delete(true);
+                        DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
 
-                    // TODO unpack and parse legalinfo nca, generate *.legalinfo.xml
+                        foreach (var image in romfs.EnumerateFiles("icon_*.dat"))
+                        {
+                            string name = Path.GetFileNameWithoutExtension(image.Name).Replace("icon_", controlID + ".nx.");
+                            string destFile = titleDir + Path.DirectorySeparatorChar + name + ".jpg";
+                            if (!File.Exists(destFile))
+                                image.MoveTo(destFile);
+                            nsp.AddImage(destFile);
+                        }
+
+                        ControlData cdata = GetControlFile(title, romfs.FullName);
+                        if (cdata != null)
+                        {
+                            string controlXmlFile = titleDir + Path.DirectorySeparatorChar + controlID + ".nacp.xml";
+                            cdata.GenerateXml(controlXmlFile);
+                            nsp.NacpXML = controlXmlFile;
+                        }
+                        ncaDir.Delete(true);
+                    }
+
+                    string legalID = cnmt.ParseNCAs(NCAType.LegalInformation).First(); // There's only one legal.nca
+                    string legalPath = titleDir + Path.DirectorySeparatorChar + legalID + ".nca";
+
+                    ncaDir = await hactool.DecryptNCA(legalPath).ConfigureAwait(false);
+                    if (ncaDir != null)
+                    {
+                        DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
+                        string legalxml = romfs.FullName + Path.DirectorySeparatorChar + "legalinfo.xml";
+                        string legalinfoXml = titleDir + Path.DirectorySeparatorChar + legalID + ".legalinfo.xml";
+                        if (File.Exists(legalxml))
+                        {
+                            File.Copy(legalxml, legalinfoXml, true);
+                            nsp.LegalinfoXML = legalinfoXml;
+                        }
+                        ncaDir.Delete(true);
+                    }
+
                     // TODO unpack and parse program nca, generate *.programinfo.xml
 
                 }
@@ -296,6 +320,30 @@ namespace SwitchManager.nx.cdn
                 }
             }
 
+            return null;
+        }
+
+        /// <summary>
+        /// Gets and parses the control.nacp file. You must provide the path to the romfs directory of
+        /// an unpacked Control NCA.
+        /// </summary>
+        /// <param name="title"></param>
+        /// <param name="romfsDirectory"></param>
+        /// <returns></returns>
+        private ControlData GetControlFile(SwitchTitle title, string romfsDirectory)
+        {
+
+            string controlFile = romfsDirectory + Path.DirectorySeparatorChar + "control.nacp";
+            if (File.Exists(controlFile))
+            {
+                ControlData cdata = ControlData.Parse(controlFile);
+                if (cdata == null) return null;
+
+                var ct = cdata.Titles[(int)SwitchLanguage.AmericanEnglish];
+                title.Name = ct.Name;
+                title.Publisher = ct.Publisher;
+                return cdata;
+            }
             return null;
         }
 

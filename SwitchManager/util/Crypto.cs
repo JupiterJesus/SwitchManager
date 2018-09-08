@@ -391,11 +391,21 @@ namespace SwitchManager.util
             return HashValue;
         }
 
+        public static byte[] ComputeHash(FileStream fs)
+        {
+            return new SHA256Managed().ComputeHash(fs);
+        }
+
+        public static byte[] ComputeHash(byte[] buf)
+        {
+            return new SHA256Managed().ComputeHash(buf);
+        }
+
         public static bool VerifySha256Hash(string path, byte[] expectedHash)
         {
             using (FileStream fs = File.OpenRead(path))
             {
-                byte[] hash = new SHA256Managed().ComputeHash(fs);
+                byte[] hash = ComputeHash(fs);
                 if (expectedHash.Length != hash.Length) // hash has to be 32 bytes = 256 bit
                 {
                     logger.Error($"Bad parsed hash file for {path}, not the right length");

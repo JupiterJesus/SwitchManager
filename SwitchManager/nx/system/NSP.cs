@@ -73,11 +73,11 @@ namespace SwitchManager.nx.system
         public SwitchTitle Title { get; set; }
 
         // The ticket and cert files, .tik and .cert
-        public string Certificate { get; private set; }
-        public string Ticket { get; private set; }
+        public string Certificate { get; set; }
+        public string Ticket { get; set; }
 
         // The meta NCA, I keep it here because it is special
-        public string CnmtNCA { get; private set; }
+        public string CnmtNCA { get; set; }
 
         // Four types of XML files - .cnmt.xml, .programinfo.xml, .legalinfo.xml and .nacp.xml
         public string CnmtXML { get; set; }
@@ -92,19 +92,23 @@ namespace SwitchManager.nx.system
         // Any other unknown files, since NSPs can hold anything
         private List<string> miscFiles = new List<string>();
 
-        public NSP(SwitchTitle title, string certificate, string ticket, CNMT cnmt, string cnmtXml)
+        public string Directory { get; set; }
+
+        public NSP(SwitchTitle title, string baseDirectory, CNMT cnmt)
         {
             this.Title = title;
-            this.Certificate = certificate;
-            this.Ticket = ticket;
             this.CnmtNCA = cnmt.CnmtNcaFilePath;
-            this.CnmtXML = cnmtXml;
+            this.CnmtXML = cnmt.GenerateXml();
+            this.Directory = baseDirectory;
+
             this.CNMT = cnmt;
+            AddNCAFile(NCAType.Meta, CnmtNCA);
         }
 
-        public NSP()
+        public NSP(string baseDirectory)
         {
-            // Default constructor, all fields must be added manually
+            // All fields must be added manually
+            this.Directory = baseDirectory;
         }
 
         /// <summary>
@@ -327,7 +331,7 @@ namespace SwitchManager.nx.system
                     // Create a directory right next to the NSP, using the NSP's file name (no extension)
                     DirectoryInfo parentDir = finfo.Directory;
                     DirectoryInfo nspDir = parentDir.CreateSubdirectory(Path.GetFileNameWithoutExtension(finfo.Name));
-                    NSP nsp = new NSP();
+                    NSP nsp = new NSP(nspDir.FullName);
                     List<string> ncas = new List<string>();
 
                     // Copy each file in the NSP to a new file.
@@ -393,7 +397,7 @@ namespace SwitchManager.nx.system
                             if (!good) throw new BadNcaException(n, "Hash of NCA file didn't match expected hash from CNMT");
                             else logger.Info($"Verification succeeded.");
                         }
-                        nsp.AddNCA(entry.Type, n);
+                        nsp.AddNCAFile(entry.Type, n);
                     }
                     return nsp;
                 }
@@ -415,12 +419,26 @@ namespace SwitchManager.nx.system
             this.miscFiles.Add(filePath);
         }
 
-        internal void AddNCA(NCAType type, string path)
+        internal string AddNCAByID(NCAType type, string ncaID)
         {
             if (!NCAs.ContainsKey(type))
                 NCAs.Add(type, new List<string>());
 
-            NCAs[type].Add(path);
+            string file = (type == NCAType.Meta) ? ncaID + ".cnmt.nca" : ncaID + ".nca";
+            file = this.Directory + Path.DirectorySeparatorChar + file;
+            NCAs[type].Add(file);
+
+            return file;
+        }
+
+        internal string AddNCAFile(NCAType type, string file)
+        {
+            if (!NCAs.ContainsKey(type))
+                NCAs.Add(type, new List<string>());
+
+            NCAs[type].Add(file);
+
+            return file;
         }
 
         internal void AddImage(string destFile)

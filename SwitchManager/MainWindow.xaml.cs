@@ -121,7 +121,7 @@ namespace SwitchManager
                 {
                     MakeBackup(Settings.Default.NumMetadataBackups);
                     await library.LoadMetadata(this.metadataFile);
-                    Task t = Task.Run(()=>library.UpdateVersions().ConfigureAwait(false));
+                    Task t = Task.Run(()=>library.UpdateVersions());
                 }
             }
             catch (AggregateException ex)
@@ -298,7 +298,7 @@ namespace SwitchManager
             {
                 try
                 {
-                    await DoDownload(item, ver, o).ConfigureAwait(false);
+                    await DoDownload(item, ver, o);
                 }
                 catch (CertificateDeniedException)
                 {
@@ -321,7 +321,7 @@ namespace SwitchManager
 
         private async Task DoDownload(SwitchCollectionItem item, uint v, DownloadOptions o)
         {
-            await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads).ConfigureAwait(false);
+            await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
         }
 
         private void RemoveTitle_Click(object sender, RoutedEventArgs e)
@@ -519,7 +519,7 @@ namespace SwitchManager
             }
 
             await LoadTitleKeys(tempTkeysFile);
-            File.Delete(tempTkeysFile);
+            Miscellaneous.DeleteFile(tempTkeysFile);
         }
 
         private async void MenuItemLoadKeys_Click(object sender, RoutedEventArgs e)
@@ -552,7 +552,7 @@ namespace SwitchManager
                 string temp = Settings.Default.TitleKeysFile + ".tmp";
                 File.WriteAllText(temp, keys);
                 await LoadTitleKeys(temp);
-                File.Delete(temp);
+                Miscellaneous.DeleteFile(temp);
             }
         }
 
@@ -571,9 +571,9 @@ namespace SwitchManager
 
             Task.Run(delegate
             {
-                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).ToList().ForEach(async t => await UpdateSize(t).ConfigureAwait(false));
+                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).ToList().ForEach(async t => await UpdateSize(t));
             });
-            //Parallel.ForEach(this.library.Collection, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async t => await UpdateSize(t).ConfigureAwait(false));
+            //Parallel.ForEach(this.library.Collection, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async t => await UpdateSize(t));
         }
 
         private void MenuItemForceEstimateSizes_Click(object sender, RoutedEventArgs e)
@@ -581,13 +581,13 @@ namespace SwitchManager
             // Just like regular estimate sizes, but force updates any that don't have a filename
             Task.Run(delegate
             {
-                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && string.IsNullOrWhiteSpace(t.RomPath)).ToList().ForEach(async t => await UpdateSize(t).ConfigureAwait(false));
+                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && string.IsNullOrWhiteSpace(t.RomPath)).ToList().ForEach(async t => await UpdateSize(t));
             });
         }
 
         private void MenuItemPreloadImages_Click(object sender, RoutedEventArgs e)
         {
-            Task.Run(() => library.LoadTitleIcons(Settings.Default.ImageCache)).ConfigureAwait(false);
+            Task.Run(() => library.LoadTitleIcons(Settings.Default.ImageCache));
         }
 
         private void MenuItemShowDownloads_Click(object sender, RoutedEventArgs e)
@@ -786,18 +786,18 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title).ConfigureAwait(false)) ?? title.BaseVersion;
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
 
                 switch (type)
                 {
                     case SwitchTitleType.Game:
-                        await DoDownload(item, version, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.BaseGameOnly);
                         break;
                     case SwitchTitleType.Update:
-                        await DoDownload(item, version, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.UpdateOnly);
                         break;
                     case SwitchTitleType.DLC:
-                        await DoDownload(item, version, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.AllDLC);
                         break;
                 }
             }
@@ -817,7 +817,7 @@ namespace SwitchManager
                 
                 if (!item.Size.HasValue)
                 {
-                    await UpdateSize(item).ConfigureAwait(false);
+                    await UpdateSize(item);
                     if (!item.Size.HasValue)
                         break;
                 }
@@ -831,18 +831,18 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title).ConfigureAwait(false)) ?? title.BaseVersion;
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
 
                 switch (type)
                 {
                     case SwitchTitleType.Game:
-                        await DoDownload(item, version, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.BaseGameOnly);
                         break;
                     case SwitchTitleType.Update:
-                        await DoDownload(item, version, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.UpdateOnly);
                         break;
                     case SwitchTitleType.DLC:
-                        await DoDownload(item, version, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.AllDLC);
                         break;
                 }
 
@@ -863,7 +863,7 @@ namespace SwitchManager
 
                 if (!item.Size.HasValue)
                 {
-                    await UpdateSize(item).ConfigureAwait(false);
+                    await UpdateSize(item);
                     if (!item.Size.HasValue)
                         break;
                     if (limit > 0 && item.Size > limit)
@@ -879,18 +879,18 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title).ConfigureAwait(false)) ?? title.BaseVersion;
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
 
                 switch (type)
                 {
                     case SwitchTitleType.Game:
-                        await DoDownload(item, version, DownloadOptions.BaseGameOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.BaseGameOnly);
                         break;
                     case SwitchTitleType.Update:
-                        await DoDownload(item, version, DownloadOptions.UpdateOnly).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.UpdateOnly);
                         break;
                     case SwitchTitleType.DLC:
-                        await DoDownload(item, version, DownloadOptions.AllDLC).ConfigureAwait(false);
+                        await DoDownload(item, version, DownloadOptions.AllDLC);
                         break;
                 }
             }
@@ -947,7 +947,7 @@ namespace SwitchManager
             else
             {
                 ShowError("Failed to download new title keys.");
-                File.Delete(tkeysFile);
+                Miscellaneous.DeleteFile(tkeysFile);
             }
             DataGrid_Collection.Items.Refresh();
         }
@@ -1055,7 +1055,7 @@ namespace SwitchManager
                     }
 
                     await library.LoadMetadata(games);
-                    Task t = Task.Run(() => library.UpdateVersions().ConfigureAwait(false));
+                    Task t = Task.Run(() => library.UpdateVersions());
                     ShowMessage("Imported game metadata.", "Finished");
                 }
             }
@@ -1096,7 +1096,10 @@ namespace SwitchManager
 
         private void SaveLibrary_Click(object sender, RoutedEventArgs e)
         {
-            this.library.SaveMetadata(Settings.Default.MetadataFile);
+            string file = Settings.Default.MetadataFile;
+            if (string.IsNullOrWhiteSpace(Path.GetExtension(file)))
+                file += ".xml";
+            this.library.SaveMetadata(file);
         }
 
         #region NSP Menu
@@ -1179,7 +1182,7 @@ namespace SwitchManager
                     foreach (var nca in nsp.NcaFiles)
                     {
                         Hactool hactool = new Hactool(Settings.Default.HactoolPath, Settings.Default.KeysPath);
-                        await hactool.DecryptNCA(nca, titlekey).ConfigureAwait(false);
+                        await hactool.DecryptNCA(nca, titlekey);
                     }
                 }
                 catch (BadNcaException b)
@@ -1412,9 +1415,9 @@ namespace SwitchManager
                 if (title.IsUpdate)
                     version = ((SwitchUpdate)title).Version;
                 else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title).ConfigureAwait(false)) ?? title.BaseVersion;
+                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
 
-                var result = await library.Loader.GetTitleSize(item?.Title, version, titledir).ConfigureAwait(false);
+                var result = await library.Loader.GetTitleSize(item?.Title, version, titledir);
                 item.Size = result;
             }
             catch (HactoolFailedException)
@@ -1437,23 +1440,26 @@ namespace SwitchManager
 
         private void ShowError(string text)
         {
-            MaterialMessageBox.ShowError(text);
+            Dispatcher?.InvokeOrExecute(()=>MaterialMessageBox.ShowError(text));
         }
 
         private void ShowMessage(string text, string title, string okButton = null, string cancel = null)
         {
-            var msg = new CustomMaterialMessageBox
+            Dispatcher?.InvokeOrExecute(delegate
             {
-                MainContentControl = { Background = Brushes.White },
-                TitleBackgroundPanel = { Background = Brushes.Black },
-                BorderBrush = Brushes.Black,
-                TxtMessage = { Text = text, Foreground = Brushes.Black },
-                TxtTitle = { Text = title, Foreground = Brushes.White },
-                BtnOk = { Content = okButton ?? "OK" },
-                BtnCancel = { Content = cancel ?? "Cancel", Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible },
-            };
-            msg.BtnOk.Focus();
-            msg.Show();
+                var msg = new CustomMaterialMessageBox
+                {
+                    MainContentControl = { Background = Brushes.White },
+                    TitleBackgroundPanel = { Background = Brushes.Black },
+                    BorderBrush = Brushes.Black,
+                    TxtMessage = { Text = text, Foreground = Brushes.Black },
+                    TxtTitle = { Text = title, Foreground = Brushes.White },
+                    BtnOk = { Content = okButton ?? "OK" },
+                    BtnCancel = { Content = cancel ?? "Cancel", Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible },
+                };
+                msg.BtnOk.Focus();
+                msg.Show();
+            });
         }
     }
 }

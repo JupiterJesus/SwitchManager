@@ -39,7 +39,7 @@
       <Value Profile="(Default)">Images</Value>
     </Setting>
     <Setting Name="NSPDirectory" Type="System.String" Scope="User">
-      <Value Profile="(Default)">E:\Emulation\nws\roms\nsp</Value>
+      <Value Profile="(Default)">D:\Emulation\nws\roms\nsp</Value>
     </Setting>
     <Setting Name="NSPRepack" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
@@ -69,7 +69,7 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="TempDirectory" Type="System.String" Scope="User">
-      <Value Profile="(Default)">E:\Emulation\nws\roms\nsp\tmp</Value>
+      <Value Profile="(Default)">D:\Emulation\nws\roms\nsp\tmp</Value>
     </Setting>
   </Settings>
 </SettingsFile>

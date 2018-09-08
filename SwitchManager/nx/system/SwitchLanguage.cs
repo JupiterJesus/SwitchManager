@@ -23,7 +23,8 @@ namespace SwitchManager.nx.system
         Russian,
         Korean,
         Taiwanese,
-        Chinese,
-
+        TraditionalChinese,
+        SimplifiedChinese,
+        Unknown
     }
 }

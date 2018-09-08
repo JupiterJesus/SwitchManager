@@ -59,6 +59,9 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Size")]
         public long? Size { get; set; }
 
+        [XmlElement(ElementName = "Added")]
+        public DateTime? Added { get; set; }
+
         [XmlElement(ElementName = "NsuId")]
         public string NsuId { get; set; }
 

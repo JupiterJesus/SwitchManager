@@ -1,14 +1,14 @@
-﻿using SwitchManager.nx.system;
+﻿using log4net;
+using SwitchManager.io;
+using SwitchManager.nx.cdn;
+using SwitchManager.nx.system;
+using SwitchManager.util;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
-using SwitchManager.util;
-using SwitchManager.nx.cdn;
-using SwitchManager.io;
-using log4net;
 
 namespace SwitchManager.nx.library
 {
@@ -188,6 +188,7 @@ namespace SwitchManager.nx.library
 
                         // datetime
                         if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
+                        if (item.Added.HasValue) ci.Added = item.Added;
 
                         // string
                         if (!string.IsNullOrWhiteSpace(item.Path)) ci.RomPath = item.Path;
@@ -321,8 +322,10 @@ namespace SwitchManager.nx.library
                             item.RomPath = nspFile.FullName;
 
                             // If you haven't already marked the file as on switch, mark it owned
-                            if (item.State != SwitchCollectionState.OnSwitch)
+                            if (item.State != SwitchCollectionState.OnSwitch && item.State != SwitchCollectionState.Owned)
                                 item.State = SwitchCollectionState.Owned;
+                            else if (item.State == SwitchCollectionState.NotOwned || item.State == SwitchCollectionState.New)
+                                item.Added = DateTime.Now;
 
                             item.Size = size;
                         }
@@ -460,13 +463,13 @@ namespace SwitchManager.nx.library
                 // [vXXXXXX], where XXXXXX is the version number in decimal
                 string nspFile = (title.Type == SwitchTitleType.DLC && !titleName.StartsWith("[DLC]") ? "[DLC] " : "") + titleName + (title.Type == SwitchTitleType.Update?" [UPD]":" ") + $"[{title.TitleID}][v{version}].nsp";
                 string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
-
+                
                 // Repack the game files into an NSP
                 bool success = await nsp.Repack(nspPath).ConfigureAwait(false);
 
                 // If the NSP failed somehow but the file exists any, remove it
                 if (!success && File.Exists(nspPath))
-                    File.Delete(nspPath);
+                    Miscellaneous.DeleteFile(nspPath);
 
                 if (this.RemoveContentAfterRepack)
                     dir.Delete(true);
@@ -478,6 +481,8 @@ namespace SwitchManager.nx.library
 
         /// <summary>
         /// Executes a download of a title and/or updates/DLC, according to the options presented.
+        /// TODO: Test this
+        /// TODO: DLC
         /// </summary>
         /// <param name="titleItem"></param>
         /// <param name="v"></param>
@@ -504,6 +509,7 @@ namespace SwitchManager.nx.library
                             titleItem.State = SwitchCollectionState.Downloaded;
                         titleItem.RomPath = Path.GetFullPath(dlcPath);
                         titleItem.Size = Miscellaneous.GetFileSystemSize(dlcPath);
+                        titleItem.Added = DateTime.Now;
                     }
                     else if (title.IsGame)
                     {
@@ -521,6 +527,7 @@ namespace SwitchManager.nx.library
 
                                 dlcTitle.RomPath = Path.GetFullPath(dlcPath);
                                 dlcTitle.Size = Miscellaneous.GetFileSystemSize(dlcPath);
+                                dlcTitle.Added = DateTime.Now;
                             }
                     }
                     break;
@@ -565,6 +572,7 @@ namespace SwitchManager.nx.library
 
                         titleItem.RomPath = Path.GetFullPath(romPath);
                         titleItem.Size = Miscellaneous.GetFileSystemSize(romPath);
+                        titleItem.Added = DateTime.Now;
                     }
                     if (options == DownloadOptions.BaseGameAndUpdate || options == DownloadOptions.BaseGameAndUpdateAndDLC)
                         goto case DownloadOptions.UpdateOnly;

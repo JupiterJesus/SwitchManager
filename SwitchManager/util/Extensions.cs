@@ -13,6 +13,37 @@ namespace SwitchManager.util
 {
     public static class Extensions
     {
+        public static string ToHex(this byte[] buffer)
+        {
+            return Miscellaneous.BytesToHex(buffer);
+        }
+
+        public static string ReadHex(this BinaryReader br, int numBytes)
+        {
+            return br.ReadBytes(numBytes).ToHex();
+        }
+
+        public static string ReadHex64(this BinaryReader br)
+        {
+            ulong l = br.ReadUInt64();
+            return Miscellaneous.LongToHex(l);
+        }
+
+        public static string ReadAsciiNullTerminated(this BinaryReader br, int numBytes)
+        {
+            return br.ReadBytes(numBytes).DecodeAsciiNullTerminated();
+        }
+
+        public static string ReadUTF32NullTerminated(this BinaryReader br, int numBytes)
+        {
+            return br.ReadBytes(numBytes).DecodeUTF32NullTerminated();
+        }
+
+        public static string ReadUTF8NullTerminated(this BinaryReader br, int numBytes)
+        {
+            return br.ReadBytes(numBytes).DecodeUTF8NullTerminated();
+        }
+
         public unsafe static string DecodeAsciiNullTerminated(this byte[] buffer, int index = 0)
         {
             fixed (byte* bytes = &buffer[index])
@@ -35,10 +66,10 @@ namespace SwitchManager.util
         public unsafe static string DecodeUTF8NullTerminated(this byte[] buffer, int index = 0)
         {
             int count = 0;
-            while (buffer[count] != 0) count++;
 
             fixed (byte* bytes = &buffer[index])
             {
+                while (bytes[count] != 0) count++;
                 return Encoding.UTF8.GetString(bytes, count);
             }
         }

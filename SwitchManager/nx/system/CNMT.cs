@@ -328,8 +328,17 @@ namespace SwitchManager.nx.system
                 return parsedContent.Where(e => e.Value.Type == ncaType).ToDictionary(e => e.Key, e => e.Value);
         }
 
-        public string GenerateXml(string outFile)
+        /// <summary>
+        /// Outputs this CNMT to XML. If outFile is missing, creates the XML using the same file name as the
+        /// CNMT nca, but with an extension of xml instead of nca.
+        /// </summary>
+        /// <param name="outFile"></param>
+        /// <returns></returns>
+        public string GenerateXml(string outFile = null)
         {
+            if (outFile == null)
+                outFile = Path.GetFullPath(CnmtNcaFilePath).Replace(".nca", ".xml");
+
             // Create a new file stream to write the serialized object to a file
             using (TextWriter writer = new StreamWriter(outFile))
             {
@@ -340,9 +349,14 @@ namespace SwitchManager.nx.system
             }
 
             logger.Info($"Generated XML file {Path.GetFileName(outFile)}!");
-            return (outFile);
+            return outFile;
         }
 
+        /// <summary>
+        /// Generates a CNMT based on an XML representation of the object.
+        /// </summary>
+        /// <param name="inFile"></param>
+        /// <returns></returns>
         public static CNMT FromXml(string inFile)
         {
             using (TextReader reader = new StreamReader(inFile))
