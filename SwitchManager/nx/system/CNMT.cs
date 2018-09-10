@@ -1,4 +1,5 @@
 ﻿using log4net;
+using SwitchManager.io;
 using SwitchManager.util;
 using System;
 using System.Collections.Generic;
@@ -294,32 +295,31 @@ namespace SwitchManager.nx.system
                 // They are completely different and shouldn't be combined into one class
                 if (this.Type == TitleType.SystemUpdate)
                     throw new Exception("Do not call Parse on a System Update title!!! Only for other types!");
-                
-                FileStream fs = File.OpenRead(this.CnmtFilePath);
-                BinaryReader br = new BinaryReader(fs);
 
-                // Reach each content entry, starting at 0x20 + tableOffset
-                // each entry is 0x38 in size, and their are nEntries of them
-                // With patch, update and addon types, there's a secondary header from 0x20 to 0x30
-                // 0xE tells you how many bytes to skip from 0x20 to the start of the content entries and 0x10 says how many there are
-                br.BaseStream.Seek(0x20 + this.tableOffset, SeekOrigin.Begin);
-                for (int i = 0; i < this.numContentEntries; i++)
+                using (BinaryReader br = new BinaryReader(File.OpenRead(this.CnmtFilePath)))
                 {
-                    // Parse a content entry
-                    var content = new CnmtContentEntry();
-                    content.HashData = br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
-                    content.Id = Miscellaneous.BytesToHex(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
-                    byte[] sizeBuffer = new byte[8];
-                    br.Read(sizeBuffer, 0, 6);
-                    content.Size = BitConverter.ToInt64(sizeBuffer, 0); // Size, offset 0x30, 6 bytes (8 byte long converted from only 6 bytes)
-                    content.Type = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
-                    content.IdOffset = br.ReadByte(); // IdOffset, offset 0x37, 1 byte
-                    content.MasterKeyRevision = this.MasterKeyRevision;
+                    // Reach each content entry, starting at 0x20 + tableOffset
+                    // each entry is 0x38 in size, and their are nEntries of them
+                    // With patch, update and addon types, there's a secondary header from 0x20 to 0x30
+                    // 0xE tells you how many bytes to skip from 0x20 to the start of the content entries and 0x10 says how many there are
+                    br.BaseStream.Seek(0x20 + this.tableOffset, SeekOrigin.Begin);
+                    for (int i = 0; i < this.numContentEntries; i++)
+                    {
+                        // Parse a content entry
+                        var content = new CnmtContentEntry();
+                        content.HashData = br.ReadBytes(0x20); // Hash, offset 0x0, 32 bytes
+                        content.Id = Miscellaneous.BytesToHex(br.ReadBytes(0x10)); // NCA ID, offset 0x20, 16 bytes, convert bytes to a hex string
+                        byte[] sizeBuffer = new byte[8];
+                        br.Read(sizeBuffer, 0, 6);
+                        content.Size = BitConverter.ToInt64(sizeBuffer, 0); // Size, offset 0x30, 6 bytes (8 byte long converted from only 6 bytes)
+                        content.Type = (NCAType)br.ReadByte(); // Type (0=meta, 1=program, 2=data, 3=control, 4=offline-manual html, 5=legal html, 6=game-update RomFS patches?), offset 0x36, 1 byte
+                        content.IdOffset = br.ReadByte(); // IdOffset, offset 0x37, 1 byte
+                        content.MasterKeyRevision = this.MasterKeyRevision;
 
-                    parsedContent[content.Id] = content;
-                    // restart loop 0x38 higher than the last loop read to read next meta entry
+                        parsedContent[content.Id] = content;
+                        // restart loop 0x38 higher than the last loop read to read next meta entry
+                    }
                 }
-                br.Close();
             }
 
             if (!ncaType.HasValue)
@@ -340,12 +340,12 @@ namespace SwitchManager.nx.system
                 outFile = Path.GetFullPath(CnmtNcaFilePath).Replace(".nca", ".xml");
 
             // Create a new file stream to write the serialized object to a file
-            using (TextWriter writer = new StreamWriter(outFile))
+            using (FileStream str = FileUtils.OpenWriteStream(outFile))
             {
                 XmlSerializer xmls = new XmlSerializer(typeof(CNMT));
                 XmlSerializerNamespaces ns = new XmlSerializerNamespaces();
                 ns.Add("", "");
-                xmls.Serialize(writer, this, ns);
+                xmls.Serialize(str, this, ns);
             }
 
             logger.Info($"Generated XML file {Path.GetFileName(outFile)}!");
@@ -367,10 +367,15 @@ namespace SwitchManager.nx.system
             }
         }
 
-        public void Dispose()
+        public void DeleteDirectory()
         {
             if (this.CnmtDirectory != null)
-                Miscellaneous.DeleteDirectory(this.CnmtDirectory, true);
+                FileUtils.DeleteDirectory(this.CnmtDirectory, true);
+        }
+
+        public void Dispose()
+        {
+            DeleteDirectory();
         }
     }
 }

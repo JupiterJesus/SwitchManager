@@ -16,6 +16,7 @@ namespace SwitchManager.io
             this.SourceStream = webStream;
         }
 
+
         #endregion
     }
 }

@@ -36,7 +36,7 @@ namespace SwitchManager.nx.system
         {
             get
             {
-                return this.Files.Sum((s) => s == null ? 0 : Miscellaneous.GetFileSystemSize(s) ?? 0);
+                return this.Files.Sum((s) => s == null ? 0 : FileUtils.GetFileSystemSize(s) ?? 0);
             }
         }
 
@@ -369,9 +369,7 @@ namespace SwitchManager.nx.system
                         if (unpack)
                         {
                             logger.Info($"Unpacking NSP from file {path}.");
-                            FileStream fs = File.Exists(filePath) ?
-                                File.Open(filePath, FileMode.Truncate, FileAccess.Write) :
-                                File.Open(filePath, FileMode.CreateNew, FileAccess.Write);
+                            FileStream fs = FileUtils.OpenWriteStream(filePath);
 
                             await nspReadStream.CopyToAsync(fs, fileSizes[i]).ConfigureAwait(false);
                             logger.Info($"Copied NSP contents to file {filePath}");

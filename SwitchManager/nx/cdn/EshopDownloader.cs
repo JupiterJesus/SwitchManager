@@ -15,6 +15,7 @@ using SwitchManager.nx.system;
 using System.Text;
 using SwitchManager.io;
 using log4net;
+using System.Threading;
 
 namespace SwitchManager.nx.cdn
 {
@@ -79,44 +80,74 @@ namespace SwitchManager.nx.cdn
         /// <returns></returns>
         public async Task DownloadRemoteImage(SwitchTitle title)
         {
-            // Sanity check if no versions or null then base version of 0
-            uint version;
-            if ((title?.Versions?.Count ?? 0) == 0)
-                version = 0;
-            else
-                version = title.Versions.Last(); // I don't know if this is supposed to be the newest or oldest version
+            // Base version or latest version? I'm pretty sure I'm requesting based on a base game title,
+            // so the version MUST be BaseVersion. However, some updates can update the icon. That would require
+            // going through every possible update, downloading the CNMT, checking if it contains a CONTROL NCA,
+            // until you either get a CONTROL NCA or get to the base version.
+            // Seems easier to just suck it up and download the base version icon, even if the owlboy icon
+            // for version 0 sure looks stupid as hell.
+            //uint version = title.LatestVersion ?? await GetLatestVersion(title).ConfigureAwait(false);
+            uint version = title.BaseVersion;
 
-            // Temporary download folder within the images folder for this title
-            // Make sure directory is created first
-            string gamePath = this.imagesPath + Path.DirectorySeparatorChar + title.TitleID;
-            DirectoryInfo gameDir = Directory.CreateDirectory(gamePath);
-            
-            var cnmt = await DownloadAndDecryptCnmt(title, version, gamePath).ConfigureAwait(false);
-            if (cnmt != null)
+            // Locking on a specific title - in the images directory -  which should ensure that none of the same files are accessed
+            using (var @lock = GetLock(this.imagesPath, title, version))
             {
-                // Parse "control" type content entries inside the NCA (just one...)
-                // Download each file (just one)
-
-                string ncaID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
-                string fpath = gamePath + Path.DirectorySeparatorChar + "control.nca";
-                if (await DownloadNCA(ncaID, fpath).ConfigureAwait(false))
+                try
                 {
-                    Hactool hactool = new Hactool(hactoolPath, keysPath);
-                    var controlDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
+                    await @lock.WaitAsync().ConfigureAwait(false);
 
-                    DirectoryInfo romfs = controlDir.EnumerateDirectories("romfs").First();
+                    // Temporary download folder within the images folder for this title
+                    // Make sure directory is created first
+                    string titlePath = this.imagesPath + Path.DirectorySeparatorChar + title.TitleID;
+                    DirectoryInfo titleDir = Directory.CreateDirectory(titlePath);
 
-                    var iconFile = romfs.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
-                    iconFile.MoveTo(imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg");
+                    try
+                    {
+                        using (var cnmt = await DownloadAndDecryptCnmt(title, version, titlePath).ConfigureAwait(false))
+                        {
+                            // Parse "control" type content entries inside the NCA (just one...)
+                            // Download each file (just one)
 
-                    GetControlFile(title, romfs.FullName); // this is just to update the name and publisher
+                            string ncaID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
+                            string fpath = titlePath + Path.DirectorySeparatorChar + "control.nca";
+                            if (await DownloadNCA(ncaID, fpath).ConfigureAwait(false))
+                            {
+                                Hactool hactool = new Hactool(hactoolPath, keysPath);
+                                var controlDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
+
+                                DirectoryInfo romfs = controlDir.EnumerateDirectories("romfs").First();
+
+                                var iconFile = romfs.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
+                                iconFile.MoveTo(imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg");
+
+                                var c = GetControlFile(title, romfs.FullName); // this is just to update the name and publisher
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        titleDir.Delete(true);
+                    }
                 }
-
-                gameDir.Delete(true);
+                finally
+                {
+                     @lock.Release();
+                }
             }
+        }
+
+        private static Dictionary<string, SemaphoreSlim> locks = new Dictionary<string, SemaphoreSlim>();
+        private SemaphoreSlim GetLock(string baseDirectory, SwitchTitle title, uint version)
+        {
+            string name = baseDirectory + ":" + title.TitleID + ":" + version;
+            name = name.Replace(Path.DirectorySeparatorChar, '/');
+            if (locks.ContainsKey(name))
+                return locks[name];
             else
             {
-                throw new Exception("No cnmtid found for title " + title.Name);
+                var l = new SemaphoreSlim(1);
+                locks[name] = l;
+                return l;
             }
         }
 
@@ -133,194 +164,208 @@ namespace SwitchManager.nx.cdn
         {
             logger.Info($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
 
-            using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false))
+            // Locking one a specific title and version, which should ensure that none of the same files are accessed
+            using (var @lock = GetLock(titleDir, title, version))
             {
-                // Now that the CNMT NCA was downloaded and decrypted, read it f
-                string ticketPath = null, certPath = null;
-                if (nspRepack)
+                try
                 {
-                    string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
-                    ticketPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".tik";
-                    certPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".cert";
-                    if (cnmt.Type == TitleType.Application || cnmt.Type == TitleType.AddOnContent)
+                    await @lock.WaitAsync().ConfigureAwait(false);
+                    using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(true))
                     {
-                        File.WriteAllBytes(certPath, this.titleCertTemplateData);
-                        logger.Info($"Generated title certificate {certPath}.");
-
-                        if (title.IsTitleKeyValid)
+                        // Now that the CNMT NCA was downloaded and decrypted, read it f
+                        string ticketPath = null, certPath = null;
+                        if (nspRepack)
                         {
-                            // The ticket file starts with the bytes 4 0 1 0, reversed for endianness that gives
-                            // 0x00010004, which indicates a RSA_2048 SHA256 signature method.
-                            // The signature requires 4 bytes for the type, 0x100 for the signature and 0x3C for padding
-                            // The total signature is 0x140. That explains the 0x140 mystery bytes at the start.
-
-                            // Copy the 16-byte value of the 32 character hex title key into memory starting at position 0x180
-                            for (int n = 0; n < 0x10; n++)
+                            string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
+                            ticketPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".tik";
+                            certPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".cert";
+                            if (cnmt.Type == TitleType.Application || cnmt.Type == TitleType.AddOnContent)
                             {
-                                string byteValue = title.TitleKey.Substring(n * 2, 2);
-                                this.titleTicketTemplateData[0x180 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
-                            }
+                                File.WriteAllBytes(certPath, this.titleCertTemplateData);
+                                logger.Info($"Generated title certificate {certPath}.");
 
-                            this.titleTicketTemplateData[0x286] = cnmt.MasterKeyRevision;
-                            // switchbrew says this should be at 0x285, not 0x286...
-                            // Who's right? Does it even matter?
-
-                            // Copy the rights ID in there too at 0x2A0, also 16 bytes (32 characters) long
-                            for (int n = 0; n < 0x10; n++)
-                            {
-                                string byteValue = rightsID.Substring(n * 2, 2);
-                                this.titleTicketTemplateData[0x2A0 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
-                            }
-                            Miscellaneous.HexToBytes(rightsID?.Substring(0, 32), this.titleTicketTemplateData, 0x2A0);
-                            File.WriteAllBytes(ticketPath, this.titleTicketTemplateData);
-
-                            logger.Info($"Generated ticket {ticketPath}.");
-                        }
-                    }
-                    else if (cnmt.Type == TitleType.Patch)
-                    {
-                        // We have to download the CETK file and get the ticket and the certificate from it
-
-                        string cetkPath = $"{titleDir}{Path.DirectorySeparatorChar}{rightsID}.cetk";
-                        bool completed = await DownloadCETK(rightsID, cetkPath).ConfigureAwait(false);
-                        if (completed)
-                        {
-                            using (var cetkStream = File.OpenRead(cetkPath))
-                            {
-                                cetkStream.Seek(0x180, SeekOrigin.Begin);
-                                byte[] tkeyBytes = new byte[0x10];
-                                cetkStream.Read(tkeyBytes, 0, 0x10);
-                                title.TitleKey = Miscellaneous.BytesToHex(tkeyBytes);
-
-                                using (var tikStream = File.OpenWrite(ticketPath))
+                                if (title.IsTitleKeyValid)
                                 {
-                                    cetkStream.Seek(0, SeekOrigin.Begin);
-                                    byte[] tikBytes = new byte[0x2C0];
-                                    cetkStream.Read(tikBytes, 0, 0x2C0);
-                                    tikStream.Write(tikBytes, 0, 0x2C0);
-                                }
+                                    // The ticket file starts with the bytes 4 0 1 0, reversed for endianness that gives
+                                    // 0x00010004, which indicates a RSA_2048 SHA256 signature method.
+                                    // The signature requires 4 bytes for the type, 0x100 for the signature and 0x3C for padding
+                                    // The total signature is 0x140. That explains the 0x140 mystery bytes at the start.
 
-                                using (var certStream = File.OpenWrite(certPath))
-                                {
-                                    cetkStream.Seek(0x2C0, SeekOrigin.Begin);
-                                    byte[] certBytes = new byte[0x700];
-                                    cetkStream.Read(certBytes, 0, 0x700);
-                                    certStream.Write(certBytes, 0, 0x700);
+                                    // Copy the 16-byte value of the 32 character hex title key into memory starting at position 0x180
+                                    for (int n = 0; n < 0x10; n++)
+                                    {
+                                        string byteValue = title.TitleKey.Substring(n * 2, 2);
+                                        this.titleTicketTemplateData[0x180 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                                    }
+
+                                    this.titleTicketTemplateData[0x286] = cnmt.MasterKeyRevision;
+                                    // switchbrew says this should be at 0x285, not 0x286...
+                                    // Who's right? Does it even matter?
+
+                                    // Copy the rights ID in there too at 0x2A0, also 16 bytes (32 characters) long
+                                    for (int n = 0; n < 0x10; n++)
+                                    {
+                                        string byteValue = rightsID.Substring(n * 2, 2);
+                                        this.titleTicketTemplateData[0x2A0 + n] = byte.Parse(byteValue, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                                    }
+                                    Miscellaneous.HexToBytes(rightsID?.Substring(0, 32), this.titleTicketTemplateData, 0x2A0);
+                                    File.WriteAllBytes(ticketPath, this.titleTicketTemplateData);
+
+                                    logger.Info($"Generated ticket {ticketPath}.");
                                 }
                             }
+                            else if (cnmt.Type == TitleType.Patch)
+                            {
+                                // We have to download the CETK file and get the ticket and the certificate from it
+
+                                string cetkPath = $"{titleDir}{Path.DirectorySeparatorChar}{rightsID}.cetk";
+                                bool completed = await DownloadCETK(rightsID, cetkPath);
+                                if (completed)
+                                {
+                                    using (var cetkStream = File.OpenRead(cetkPath))
+                                    {
+                                        cetkStream.Seek(0x180, SeekOrigin.Begin);
+                                        byte[] tkeyBytes = new byte[0x10];
+                                        cetkStream.Read(tkeyBytes, 0, 0x10);
+                                        title.TitleKey = Miscellaneous.BytesToHex(tkeyBytes);
+
+                                        using (var tikStream = FileUtils.OpenWriteStream(ticketPath))
+                                        {
+                                            cetkStream.Seek(0, SeekOrigin.Begin);
+                                            byte[] tikBytes = new byte[0x2C0];
+                                            cetkStream.Read(tikBytes, 0, 0x2C0);
+                                            tikStream.Write(tikBytes, 0, 0x2C0);
+                                        }
+
+                                        using (var certStream = FileUtils.OpenWriteStream(certPath))
+                                        {
+                                            cetkStream.Seek(0x2C0, SeekOrigin.Begin);
+                                            byte[] certBytes = new byte[0x700];
+                                            cetkStream.Read(certBytes, 0, 0x700);
+                                            certStream.Write(certBytes, 0, 0x700);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        List<Task<bool>> tasks = new List<Task<bool>>();
+
+                        // The NSP handles setting up the CNMT as part of the NSP in the constructor
+                        // This includes generating the XML, adding the NCA and anything else.
+                        NSP nsp = new NSP(title, titleDir, cnmt)
+                        {
+                            Ticket = ticketPath,
+                            Certificate = certPath
+                        };
+
+                        // Parse all types except for Meta (which is the CNMT)
+                        foreach (var type in new[] { NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
+                        {
+                            var parsedNCAs = cnmt.ParseContent(type);
+                            foreach (var content in parsedNCAs)
+                            {
+                                string ncaID = content.Key;
+                                byte[] hash = verify ? content.Value.HashData : null;
+
+                                // When you add an NCA ID, the NSP generates the proper path using its base directory and the ID
+                                string path = nsp.AddNCAByID(type, ncaID);
+
+                                // Dont redownload the cnmt. It wont work anyway, not at this url.
+                                if (content.Value.Type != NCAType.Meta)
+                                {
+                                    Task<bool> t = DoDownloadNCA(ncaID, path, hash, title);
+                                    tasks.Add(t);
+                                }
+                            }
+                        }
+
+                        bool[] results = await Task.WhenAll(tasks);
+                        foreach (var r in results)
+                        {
+                            if (verify && !r)
+                            {
+                                throw new Exception("At least one NCA failed to verify, NSP repack (if requested) will not continue");
+                            }
+                            else if (!r)
+                            {
+                                // Chances are all this means is that it was cancelled
+                                // Unfortunately I did cancelling via returning false instead of true,
+                                // when really I should have thrown a cancelled exception
+                                // Perhaps I will update it some day.
+                                logger.Warn("Download didn't complete. It may have been cancelled. NSPs will not be repacked, and you should try the download again later");
+                                return null;
+                            }
+                        }
+
+                        if (cnmt.Type == TitleType.Application)
+                        {
+                            Hactool hactool = new Hactool(hactoolPath, keysPath);
+
+                            string controlID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
+                            string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
+
+                            var ncaDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
+                            if (ncaDir != null)
+                            {
+                                DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
+
+                                foreach (var image in romfs.EnumerateFiles("icon_*.dat"))
+                                {
+                                    string name = Path.GetFileNameWithoutExtension(image.Name).Replace("icon_", controlID + ".nx.");
+                                    string destFile = titleDir + Path.DirectorySeparatorChar + name + ".jpg";
+                                    if (!File.Exists(destFile))
+                                        image.MoveTo(destFile);
+                                    nsp.AddImage(destFile);
+                                }
+
+                                ControlData cdata = GetControlFile(title, romfs.FullName);
+                                if (cdata != null)
+                                {
+                                    string controlXmlFile = titleDir + Path.DirectorySeparatorChar + controlID + ".nacp.xml";
+                                    cdata.GenerateXml(controlXmlFile);
+                                    nsp.NacpXML = controlXmlFile;
+                                }
+                                ncaDir.Delete(true);
+                            }
+
+                            string legalID = cnmt.ParseNCAs(NCAType.LegalInformation).First(); // There's only one legal.nca
+                            string legalPath = titleDir + Path.DirectorySeparatorChar + legalID + ".nca";
+
+                            ncaDir = await hactool.DecryptNCA(legalPath).ConfigureAwait(false);
+                            if (ncaDir != null)
+                            {
+                                DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
+                                string legalxml = romfs.FullName + Path.DirectorySeparatorChar + "legalinfo.xml";
+                                string legalinfoXml = titleDir + Path.DirectorySeparatorChar + legalID + ".legalinfo.xml";
+                                if (File.Exists(legalxml))
+                                {
+                                    File.Copy(legalxml, legalinfoXml, true);
+                                    nsp.LegalinfoXML = legalinfoXml;
+                                }
+                                ncaDir.Delete(true);
+                            }
+
+                            // TODO unpack and parse program nca, generate *.programinfo.xml
+
+                        }
+
+                        // Repack to NSP if requested AND if the title has a key
+                        if (nspRepack && title.IsTitleKeyValid)
+                        {
+                            return nsp;
+                        }
+                        else
+                        {
+                            return null;
                         }
                     }
                 }
-
-                List<Task<bool>> tasks = new List<Task<bool>>();
-
-                // The NSP handles setting up the CNMT as part of the NSP in the constructor
-                // This includes generating the XML, adding the NCA and anything else.
-                NSP nsp = new NSP(title, titleDir, cnmt)
+                finally
                 {
-                    Ticket = ticketPath,
-                    Certificate = certPath
-                };
-
-                // Parse all types except for Meta (which is the CNMT)
-                foreach (var type in new[] { NCAType.Control, NCAType.HtmlDocument, NCAType.LegalInformation, NCAType.Program, NCAType.Data, NCAType.DeltaFragment })
-                {
-                    var parsedNCAs = cnmt.ParseContent(type);
-                    foreach (var content in parsedNCAs)
-                    {
-                        string ncaID = content.Key;
-                        byte[] hash = verify ? content.Value.HashData : null;
-
-                        // When you add an NCA ID, the NSP generates the proper path using its base directory and the ID
-                        string path = nsp.AddNCAByID(type, ncaID);
-
-                        // Dont redownload the cnmt. It wont work anyway, not at this url.
-                        if (content.Value.Type != NCAType.Meta)
-                        {
-                            Task<bool> t = DoDownloadNCA(ncaID, path, hash, title);
-                            tasks.Add(t);
-                        }
-                    }
-                }
-
-                bool[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
-                foreach (var r in results)
-                {
-                    if (verify && !r)
-                    {
-                        throw new Exception("At least one NCA failed to verify, NSP repack (if requested) will not continue");
-                    }
-                    else if (!r)
-                    {
-                        // Chances are all this means is that it was cancelled
-                        // Unfortunately I did cancelling via returning false instead of true,
-                        // when really I should have thrown a cancelled exception
-                        // Perhaps I will update it some day.
-                        logger.Warn("Download didn't complete. It may have been cancelled. NSPs will not be repacked, and you should try the download again later");
-                        return null;
-                    }
-                }
-
-                if (cnmt.Type == TitleType.Application)
-                {
-                    Hactool hactool = new Hactool(hactoolPath, keysPath);
-
-                    string controlID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
-                    string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
-
-                    var ncaDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
-                    if (ncaDir != null)
-                    {
-                        DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
-
-                        foreach (var image in romfs.EnumerateFiles("icon_*.dat"))
-                        {
-                            string name = Path.GetFileNameWithoutExtension(image.Name).Replace("icon_", controlID + ".nx.");
-                            string destFile = titleDir + Path.DirectorySeparatorChar + name + ".jpg";
-                            if (!File.Exists(destFile))
-                                image.MoveTo(destFile);
-                            nsp.AddImage(destFile);
-                        }
-
-                        ControlData cdata = GetControlFile(title, romfs.FullName);
-                        if (cdata != null)
-                        {
-                            string controlXmlFile = titleDir + Path.DirectorySeparatorChar + controlID + ".nacp.xml";
-                            cdata.GenerateXml(controlXmlFile);
-                            nsp.NacpXML = controlXmlFile;
-                        }
-                        ncaDir.Delete(true);
-                    }
-
-                    string legalID = cnmt.ParseNCAs(NCAType.LegalInformation).First(); // There's only one legal.nca
-                    string legalPath = titleDir + Path.DirectorySeparatorChar + legalID + ".nca";
-
-                    ncaDir = await hactool.DecryptNCA(legalPath).ConfigureAwait(false);
-                    if (ncaDir != null)
-                    {
-                        DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
-                        string legalxml = romfs.FullName + Path.DirectorySeparatorChar + "legalinfo.xml";
-                        string legalinfoXml = titleDir + Path.DirectorySeparatorChar + legalID + ".legalinfo.xml";
-                        if (File.Exists(legalxml))
-                        {
-                            File.Copy(legalxml, legalinfoXml, true);
-                            nsp.LegalinfoXML = legalinfoXml;
-                        }
-                        ncaDir.Delete(true);
-                    }
-
-                    // TODO unpack and parse program nca, generate *.programinfo.xml
-
-                }
-
-                // Repack to NSP if requested AND if the title has a key
-                if (nspRepack && title.IsTitleKeyValid)
-                {
-                    return nsp;
+                    @lock.Release();
                 }
             }
-
-            return null;
         }
 
         /// <summary>
@@ -332,7 +377,6 @@ namespace SwitchManager.nx.cdn
         /// <returns></returns>
         private ControlData GetControlFile(SwitchTitle title, string romfsDirectory)
         {
-
             string controlFile = romfsDirectory + Path.DirectorySeparatorChar + "control.nacp";
             if (File.Exists(controlFile))
             {
@@ -340,8 +384,11 @@ namespace SwitchManager.nx.cdn
                 if (cdata == null) return null;
 
                 var ct = cdata.Titles[(int)SwitchLanguage.AmericanEnglish];
-                title.Name = ct.Name;
-                title.Publisher = ct.Publisher;
+                if (ct != null)
+                {
+                    title.Name = ct.Name;
+                    title.Publisher = ct.Publisher;
+                }
                 return cdata;
             }
             return null;
@@ -392,75 +439,86 @@ namespace SwitchManager.nx.cdn
         /// <param name="fpath"></param>
         public async Task<bool> DownloadFile(string url, string fpath, string jobName = null)
         {
-            var finfo = new FileInfo(fpath);
-            long downloaded = 0;
-            long expectedSize = 0;
-            FileStream fs;
-            HttpResponseMessage result;
-
-            if (finfo.Exists)
+            downloadTasks.TryGetValue(fpath, out Task<bool> task);
+            if (task == null)
             {
-                downloaded = finfo.Length;
+                long downloaded = 0;
+                long expectedSize = 0;
+                FileStream fs;
+                HttpResponseMessage result;
 
-                result = await CDNRequest(HttpMethod.Get, url, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }, false).ConfigureAwait(false);
-
-                if (!result.Headers.Server.First().ToString().Equals("openresty/1.9.7.4")) // Completed download
+                if (File.Exists(fpath))
                 {
-                    logger.Info("Download complete, skipping: " + fpath);
-                    return true;
+                    downloaded = FileUtils.GetFileSystemSize(fpath) ?? 0;
+
+                    result = await CDNRequest(HttpMethod.Get, url, new Dictionary<string, string>() { { "Range", "bytes=" + downloaded + "-" } }, false).ConfigureAwait(false);
+
+                    if (!result.Headers.Server.First().ToString().Equals("openresty/1.9.7.4")) // Completed download
+                    {
+                        logger.Info("Download complete, skipping: " + fpath);
+                        return true;
+                    }
+                    else if (result.Content.Headers.ContentRange == null) // CDN doesn't return a range if request >= filesize
+                    {
+                        long cLength = result.Content.Headers.ContentLength ?? 0;
+                        expectedSize = cLength;
+                    }
+                    else
+                    {
+                        long cLength = result.Content.Headers.ContentLength ?? 0;
+                        expectedSize = downloaded + cLength;
+                    }
+
+                    if (downloaded == expectedSize)
+                    {
+                        logger.Info("Download complete, skipping: " + fpath);
+                        return true;
+                    }
+                    else if (downloaded < expectedSize)
+                    {
+                        logger.Info("Resuming previous download: " + fpath);
+                        fs = FileUtils.OpenWriteStream(fpath, true);
+                    }
+                    else
+                    {
+                        logger.Warn("Existing file is larger than it should be, restarting: " + fpath);
+                        downloaded = 0;
+                        fs = File.Create(fpath);
+                    }
+
                 }
-                else if (result.Content.Headers.ContentRange == null) // CDN doesn't return a range if request >= filesize
+                else
                 {
+                    fs = File.Create(fpath);
+                    downloaded = 0;
+
+                    result = await CDNRequest(HttpMethod.Get, url, null, false).ConfigureAwait(false);
                     long cLength = result.Content.Headers.ContentLength ?? 0;
                     expectedSize = cLength;
                 }
-                else
-                {
-                    long cLength = result.Content.Headers.ContentLength ?? 0;
-                    expectedSize = downloaded + cLength;
-                }
 
-                if (downloaded == expectedSize)
+                task = StartDownload(fs, result, expectedSize, downloaded, jobName).ContinueWith(a =>
                 {
-                    logger.Info("Download complete, skipping: " + fpath);
-                    return true;
-                }
-                else if (downloaded < expectedSize)
-                {
-                    logger.Info("Resuming previous download: " + fpath);
-                    fs = File.Open(fpath, FileMode.Append, FileAccess.Write);
-                }
-                else
-                {
-                    logger.Warn("Existing file is larger than it should be, restarting: " + fpath);
-                    downloaded = 0;
-                    fs = File.Create(fpath);
-                }
+                    bool done = a.Result;
+                    fs.Dispose();
+                    result.Dispose();
 
-            }
-            else
-            {
-                fs = File.Create(fpath);
-                downloaded = 0;
-
-                result = await CDNRequest(HttpMethod.Get, url, null, false).ConfigureAwait(false);
-                long cLength = result.Content.Headers.ContentLength ?? 0;
-                expectedSize = cLength;
+                    var newFile = new FileInfo(fpath);
+                    if (done && expectedSize != 0 && newFile.Length != expectedSize)
+                    {
+                        throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
+                    }
+                    downloadTasks.Remove(fpath);
+                    return done;
+                });
+                downloadTasks.Add(fpath, task);
             }
 
-            bool completed = await StartDownload(fs, result, expectedSize, downloaded, jobName).ConfigureAwait(false);
-
-            fs.Dispose();
-            result.Dispose();
-
-            var newFile = new FileInfo(fpath);
-            if (completed && expectedSize != 0 && newFile.Length != expectedSize)
-            {
-                throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
-            }
-
+            bool completed = await task.ConfigureAwait(false);
             return completed;
         }
+
+        Dictionary<string, Task<bool>> downloadTasks = new Dictionary<string, Task<bool>>();
 
         /// <summary>
         /// Starts an async file download, which downloads the file in chunks and reports progress, as well
@@ -844,82 +902,106 @@ namespace SwitchManager.nx.cdn
         /// <returns></returns>
         public async Task<long> GetTitleSize(SwitchTitle title, uint version, string titleDir)
         {
-            var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false);
-
-            if (cnmt != null)
+            // Locking one a specific title and version - in the title directory -  which should ensure that none of the same files are accessed
+            // I noticed some crazy errors that came up because the event that fires on grid details visibility changed was firing
+            // multiple times very fast, which (I think) meant that the same files were getting written to by two different worker threads at once
+            // I fixed that bug by ensuring that it only fired once when the details area appeared,
+            // but the underlying problem is that the files aren't being locked. Thus, this mutex locks the entire
+            // method, but only for a specific directory that is being worked on
+            // This mutex will generally be shared by multiple calls on this method and on DownloadTitle,
+            // since they both have the potential to write to the same files
+            using (var @lock = GetLock(titleDir, title, version))
             {
-                var cnmtSize = Miscellaneous.GetFileSystemSize(cnmt.CnmtFilePath) ?? 0;
-                
-                var ticketSize = this.titleTicketTemplateData?.Length ?? 0;
-                var certSize = this.titleCertTemplateData?.Length ?? 0;
-
-                string cnmtXml = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cnmt.CnmtNcaFilePath) + ".xml";
-                cnmt.GenerateXml(cnmtXml);
-                var cnmtXmlSize = Miscellaneous.GetFileSystemSize(cnmtXml) ?? 0;
-                
-                var parsedNCAFiles = cnmt.ParseContent();
-                var files = new List<string>();
-                var sizes = new List<long>();
-                string controlID = null;
-                string controlPath = null;
-
-                // The size of an NSP includes all of the above files, but also the NCAs and the header
-                // that lists the NCAs (and other files). The list of files must be compiled to generate an accurate header,
-                // and the list of sizes is needed both to generate the header and to sum up to the total
-                foreach (var nca in parsedNCAFiles)
+                try
                 {
-                    files.Add(titleDir + Path.DirectorySeparatorChar + nca.Key + ".nca");
-
-                    if (cnmt.Type == TitleType.AddOnContent)
+                    await @lock.WaitAsync().ConfigureAwait(false);
+                    using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false))
                     {
-                        string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{nca.Key}?device_id={deviceId}";
-                        long size = await this.GetContentLength(url).ConfigureAwait(false);
-                        sizes.Add(size);
-                    }
-                    else
-                    {
-                        sizes.Add(nca.Value.Size);
-                    }
+                        var cnmtSize = FileUtils.GetFileSystemSize(cnmt.CnmtFilePath) ?? 0;
 
-                    if (nca.Value.Type == NCAType.Control)
-                    {
-                        controlID = nca.Key;
-                        controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
-                        await DownloadNCA(controlID, controlPath).ConfigureAwait(false);
-                    }
-                }
+                        var ticketSize = this.titleTicketTemplateData?.Length ?? 0;
+                        var certSize = this.titleCertTemplateData?.Length ?? 0;
 
-                files.Add(cnmt.CnmtFilePath); sizes.Add(cnmtSize);
-                files.Add(cnmtXml); sizes.Add(cnmtXmlSize);
+                        string cnmtXml = Path.GetFullPath(cnmt.CnmtNcaFilePath).Replace(".nca", ".xml");
+                        cnmt.GenerateXml(cnmtXml);
+                        var cnmtXmlSize = FileUtils.GetFileSystemSize(cnmtXml) ?? 0;
 
-                string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
-                files.Add(titleDir + Path.DirectorySeparatorChar + rightsID + ".tik"); sizes.Add(certSize);
-                files.Add(titleDir + Path.DirectorySeparatorChar + rightsID + ".cert"); sizes.Add(ticketSize);
-                
-                // Extract the images and add their file names and sizes
-                if (controlPath != null)
-                {
-                    Hactool hactool = new Hactool(hactoolPath, keysPath);
-                    var controlDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
-                    var romfs = controlDir.EnumerateDirectories("romfs");
-                    if (romfs.Count() == 1)
-                    {
-                        // Check for directory named romfs and, if it exists, there is only one and it is the first
-                        foreach (var image in romfs.First().EnumerateFiles("icon_*.dat"))
+                        var parsedNCAFiles = cnmt.ParseContent();
+                        var files = new List<string>();
+                        var sizes = new List<long>();
+                        string controlID = null;
+                        string controlPath = null;
+
+                        // The size of an NSP includes all of the above files, but also the NCAs and the header
+                        // that lists the NCAs (and other files). The list of files must be compiled to generate an accurate header,
+                        // and the list of sizes is needed both to generate the header and to sum up to the total
+                        foreach (var nca in parsedNCAFiles)
                         {
-                            string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
-                            files.Add(destFile);
-                            sizes.Add(Miscellaneous.GetFileSystemSize(destFile) ?? 0);
+                            files.Add(titleDir + Path.DirectorySeparatorChar + nca.Key + ".nca");
+
+                            if (cnmt.Type == TitleType.AddOnContent)
+                            {
+                                string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{nca.Key}?device_id={deviceId}";
+                                long size = await this.GetContentLength(url).ConfigureAwait(false);
+                                sizes.Add(size);
+                            }
+                            else
+                            {
+                                sizes.Add(nca.Value.Size);
+                            }
+
+                            if (nca.Value.Type == NCAType.Control)
+                            {
+                                controlID = nca.Key;
+                                controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
+                                await DownloadNCA(controlID, controlPath).ConfigureAwait(false);
+                            }
                         }
+
+                        files.Add(cnmt.CnmtFilePath); sizes.Add(cnmtSize);
+                        files.Add(cnmtXml); sizes.Add(cnmtXmlSize);
+
+                        string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
+                        files.Add(titleDir + Path.DirectorySeparatorChar + rightsID + ".tik"); sizes.Add(certSize);
+                        files.Add(titleDir + Path.DirectorySeparatorChar + rightsID + ".cert"); sizes.Add(ticketSize);
+
+                        // Extract the images and add their file names and sizes
+                        if (controlPath != null)
+                        {
+                            Hactool hactool = new Hactool(hactoolPath, keysPath);
+                            var controlDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
+                            try
+                            {
+                                var dirs = controlDir.EnumerateDirectories("romfs");
+                                if (dirs.Count() == 1)
+                                {
+                                    var romfs = dirs.First();
+                                    // Check for directory named romfs and, if it exists, there is only one and it is the first
+                                    foreach (var image in romfs.EnumerateFiles("icon_*.dat"))
+                                    {
+                                        string destFile = titleDir + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(image.Name) + ".jpg";
+                                        files.Add(destFile);
+                                        sizes.Add(FileUtils.GetFileSystemSize(destFile) ?? 0);
+                                    }
+                                    GetControlFile(title, romfs.FullName);
+                                }
+                            }
+                            finally
+                            {
+                                FileUtils.DeleteDirectory(controlDir, true);
+                            }
+                        }
+
+
+                        // Add up the sizes of all the files plus the NSP header
+                        return sizes.Sum() + NSP.GenerateHeader(files.ToArray(), sizes.ToArray()).Length;
                     }
-                    controlDir.Delete(true);
                 }
-
-                // Add up the sizes of all the files plus the NSP header
-                return sizes.Sum() + NSP.GenerateHeader(files.ToArray(), sizes.ToArray()).Length;
+                finally
+                {
+                    @lock.Release();
+                }
             }
-
-            return 0;
         }
     }
 }

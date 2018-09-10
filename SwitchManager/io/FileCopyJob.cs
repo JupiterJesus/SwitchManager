@@ -18,5 +18,10 @@ namespace SwitchManager.io
         }
 
         #endregion
+
+        public override void Finish()
+        {
+            base.Finish();
+        }
     }
 }

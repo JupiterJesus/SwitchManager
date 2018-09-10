@@ -173,32 +173,5 @@ namespace SwitchManager.util
                 bytes[offset + n] = HexToByte(byteValue);
             }
         }
-
-        internal static long? GetFileSystemSize(string romPath)
-        {
-            if (string.IsNullOrWhiteSpace(romPath))
-                return null;
-
-            if (File.Exists(romPath))
-                return new FileInfo(romPath).Length;
-            else if (Directory.Exists(romPath))
-                return new DirectoryInfo(romPath).GetSize();
-            else
-                return null;
-        }
-
-        internal static void DeleteDirectory(string dir, bool recursive = false)
-        {
-            if (string.IsNullOrWhiteSpace(dir)) return;
-
-            Directory.Delete(dir, recursive);
-        }
-
-        internal static void DeleteFile(string file)
-        {
-            if (string.IsNullOrWhiteSpace(file)) return;
-
-            File.Delete(file);
-        }
     }
 }

@@ -85,6 +85,7 @@
       <TextBlock VerticalAlignment="Center" Margin="5" FontWeight="Bold">Filters</TextBlock>
       <CheckBox x:Name="CheckBox_Demos" Margin="5,5,5,5" Checked="CheckBox_Demos_Checked" Unchecked="CheckBox_Demos_Checked">Demos</CheckBox>
       <CheckBox x:Name="CheckBox_DLC" Margin="5,5,5,5" Checked="CheckBox_DLC_Checked" Unchecked="CheckBox_DLC_Checked">DLC</CheckBox>
+      <CheckBox x:Name="CheckBox_Games" Margin="5,5,5,5" Checked="CheckBox_Games_Checked" Unchecked="CheckBox_Games_Checked" IsChecked="True">Games</CheckBox>
       <CheckBox x:Name="CheckBox_Owned" Margin="5,5,5,5" Checked="CheckBox_Owned_Checked" Unchecked="CheckBox_Owned_Checked" IsChecked="True">Owned</CheckBox>
       <CheckBox x:Name="CheckBox_NotOwned" Margin="5,5,5,5" Checked="CheckBox_NotOwned_Checked" Unchecked="CheckBox_NotOwned_Checked" IsChecked="True">Not Owned</CheckBox>
       <CheckBox x:Name="CheckBox_Hidden" Margin="5,5,5,5" Checked="CheckBox_Hidden_Checked" Unchecked="CheckBox_Hidden_Checked">Hidden</CheckBox>

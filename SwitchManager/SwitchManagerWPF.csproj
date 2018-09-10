@@ -110,6 +110,7 @@
     <Compile Include="nx\cdn\DownloadFailedException.cs" />
     <Compile Include="nx\cdn\EshopLogin.cs" />
     <Compile Include="nx\system\BadNcaException.cs" />
+    <Compile Include="io\FileUtils.cs" />
     <Compile Include="nx\system\RatingOrganisation.cs" />
     <Compile Include="util\HactoolFailedException.cs" />
     <Compile Include="io\JobFileStream.cs" />

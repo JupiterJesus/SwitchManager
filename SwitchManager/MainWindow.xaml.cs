@@ -21,6 +21,7 @@ using SwitchManager.nx.cdn;
 using System.Xml.Serialization;
 using Newtonsoft.Json.Linq;
 using log4net;
+using SwitchManager.io;
 
 namespace SwitchManager
 {
@@ -40,10 +41,14 @@ namespace SwitchManager
             InitializeComponent();
 
             // Initialize the window dimensions from saved settings
-            this.Top = Settings.Default.WindowTop;
-            this.Left = Settings.Default.WindowLeft;
-            this.Height = Settings.Default.WindowHeight;
-            this.Width = Settings.Default.WindowWidth;
+            if (!double.IsInfinity(Settings.Default.WindowTop) && !double.IsNaN(Settings.Default.WindowTop))
+               this.Top = Settings.Default.WindowTop;
+            if (!double.IsInfinity(Settings.Default.WindowLeft) && !double.IsNaN(Settings.Default.WindowLeft))
+                this.Left = Settings.Default.WindowLeft;
+            if (!double.IsInfinity(Settings.Default.WindowHeight) && !double.IsNaN(Settings.Default.WindowHeight))
+                this.Height = Settings.Default.WindowHeight;
+            if (!double.IsInfinity(Settings.Default.WindowWidth) && !double.IsNaN(Settings.Default.WindowWidth))
+                this.Width = Settings.Default.WindowWidth;
 
             if (Settings.Default.WindowMaximized)
             {
@@ -132,6 +137,21 @@ namespace SwitchManager
                     ShowError("Error reading library metadata file, it will be recreated on exit or when you force save it.\nIf your library is empty, make sure to update title keys and scan your library to get a fresh start.");
             }
 
+            TextBox_Search.Text = filterText = Settings.Default.FilterText;
+            CheckBox_Demos.IsChecked = showDemos = Settings.Default.ShowDemos;
+            CheckBox_DLC.IsChecked = showDLC = Settings.Default.ShowDLC;
+            CheckBox_Games.IsChecked = showGames = Settings.Default.ShowGames;
+            CheckBox_Favorites.IsChecked = showFavoritesOnly = Settings.Default.ShowFavorites;
+            CheckBox_New.IsChecked = showNewOnly = Settings.Default.ShowNew;
+            CheckBox_Owned.IsChecked = showOwned = Settings.Default.ShowOwned;
+            CheckBox_NotOwned.IsChecked = showNotOwned = Settings.Default.ShowNotOwned;
+            CheckBox_Hidden.IsChecked = showHidden = Settings.Default.ShowHidden;
+
+            // I wonder why I even use separate variables and a clicked handler for every checkbox
+            // Why don't I grab the IsChecked values directly inside of the filter, and simply refresh
+            // the datagrid for every Checked event instead of having a different handler for each?
+            // Maybe later. TODO: Get rid of buttloads of redundant filter fields
+
             // Add a filter to the datagrid based on text filtering and checkboxes
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
             Predicate<object> datagridFilter = (o =>
@@ -139,6 +159,7 @@ namespace SwitchManager
                 SwitchCollectionItem i = o as SwitchCollectionItem;
                 return ((this.showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
                         ((this.showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
+                        ((this.showGames && i.Title.IsGame && !i.Title.IsDemo) || !(i.Title.IsGame && !i.Title.IsDemo)) &&
                         (!this.showFavoritesOnly || (i.IsFavorite)) &&
                         (!this.showNewOnly || (i.State == SwitchCollectionState.New)) &&
                         ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
@@ -148,7 +169,16 @@ namespace SwitchManager
             });
             cv.Filter = datagridFilter;
 
-            SortGrid(1);
+            string sort = Settings.Default.SortColumn;
+            string sDirection = Settings.Default.SortDirection;
+            ListSortDirection direction = ListSortDirection.Ascending;
+            if (Enum.TryParse(sDirection, out ListSortDirection d))
+                direction = d;
+
+            if (string.IsNullOrWhiteSpace(sort))
+                SortGrid(1, d);
+            else
+                SortGrid(sort, d);
         }
 
         private void Window_Closed(object sender, EventArgs e)
@@ -170,6 +200,23 @@ namespace SwitchManager
                 Settings.Default.WindowHeight = this.Height;
                 Settings.Default.WindowWidth = this.Width;
                 Settings.Default.WindowMaximized = false;
+            }
+            
+            Settings.Default.FilterText = filterText;
+            Settings.Default.ShowDemos = showDemos;
+            Settings.Default.ShowDLC = showDLC;
+            Settings.Default.ShowGames = showGames;
+            Settings.Default.ShowFavorites = showFavoritesOnly;
+            Settings.Default.ShowNew = showNewOnly;
+            Settings.Default.ShowOwned = showOwned;
+            Settings.Default.ShowNotOwned = showNotOwned;
+            Settings.Default.ShowHidden = showHidden;
+
+            var sd = DataGrid_Collection.Items.SortDescriptions.SingleOrDefault();
+            if (sd != null)
+            {
+                Settings.Default.SortColumn = sd.PropertyName;
+                Settings.Default.SortDirection = sd.Direction.ToString();
             }
 
             // Save all settings
@@ -314,7 +361,13 @@ namespace SwitchManager
                 }
                 catch (Exception e)
                 {
-                    ShowError("Can't download because of an unknown error - " + e.Message);
+                    string msg = "Can't download because of an unknown error";
+                    while (e != null)
+                    {
+                        msg = msg + "\n" + e.Message;
+                        e = e.InnerException;
+                    }
+                    ShowError(msg);
                 }
             });
         }
@@ -378,6 +431,7 @@ namespace SwitchManager
         private string filterText = null;
         private bool showDemos = false;
         private bool showDLC = false;
+        private bool showGames = true;
         private bool showFavoritesOnly = false;
         private bool showNewOnly = false;
         private bool showOwned = true;
@@ -389,15 +443,23 @@ namespace SwitchManager
         private void SortGrid(int columnIndex, ListSortDirection sortDirection = ListSortDirection.Ascending)
         {
             var column = DataGrid_Collection.Columns[columnIndex];
+            string sort = column.SortMemberPath;
+            SortGrid(sort, sortDirection);
+        }
+
+        private void SortGrid(string sort, ListSortDirection sortDirection = ListSortDirection.Ascending)
+        {
             DataGrid_Collection.Items.SortDescriptions.Clear();
-            DataGrid_Collection.Items.SortDescriptions.Add(new SortDescription(column.SortMemberPath, sortDirection));
+            DataGrid_Collection.Items.SortDescriptions.Add(new SortDescription(sort, sortDirection));
 
             // Apply sort
             foreach (var col in DataGrid_Collection.Columns)
             {
-                col.SortDirection = null;
+                if (col.SortMemberPath.Equals(sort))
+                    col.SortDirection = sortDirection;
+                else
+                    col.SortDirection = null;
             }
-            column.SortDirection = sortDirection;
 
             // Refresh items to display sort
             DataGrid_Collection.Items.Refresh();
@@ -435,6 +497,19 @@ namespace SwitchManager
             if (cbox.IsChecked.HasValue)
             {
                 this.showDLC = cbox.IsChecked.Value;
+                cv?.Refresh();
+            }
+        }
+
+        private void CheckBox_Games_Checked(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid_Collection == null) return;
+
+            CheckBox cbox = (CheckBox)sender;
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
+            if (cbox.IsChecked.HasValue)
+            {
+                this.showGames = cbox.IsChecked.Value;
                 cv?.Refresh();
             }
         }
@@ -519,7 +594,7 @@ namespace SwitchManager
             }
 
             await LoadTitleKeys(tempTkeysFile);
-            Miscellaneous.DeleteFile(tempTkeysFile);
+            FileUtils.DeleteFile(tempTkeysFile);
         }
 
         private async void MenuItemLoadKeys_Click(object sender, RoutedEventArgs e)
@@ -552,7 +627,7 @@ namespace SwitchManager
                 string temp = Settings.Default.TitleKeysFile + ".tmp";
                 File.WriteAllText(temp, keys);
                 await LoadTitleKeys(temp);
-                Miscellaneous.DeleteFile(temp);
+                FileUtils.DeleteFile(temp);
             }
         }
 
@@ -947,7 +1022,7 @@ namespace SwitchManager
             else
             {
                 ShowError("Failed to download new title keys.");
-                Miscellaneous.DeleteFile(tkeysFile);
+                FileUtils.DeleteFile(tkeysFile);
             }
             DataGrid_Collection.Items.Refresh();
         }
@@ -1182,7 +1257,7 @@ namespace SwitchManager
                     foreach (var nca in nsp.NcaFiles)
                     {
                         Hactool hactool = new Hactool(Settings.Default.HactoolPath, Settings.Default.KeysPath);
-                        await hactool.DecryptNCA(nca, titlekey);
+                        await hactool.DecryptNCA(nca, titlekey).ConfigureAwait(false);
                     }
                 }
                 catch (BadNcaException b)
@@ -1349,53 +1424,56 @@ namespace SwitchManager
         {
             var grid = sender as DataGrid;
             
-            if (grid.CurrentItem is SwitchCollectionItem item)
+            if (e?.DetailsElement?.IsVisible ?? false)
             {
-                if (item != null && item.Title != null)
+                if (grid.CurrentItem is SwitchCollectionItem item)
                 {
-                    var title = item.Title;
-
                     if (item != null && item.Title != null)
                     {
-                        if (title.IsGame)
-                        {
-                            DownloadOption = DownloadOptions.BaseGameOnly;
-                        }
-                        else if (title.IsDLC)
-                        {
-                            DownloadOption = DownloadOptions.AllDLC;
-                        }
-                    }
+                        var title = item.Title;
 
-                    // If anything is null, or the blank image is used, get a new image
-                    if (title.IsGame && (title.Icon == null || (!title.Icon.Equals(title.BoxArtUrl) && !File.Exists(title.Icon))))
-                    {
-                        try
+                        if (item != null && item.Title != null)
                         {
-                            title.Icon = null;
-                            await library.LoadTitleIcon(title, true);
+                            if (title.IsGame)
+                            {
+                                DownloadOption = DownloadOptions.BaseGameOnly;
+                            }
+                            else if (title.IsDLC)
+                            {
+                                DownloadOption = DownloadOptions.AllDLC;
+                            }
                         }
-                        catch (HactoolFailedException)
-                        {
-                            logger.Error("Hactool failed while getting icon file.");
-                        }
-                        catch (CertificateDeniedException)
-                        {
-                            logger.Error("Cert denied while getting icon file.");
-                        }
-                        catch (DownloadFailedException d)
-                        {
-                            logger.Error("WARNING: Downloading a file failed: " + d.Message);
-                        }
-                        catch (Exception)
-                        {
-                            logger.Error("WTF something failed while getting icon file.");
-                        }
-                    }
 
-                    if ((item.Size ?? 0) == 0)
-                    {
-                        await UpdateSize(item);
+                        // If anything is null, or the blank image is used, get a new image
+                        if (title.IsGame && (title.Icon == null || (!title.Icon.Equals(title.BoxArtUrl) && !File.Exists(title.Icon))))
+                        {
+                            try
+                            {
+                                title.Icon = null;
+                                await library.LoadTitleIcon(title, true);
+                            }
+                            catch (HactoolFailedException)
+                            {
+                                logger.Error("Hactool failed while getting icon file.");
+                            }
+                            catch (CertificateDeniedException)
+                            {
+                                logger.Error("Cert denied while getting icon file.");
+                            }
+                            catch (DownloadFailedException d)
+                            {
+                                logger.Error("WARNING: Downloading a file failed: " + d.Message);
+                            }
+                            catch (Exception)
+                            {
+                                logger.Error("WTF something failed while getting icon file.");
+                            }
+                        }
+
+                        if ((item.Size ?? 0) == 0)
+                        {
+                            await UpdateSize(item);
+                        }
                     }
                 }
             }

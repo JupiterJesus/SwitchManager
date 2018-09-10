@@ -98,14 +98,14 @@ namespace SwitchManager.io
 
         #region Methods
 
-        public void Start()
+        public virtual void Start()
         {
             Start(this);
             speed_lastUpdateCalculated = DateTime.Now;
             speed_progress = 0;
         }
 
-        public void UpdateProgress(int progress)
+        public virtual void UpdateProgress(int progress)
         {
             this.ProgressCompleted += progress;
             this.ProgressSinceLastUpdate = progress;
@@ -123,12 +123,12 @@ namespace SwitchManager.io
             MakeProgress(this, progress);
         }
 
-        public void Cancel()
+        public virtual void Cancel()
         {
             this.IsCancelled = true;
         }
 
-        public void Finish()
+        public virtual void Finish()
         {
             Finish(this);
         }

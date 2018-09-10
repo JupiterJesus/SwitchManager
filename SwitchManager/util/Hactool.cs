@@ -23,7 +23,7 @@ namespace SwitchManager.util
             this.keysPath = keysPath;
         }
 
-        public bool VerifyNCA(string ncaPath, SwitchTitle title)
+        public async Task<bool> VerifyNCA(string ncaPath, SwitchTitle title)
         {
             string hactoolExe = (this.hactoolPath);
             string keysFile = (this.keysPath);
@@ -37,35 +37,37 @@ namespace SwitchManager.util
                                  $" \"{ncaPath}\"";
             try
             {
-                ProcessStartInfo hactoolSI = new ProcessStartInfo()
+                return await Task.Run(delegate
                 {
-                    FileName = hactoolExe,
-                    WorkingDirectory = System.IO.Directory.GetCurrentDirectory(),
-                    Arguments = commandLine,
-                    UseShellExecute = false,
-                    //RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                };
-                Process hactool = Process.Start(hactoolSI);
+                    ProcessStartInfo hactoolSI = new ProcessStartInfo()
+                    {
+                        FileName = hactoolExe,
+                        WorkingDirectory = System.IO.Directory.GetCurrentDirectory(),
+                        Arguments = commandLine,
+                        UseShellExecute = false,
+                        //RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                    };
+                    Process hactool = Process.Start(hactoolSI);
 
-                string errors = hactool.StandardError.ReadToEnd();
-                hactool.WaitForExit();
+                    string errors = hactool.StandardError.ReadToEnd();
+                    hactool.WaitForExit();
 
-                if (errors.Contains("Error: section 0 is corrupted!") ||
-                    errors.Contains("Error: section 1 is corrupted!"))
-                {
-                    logger.Error("NCA title key verification failed");
-                    return false;
-                }
+                    if (errors.Contains("Error: section 0 is corrupted!") ||
+                        errors.Contains("Error: section 1 is corrupted!"))
+                    {
+                        logger.Error("NCA title key verification failed");
+                        return false;
+                    }
+                    logger.Info("NCA title key verification successful");
+                    return true;
+                });
             }
             catch (Exception e)
             {
-                throw new Exception("Hactool decryption failed!", e);
+                throw new HactoolFailedException("Hactool decryption failed!", e);
             }
-
-            logger.Info("NCA title key verification successful");
-            return true;
         }
 
         /// <summary>
@@ -104,9 +106,11 @@ namespace SwitchManager.util
                                  $" --section3dir=\"{section3Path}\"" +
                                  $" --header=\"{headerPath}\"" +
                                  $" \"{ncaPath}\"";
-            return await Task.Run(delegate
+
+
+            try
             {
-                try
+                return await Task.Run(delegate
                 {
                     ProcessStartInfo hactoolSI = new ProcessStartInfo()
                     {
@@ -127,13 +131,13 @@ namespace SwitchManager.util
 
                     if (outDirInfo.GetDirectories().Length == 0)
                         throw new HactoolFailedException($"Running hactool failed, output directory {outDir} is empty!");
-                }
-                catch (Exception e)
-                {
-                    throw new Exception("Hactool decryption failed!", e);
-                }
-                return outDirInfo;
-            }).ConfigureAwait(false);
+                    return outDirInfo;
+                });
+            }
+            catch (Exception e)
+            {
+                throw new HactoolFailedException("Hactool decryption failed!", e);
+            }
         }
     }
 }

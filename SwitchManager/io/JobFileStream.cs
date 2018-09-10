@@ -18,7 +18,7 @@ namespace SwitchManager.io
             job.Start();
         }
 
-        public JobFileStream(string path, string jobName, long expectedSize, int startingSize, int bufferSize = 8192) : this(File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite), jobName, expectedSize, startingSize, bufferSize)
+        public JobFileStream(string path, string jobName, long expectedSize, int startingSize, int bufferSize = 8192) : this(FileUtils.OpenReadWriteStream(path), jobName, expectedSize, startingSize, bufferSize)
         {
         }
 

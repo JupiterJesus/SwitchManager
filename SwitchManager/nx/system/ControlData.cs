@@ -301,11 +301,15 @@ namespace SwitchManager.nx.system
                     for (int i = 0; i < 0x8; i++)
                         data.LocalCommunicationIds[i] = "0x" + br.ReadHex64();
 
-                    // 0x30F0 + 0x4 LogoType ??
-                    data.LogoType = (LogoTypeOption)br.ReadInt32();
+                    // 0x30F0 + 0x1 LogoType ??
+                    data.LogoType = (LogoTypeOption)br.ReadByte();
 
-                    // 0x30F4 + 0x4 LogoHandling ??
-                    data.LogoHandling = (LogoHandlingOption)br.ReadInt32();
+                    // Things get really shaky past here, I don't really know what anything does or how big it is
+
+                    // 0x30F1 + 0x1 LogoHandling ??
+                    data.LogoHandling = (LogoHandlingOption)br.ReadByte();
+
+                    br.ReadBytes(6); // I dunno, but the ID that comes next is at 30F8
 
                     // 0x30F8 + 0x8 SeedForPseudoDeviceId
                     data.SeedForPseudoDeviceId = "0x" + br.ReadHex64();
@@ -403,19 +407,19 @@ namespace SwitchManager.nx.system
         public string NxIconHash { get; set; }
     }
 
-    public enum VideoCaptureOption { Deny, Allow }
-    public enum ScreenshotOption { Allow, Deny }
+    public enum VideoCaptureOption { Deny, Allow, UnknownOption }
+    public enum ScreenshotOption { Allow, Deny, UnknownOption }
     public enum StartupUserAccountOption { None, Required, RequiredWithNetworkServiceAccountAvailable }
     public enum TouchScreenUsageOption { None, Supported, Required }
-    public enum AttributeOption { None, Demo }
+    public enum AttributeOption { None, Demo, UnknownOption }
     public enum PlayLogPolicyOption { All, LogOnly, PL_None }
-    public enum DataLossConfirmationOption { None, Required }
-    public enum ParentalControlOption { None, FreeCommunication }
+    public enum DataLossConfirmationOption { None, Required, UnknownOption }
+    public enum ParentalControlOption { None, FreeCommunication, UnknownOption }
     public enum LogoTypeOption { LicensedByNintendo, DistributedByNintendo, Nintendo }
-    public enum LogoHandlingOption { Auto, Unknown_1, Unknown_2, Unknown_3, Unknown_4 } // I have no source for what this should be called
-    public enum AddOnContentRegistrationTypeOption { OnDemand, Unknown_1, Unknown_2, Unknown_3, Unknown_4 }
-    public enum HdcpOption { None, Unknown_1, Unknown_2, Unknown_3, Unknown_4 }
-    public enum CrashReportOption { Deny, Allow, Unknown_2, Unknown_3, Unknown_4 }
-    public enum RuntimeAddOnContentInstallOption { Deny, Allow, Unknown_2, Unknown_3, Unknown_4 }
-    public enum PlayLogQueryCapabilityOption { None, Unknown_1, Unknown_2, Unknown_3, Unknown_4 }
+    public enum LogoHandlingOption { Auto, UnknownOption_1, UnknownOption_2, UnknownOption_3, UnknownOption_4 } // I have no source for what this should be called
+    public enum AddOnContentRegistrationTypeOption { OnDemand, UnknownOption_1, UnknownOption_2, UnknownOption_3, UnknownOption_4 }
+    public enum HdcpOption { None, UnknownOption_1, UnknownOption_2, UnknownOption_3, UnknownOption_4 }
+    public enum CrashReportOption { Deny, Allow, UnknownOption_2, UnknownOption_3, UnknownOption_4 }
+    public enum RuntimeAddOnContentInstallOption { Deny, Allow, UnknownOption_2, UnknownOption_3, UnknownOption_4 }
+    public enum PlayLogQueryCapabilityOption { None, UnknownOption_1, UnknownOption_2, UnknownOption_3, UnknownOption_4 }
 }

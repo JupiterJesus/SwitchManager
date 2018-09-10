@@ -268,5 +268,137 @@ namespace SwitchManager.Properties {
                 this["TempDirectory"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string FilterText {
+            get {
+                return ((string)(this["FilterText"]));
+            }
+            set {
+                this["FilterText"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ShowDemos {
+            get {
+                return ((bool)(this["ShowDemos"]));
+            }
+            set {
+                this["ShowDemos"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ShowDLC {
+            get {
+                return ((bool)(this["ShowDLC"]));
+            }
+            set {
+                this["ShowDLC"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowGames {
+            get {
+                return ((bool)(this["ShowGames"]));
+            }
+            set {
+                this["ShowGames"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ShowFavorites {
+            get {
+                return ((bool)(this["ShowFavorites"]));
+            }
+            set {
+                this["ShowFavorites"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ShowNew {
+            get {
+                return ((bool)(this["ShowNew"]));
+            }
+            set {
+                this["ShowNew"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowOwned {
+            get {
+                return ((bool)(this["ShowOwned"]));
+            }
+            set {
+                this["ShowOwned"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowNotOwned {
+            get {
+                return ((bool)(this["ShowNotOwned"]));
+            }
+            set {
+                this["ShowNotOwned"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ShowHidden {
+            get {
+                return ((bool)(this["ShowHidden"]));
+            }
+            set {
+                this["ShowHidden"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string SortColumn {
+            get {
+                return ((string)(this["SortColumn"]));
+            }
+            set {
+                this["SortColumn"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string SortDirection {
+            get {
+                return ((string)(this["SortDirection"]));
+            }
+            set {
+                this["SortDirection"] = value;
+            }
+        }
     }
 }

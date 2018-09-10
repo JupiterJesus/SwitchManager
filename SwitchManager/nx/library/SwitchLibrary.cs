@@ -225,7 +225,7 @@ namespace SwitchManager.nx.library
             XmlSerializer xml = new XmlSerializer(typeof(SwitchLibrary));
 
             // Create a new file stream to write the serialized object to a file
-            FileStream fs = File.Exists(path) ? File.Open(path, FileMode.Truncate, FileAccess.Write) : File.Create(path);
+            FileStream fs = FileUtils.OpenWriteStream(path);
             xml.Serialize(fs, this);
             fs.Dispose();
 
@@ -469,7 +469,7 @@ namespace SwitchManager.nx.library
 
                 // If the NSP failed somehow but the file exists any, remove it
                 if (!success && File.Exists(nspPath))
-                    Miscellaneous.DeleteFile(nspPath);
+                    FileUtils.DeleteFile(nspPath);
 
                 if (this.RemoveContentAfterRepack)
                     dir.Delete(true);
@@ -508,7 +508,7 @@ namespace SwitchManager.nx.library
                         else
                             titleItem.State = SwitchCollectionState.Downloaded;
                         titleItem.RomPath = Path.GetFullPath(dlcPath);
-                        titleItem.Size = Miscellaneous.GetFileSystemSize(dlcPath);
+                        titleItem.Size = FileUtils.GetFileSystemSize(dlcPath);
                         titleItem.Added = DateTime.Now;
                     }
                     else if (title.IsGame)
@@ -526,7 +526,7 @@ namespace SwitchManager.nx.library
                                         dlcTitle.State = SwitchCollectionState.Downloaded;
 
                                 dlcTitle.RomPath = Path.GetFullPath(dlcPath);
-                                dlcTitle.Size = Miscellaneous.GetFileSystemSize(dlcPath);
+                                dlcTitle.Size = FileUtils.GetFileSystemSize(dlcPath);
                                 dlcTitle.Added = DateTime.Now;
                             }
                     }
@@ -571,7 +571,7 @@ namespace SwitchManager.nx.library
                             titleItem.State = SwitchCollectionState.Downloaded;
 
                         titleItem.RomPath = Path.GetFullPath(romPath);
-                        titleItem.Size = Miscellaneous.GetFileSystemSize(romPath);
+                        titleItem.Size = FileUtils.GetFileSystemSize(romPath);
                         titleItem.Added = DateTime.Now;
                     }
                     if (options == DownloadOptions.BaseGameAndUpdate || options == DownloadOptions.BaseGameAndUpdateAndDLC)
@@ -610,7 +610,7 @@ namespace SwitchManager.nx.library
             if (img == null && downloadRemote && SwitchTitle.IsBaseGameID(title.TitleID))
             {
                 // Ask the image loader to get the image remotely and cache it
-                await Loader.DownloadRemoteImage(title);
+                await Loader.DownloadRemoteImage(title).ConfigureAwait(false);
                 img = GetLocalImage(title.TitleID);
             }
 
