@@ -147,6 +147,12 @@ namespace SwitchManager.util
             //byte[] bytes = GetBytesFromPEM(contents, "CERTIFICATE");
             //byte[] bytes = GetBytesFromPEM(contents, "RSA PRIVATE KEY");
             //var certificate = new X509Certificate2(bytes);
+            if (string.IsNullOrEmpty(path))
+                return null;
+
+            if (!File.Exists(path))
+                return null;
+
             var certificate = password == null ? new System.Security.Cryptography.X509Certificates.X509Certificate2(path) : new System.Security.Cryptography.X509Certificates.X509Certificate2(path, password);
             //var certificate = X509Certificate.CreateFromSignedFile(path);
             //var certificate = X509Certificate.CreateFromCertFile(path);

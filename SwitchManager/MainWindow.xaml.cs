@@ -54,6 +54,7 @@ namespace SwitchManager
             {
                 WindowState = WindowState.Maximized;
             }
+
             EshopDownloader downloader = new EshopDownloader(Settings.Default.ClientCertPath,
                                                          Settings.Default.EShopCertPath,
                                                          Properties.Resources.TitleCertTemplate,
@@ -374,7 +375,10 @@ namespace SwitchManager
 
         private async Task DoDownload(SwitchCollectionItem item, uint v, DownloadOptions o)
         {
-            await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
+            if (library.Loader.ClientCert == null)
+                ShowError("There is no certificate, so don't try downloading");
+            else
+                await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
         }
 
         private void RemoveTitle_Click(object sender, RoutedEventArgs e)
@@ -1041,9 +1045,26 @@ namespace SwitchManager
                 // Open document 
                 string newCert = dlg.FileName;
                 string pfxFile = Settings.Default.ClientCertPath;
-                string backupFile = pfxFile + ".bak";
-                File.Copy(pfxFile, backupFile, true);
 
+                if (string.IsNullOrWhiteSpace(newCert))
+                    return;
+
+                if (File.Exists(pfxFile))
+                {
+                    string backupFile = pfxFile + ".bak";
+                    File.Copy(pfxFile, backupFile, true);
+                }
+
+                if (newCert.EndsWith(".pem"))
+                {
+                    Crypto.PemToPfx(newCert, pfxFile);
+                }
+                else if (newCert.EndsWith(".pfx"))
+                {
+                    File.Copy(newCert, pfxFile, true);
+                }
+
+                library.Loader.UpdateClientCert(pfxFile);
             }
         }
 

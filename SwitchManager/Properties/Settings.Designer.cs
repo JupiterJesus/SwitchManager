@@ -400,5 +400,17 @@ namespace SwitchManager.Properties {
                 this["SortDirection"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ClientCertPassword {
+            get {
+                return ((string)(this["ClientCertPassword"]));
+            }
+            set {
+                this["ClientCertPassword"] = value;
+            }
+        }
     }
 }
