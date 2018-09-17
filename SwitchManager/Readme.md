@@ -25,17 +25,16 @@ I have no idea if there are any other weird requirements to get it running.
 
 Build with the Release profile and copy the /bin/Release contents elsewhere. This is a portable app and requires no
 installation, though there are several files that are absolutely necessary to proper functioning and should be included in
-the application's Working Directory.
-
-Make sure to include blank.jpg in the WD. Include certs/Certificate.cert and certs/Ticket.tik or NSP repacking will not work.
-Their location can be customized via App.config, but the default is WD/certs/*.
+the application's Working Directory. Make sure to include blank.jpg in the WD. 
 
 CDN downloading requires a working switch certificate. Please don't include a certificate when distributing to others. It is
 almost certainly illegal, and a good way to have that cert banned very quickly, ESPECIALLY if it is your personal certificate.
 It is the user's responsibility to provide eshop.pfx (there is no in-app facilty to convert shopN.pem to a PFX file) and
 a client certificate in either PEM or PFX form, which can be imported via the Import New Credentials menu item.
 
-Hactool is necessary for proper functioning. The default location for it is in WD/hactool/*. I'm not sure 
+NOTE: eShop data access is not implemented, and there is no timetable for its inclusion.
+
+Hactool is necessary for proper functioning. The default location for it is in {applicationDirectory}/hactool/*. I'm not sure 
 about the ethics or legality of including hactool with a release, but it is probably fine. The user will need to get their own
 switch keys (hactool/keys.txt by default) since it isn't legal to distribute. Keys.txt is necessary for functionality.
 
@@ -59,8 +58,8 @@ be 32 characters - this is the rights ID, and is just the 16 character title ID,
 rights ID is provided, the app will snip the first 16 characters automatically, so don't worry about it.
 
 K is the title key. If the title key is provided, it will be associated with the title. The title will be packable into an NSP
-and playable on a live Switch. If the title key is missing, the title will still be added to your library with the state of "Title Key Missing".
-Such a title can still be downloaded, but it CANNOT be packed into an NSP. When downloaded, the status will become "Downloaded"
+and playable on a live Switch. If the title key is missing, the title will still be added to your library with the state of "Preloadable".
+Such a title can still be downloaded, but it CANNOT be packed into an NSP. When downloaded, the status will become "Preloaded"
 instead of Owned, the rom path will be a directory instead of an NSP file and the game will be unplayable without adding a title key.
 
 To make a Downloaded title playable, thus making it Owned and packing it to an NSP, you need only paste the new title key in
@@ -70,7 +69,8 @@ the NSP will be repacked (if NspRepack is true) and status will become Owned. Th
 
 Name is optional, but it is pretty much always included in any titles listing. It is ONLY used for display purposes. If you
 intentionally blank out all titles and subsequently load a game info JSON (or get game data from the eshop), 
-all of your titles will be given their "official" names.
+all of your titles will be given their "official" names. When packing an NSP or otherwise downloading game files, the app will try to get the
+official Name and Publisher from within the game files.
 
 Loading title keys can be done in three ways:
 
@@ -167,7 +167,8 @@ Update #2 -> 0x20000 = 131072 in decimal
 Update #3 -> 0x30000 = 196608 in decimal
 Update #4 -> 0x40000 = 262144 in decimal
 '''
-You can see how the version system makes much more sense in hex. However, CDNSP started the naming convention in decimal, unfortunately, so I'm following it.
+You can see how the version system makes much more sense in hex. However, CDNSP started the naming convention in decimal, unfortunately, so I'm following it,
+and the CDN expects versions in decimal format as well.
 
 For each rom found on your system whose ID matches an existing title, the Rom Path of the title is set to the path of the rom file,
 the State is set to Owned and the file size is calculated by the file on disk.
@@ -194,10 +195,10 @@ Favorite can be checked to mark a title as a favorite. This lets you filter the 
 State is a drop-down list containing all possible "states" a title can be in. You can change any title to any state. States tell
 you (and the app) the current status of the title within your library.
 
-	Title Key Missing - The title is not downloaded and has no title key, so it can't be unlocked for play. Metadata like size and icon will stil appear, though.
+	Preloadable - The title is not downloaded and has no title key, so it can't be unlocked for play. Metadata like size and icon will stil appear, though.
 	Unowned - Any title that has a title key but hasn't been downloaded, and isn't marked as New. The "default" status.
 	New - Signifies that the title was recently added to the library. Any titles added via update/load/paste title keys is marked as New.
-	Downloaded - The title's files have been downloaded, but there is no title key so it has not been unlocked for play. The Rom Path is always a directory because these are never packed as NSPs.
+	Preloaded - The title's files have been downloaded, but there is no title key so it has not been unlocked for play. The Rom Path is always a directory because these are never packed as NSPs.
 	Owned - The title's files have been downloaded, its certificate and ticket have been generated and it is fully unlocked for play. It may or may not be packed into an NSP, so the Rom Path can be a directory or NSP file.
 	On Switch - Indicates that the title has been copied to your Switch's SD card. This must currently be manually triggered, but I hope to add functionality to copy files from the library to your Switch SD card and mark them as "On Switch".
 	Hidden - The title will not appear in the library list unless the Hidden filter is checked. Good for hiding games from other regions or languages, temporary betas or any titles you know you will never want to download.
@@ -231,6 +232,10 @@ DLC - Check this to allow DLC to appear. A DLC title is any title detected to be
 format that means any title can be identified as DLC, and you can always find the base title for a piece of DLC.
 Checking this box does not hide titles that aren't DLC, it just allows them to be displayed. Unchecking the box hides all DLC.
 This box is by default NOT CHECKED when the app starts, so DLC is not visible without first checking the box.
+
+Games - Check this to allow Games to appear. This is self-explanatory, and you'll probably want this checked most of the time.
+Checking this box does not hide titles that aren't Games, it just allows them to be displayed. Unchecking the box hides all Games.
+This box is by default CHECKED when the app starts, so Games are visible.
 
 Owned - Check this to allow "Owned" titles to appear. This means any title whose State is "Owned" or "On Switch". It does not include "Downloaded" titles. If the title is on your disk
 and has a valid rom path, it will still not appear as owned unless the State is set to Owned or On Switch.
@@ -266,7 +271,7 @@ always at the top. You can clear completed downloads by pressing the Clear Compl
 the Download Window, use Downloads -> Hide Downloads. Double click any active progress bar to cancel the download (does nothing
 if the download is completed).
 
-You can also right click the title row and select "Download Title".
+You can also right click the title row and select "Download Title". You can also download the title and all updates, or everything (game, updates and DLC) via the same menu.
 
 The dropdown menu just above Download Title lets you choose what types of titles to download.
 
@@ -343,9 +348,19 @@ To download your queue, you can either download each one individually as usual o
 
 # Downloads Menu
 
+The downloads menu lets you see the progress of your downloads and start batch downloads, as well as any other download functions.
+
 # Tools Menu
 
+The tools menu has miscellaneous tools and functions, like updating title keys and updating the certificate.
+
 # Library Menu
+
+The library menu has options for manipulating the contents of the library or its metadata, or saving it manually.
+
+# NSP Menu
+
+The NSP menu contains tools for working with NSPs - packing, unpacking and verifying.
 
 ## Miscellaneous
 
@@ -355,16 +370,7 @@ Closing the downloads window causes serious problems. I have entirely removed th
 The only way to close the window is to use Downloads -> Hide Downloads, but it will always come back when clicking Download Title.
 I may add an option to not pop up the download window on start.
 
-Sometimes an error occurs when quickly browsing or filtering the title list. You likely won't see it since I have hidden the exception and printed it
-to the Console, but there seems to be some problem with download title icons and multiple threads trying to access the same file.
-
-DO NOT TRY TO DOWNLOAD THE SAME TITLE AGAIN WHILE IT IS DOWNLOADING. There is not yet any protection against starting the same download twice. It will
-almost certainly crash the app. You can download a title that is already downloaded (it will skip it if it is complete or resume if it isn't), 
-as long as download and repack process is completed BEFORE clicking Download Title again.
-
 Bulk downloading updates and dlc is not tested at all. 
-
-The app started taking some time to boot on 8/27/18. I don't know what the change was. I'll investigate and this may be gone by the time anyone sees this REadme.
 
 ## License
 

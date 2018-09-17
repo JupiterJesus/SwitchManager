@@ -115,6 +115,7 @@
               </MultiTrigger.Setters>
             </MultiTrigger>
           </Style.Triggers>
+          <EventSetter Event="MouseDoubleClick" Handler="DataGridCell_MouseDoubleClick"/>
         </Style>
       </DataGrid.Resources>
       <DataGrid.ContextMenu>
@@ -124,6 +125,7 @@
           <MenuItem Header="Download Everything" ToolTip="Downloads the currently expanded title and all updates and DLC for it." Click="DownloadAll_Click"/>
           <MenuItem Header="Download Updates" ToolTip="Downloads all updates for currently expanded Switch title from the CDN." Click="DownloadUpdates_Click"/>
           <MenuItem Header="Download DLC" ToolTip="Downloads all DLC for the currently expanded Switch title from the CDN." Click="DownloadDLC_Click"/>
+          <MenuItem Header="Show NSP in Explorer" ToolTip="Shows the rom file in your default file manager." Click="OpenRomPath_Click"/>
           <MenuItem Header="Visit eShop Link" ToolTip="Opens the default Web Browser to the Nintendo eShop link for this title." Click="IconButton_Click"/>
           <MenuItem Header="Toggle Favorite" ToolTip="Toggles the Favorite check for this title." Click="ToggleFavorite_Click"/>
           <Separator />
@@ -181,7 +183,7 @@
         <DataGridTextColumn 
           Header="Title Name" 
           MaxWidth="400"
-          Binding="{Binding Path=Title.Name, Mode=OneWay}" 
+          Binding="{Binding Path=Title.Name, Mode=OneWay}"
           FontSize="12" />
         <DataGridTextColumn 
           Header="Title Type" 

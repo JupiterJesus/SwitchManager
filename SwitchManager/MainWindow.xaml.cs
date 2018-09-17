@@ -30,11 +30,21 @@ namespace SwitchManager
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        #region Log
+
         private static readonly ILog logger = LogManager.GetLogger(typeof(MainWindow));
+
+        #endregion
+
+        #region Fields
 
         private SwitchLibrary library;
         private ProgressWindow downloadWindow;
         private string metadataFile;
+
+        #endregion 
+
+        #region Constructor, load, close
 
         public MainWindow()
         {
@@ -87,36 +97,6 @@ namespace SwitchManager
 
         }
 
-        /// <summary>
-        /// Make backups of the library file, according to the number of backups that should be kept.
-        /// The format of the backup is simply {libraryfile.xml}.0, {libraryfile.xml}.1, ..., {libraryfile.xml}.n,
-        /// where n increments every time a new backup is made. The oldest backup is deleted if the max number
-        /// of backups has been reached.
-        /// </summary>
-        /// <param name="metadataFile"></param>
-        /// <param name="nBackups"></param>
-        private void MakeBackup(int nBackups)
-        {
-            var libFile = new FileInfo(metadataFile);
-            var parent = libFile.Directory;
-            var backups = parent.EnumerateFiles(metadataFile + ".*").Where(f => !metadataFile.Equals(f.Name)).OrderBy((f) => f.CreationTime).ToArray();
-
-            int nextIndex = backups.Length;
-            if (nextIndex >= nBackups)
-            {
-                string latestBackup = backups.Last().Name;
-                string sIndex = latestBackup.Replace(metadataFile + ".", string.Empty);
-                if (int.TryParse(sIndex, out int index))
-                {
-                    nextIndex = index + 1;
-                    backups.First().Delete();
-                }
-            }
-            File.Copy(metadataFile, $"{metadataFile}.{nextIndex}");
-        }
-
-        #region Window functions & events
-
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             this.metadataFile = Settings.Default.MetadataFile + ".xml";
@@ -127,7 +107,7 @@ namespace SwitchManager
                 {
                     MakeBackup(Settings.Default.NumMetadataBackups);
                     await library.LoadMetadata(this.metadataFile);
-                    Task t = Task.Run(()=>library.UpdateVersions());
+                    Task t = Task.Run(() => library.UpdateVersions());
                 }
             }
             catch (AggregateException ex)
@@ -202,7 +182,7 @@ namespace SwitchManager
                 Settings.Default.WindowWidth = this.Width;
                 Settings.Default.WindowMaximized = false;
             }
-            
+
             Settings.Default.FilterText = filterText;
             Settings.Default.ShowDemos = showDemos;
             Settings.Default.ShowDLC = showDLC;
@@ -229,6 +209,38 @@ namespace SwitchManager
             // Make sure the download window doesn't stay open
             CloseDownloadWindow();
         }
+
+        #endregion
+
+        /// <summary>
+        /// Make backups of the library file, according to the number of backups that should be kept.
+        /// The format of the backup is simply {libraryfile.xml}.0, {libraryfile.xml}.1, ..., {libraryfile.xml}.n,
+        /// where n increments every time a new backup is made. The oldest backup is deleted if the max number
+        /// of backups has been reached.
+        /// </summary>
+        /// <param name="metadataFile"></param>
+        /// <param name="nBackups"></param>
+        private void MakeBackup(int nBackups)
+        {
+            var libFile = new FileInfo(metadataFile);
+            var parent = libFile.Directory;
+            var backups = parent.EnumerateFiles(metadataFile + ".*").Where(f => !metadataFile.Equals(f.Name)).OrderBy((f) => f.CreationTime).ToArray();
+
+            int nextIndex = backups.Length;
+            if (nextIndex >= nBackups)
+            {
+                string latestBackup = backups.Last().Name;
+                string sIndex = latestBackup.Replace(metadataFile + ".", string.Empty);
+                if (int.TryParse(sIndex, out int index))
+                {
+                    nextIndex = index + 1;
+                    backups.First().Delete();
+                }
+            }
+            File.Copy(metadataFile, $"{metadataFile}.{nextIndex}");
+        }
+
+        #region Window functions & events
 
         private void CloseDownloadWindow()
         {
@@ -284,27 +296,24 @@ namespace SwitchManager
             
             var title = item?.Title;
             uint version = title.BaseVersion;
+            DownloadOptions o = default(DownloadOptions);
 
             if (title.IsUpdate)
             {
-                if (SelectedVersion.HasValue)
-                    version = SelectedVersion.Value;
-                else
-                {
-                    var update = title as SwitchUpdate;
-                    version = update.Version;
-                }
+                var update = title as SwitchUpdate;
+                version = update.Version;
+                o = DownloadOptions.UpdateOnly;
             }
             else if (title.IsGame)
             {
                 version = SelectedVersion ?? title.LatestVersion ?? title.BaseVersion;
+                o = DownloadOption ?? DownloadOptions.BaseGameOnly;
             }
             else if (title.IsDLC)
             {
                 version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                o = DownloadOptions.AllDLC;
             }
-
-            DownloadOptions o = DownloadOption ?? DownloadOptions.BaseGameOnly;
 
             DoThreadedDownload(item, version, o);
         }
@@ -335,6 +344,27 @@ namespace SwitchManager
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection?.SelectedValue;
             if (item != null)
                 DoThreadedDownload(item, item.Title.BaseVersion, DownloadOptions.AllDLC);
+        }
+
+        private void OpenRomPath_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(DataGrid_Collection.SelectedItem is SwitchCollectionItem item)) return;
+            
+            if (!File.Exists(item.RomPath))
+            {
+                item.RomPath = null;
+                return;
+            }
+            OpenRomPath(item.RomPath);
+        }
+
+        private void OpenRomPath(string filePath)
+        {
+            // combine the arguments together
+            // it doesn't matter if there is a space after ','
+            string argument = $"/select, \"{filePath}\"";
+
+            System.Diagnostics.Process.Start("explorer.exe", argument);
         }
 
         private void DoThreadedDownload(SwitchCollectionItem item, uint ver, DownloadOptions o)
@@ -784,7 +814,7 @@ namespace SwitchManager
                             {
                                 string maxSize = maxSizeWin.ResponseText;
                                 long bytes = Miscellaneous.FromFileSize(maxSize);
-                                await DownloadLimitedBySize(SwitchTitleType.DLC, bytes);
+                                await DownloadLimitedBySize(SwitchTitleType.Update, bytes);
                             }
                             break;
                         default:
@@ -894,10 +924,10 @@ namespace SwitchManager
                 if (DownloadsCancelled)
                     break;
                 
-                if (!item.Size.HasValue)
+                if ((item.Size ?? 0) == 0)
                 {
                     await UpdateSize(item);
-                    if (!item.Size.HasValue)
+                    if ((item.Size ?? 0) == 0)
                         break;
                 }
 
@@ -932,18 +962,18 @@ namespace SwitchManager
         private async Task DownloadLimitedBySize(SwitchTitleType type, long limit = 0)
         {
             DownloadsCancelled = false;
-            var titles = GetDownloadList(type);
-            var ordered = titles.OrderBy(x => x.Size);
+            var titles = GetDownloadList(type).ToList();
+            var ordered = titles.OrderBy(x => x.Size).ToList();
 
             foreach (var item in ordered)
             {
                 if (DownloadsCancelled)
                     break;
 
-                if (!item.Size.HasValue)
+                if ((item.Size ?? 0) == 0)
                 {
                     await UpdateSize(item);
-                    if (!item.Size.HasValue)
+                    if ((item.Size ?? 0) == 0)
                         break;
                     if (limit > 0 && item.Size > limit)
                         continue;
@@ -983,7 +1013,12 @@ namespace SwitchManager
             }
             else if (type == SwitchTitleType.Update)
             {
-                return this.library.Collection.GetDownloadedTitles().GetUpdates();
+                // First get the games we own, then extract their list of updates, then filter by updates not downloaded
+                var games = this.library.Collection.GetGames().ToList();
+                var downloaded = games.GetDownloadedTitles().ToList();
+                var updates = downloaded.GetUpdates().ToList();
+                var newUpdates = updates.GetTitlesNotDownloaded().ToList();
+                return newUpdates;
             }
             else if (type == SwitchTitleType.DLC) // can't use GetDLC() because that gets DLC we own already, when what we want is unowned dlc for games we own
             {
@@ -1406,6 +1441,8 @@ namespace SwitchManager
 
         #endregion
 
+        #region Events on items in the DataGrid
+
         /// <summary>
         /// Navigates to the eshop for the current title
         /// </summary>
@@ -1418,6 +1455,22 @@ namespace SwitchManager
             string url = $"https://ec.nintendo.com/apps/{item.TitleId}/{Settings.Default.Region}";
             Process.Start(new ProcessStartInfo(url));
             e.Handled = true;
+        }
+
+        private void DataGridCell_MouseDoubleClick(object sender, RoutedEventArgs e)
+        {
+            var cell = (DataGridCell)sender;
+            if (cell != null && cell.Column.Header.Equals("Title Name"))
+            {
+                if (!(DataGrid_Collection.SelectedItem is SwitchCollectionItem item)) return;
+
+                if (!File.Exists(item.RomPath))
+                {
+                    item.RomPath = null;
+                    return;
+                }
+                OpenRomPath(item.RomPath);
+            }
         }
 
         private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1500,6 +1553,8 @@ namespace SwitchManager
             }
         }
 
+        #endregion
+
         private async Task UpdateSize(SwitchCollectionItem item)
         {
             try
@@ -1537,6 +1592,8 @@ namespace SwitchManager
             }
         }
 
+        #region MessageBox
+
         private void ShowError(string text)
         {
             Dispatcher?.InvokeOrExecute(()=>MaterialMessageBox.ShowError(text));
@@ -1560,5 +1617,7 @@ namespace SwitchManager
                 msg.Show();
             });
         }
+
+        #endregion
     }
 }

@@ -92,19 +92,13 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Path")]
         public string Path { get; set; }
 
-        [XmlElement(ElementName = "Updates")]
+        [XmlElement(ElementName = "Update")]
         public List<UpdateMetadataItem> Updates { get; set; }
     }
 
     [XmlRoot(ElementName = "UpdateItem")]
-    public class UpdateMetadataItem
+    public class UpdateMetadataItem : LibraryMetadataItem
     {
-        [XmlElement(ElementName = "Title")]
-        public string TitleID { get; set; }
-
-        [XmlElement(ElementName = "Key")]
-        public string TitleKey { get; set; }
-
         [XmlElement(ElementName = "Version")]
         public uint Version { get; set; }
     }

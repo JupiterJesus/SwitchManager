@@ -50,13 +50,13 @@ namespace SwitchManager.nx.system
         public override string ToString()
         {
             if (TitleID == null && Name == null)
-                return "Unknown Title";
+                return "Unknown Title [v" + Version/0x10000 + "]";
             else if (TitleID == null)
                 return Name;
             else if (Name == null)
-                return "[" + TitleID + "]";
+                return "[" + TitleID + "][v" + Version/0x10000 + "]";
             else
-                return Name + " [" + TitleID + "]";
+                return Name + " [" + TitleID + "][v" + Version/0x10000 + "]";
         }
 
         public override bool Equals(object obj)

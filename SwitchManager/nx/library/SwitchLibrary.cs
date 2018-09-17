@@ -183,8 +183,8 @@ namespace SwitchManager.nx.library
 
                         // bool?
                         if (item.IsFavorite.HasValue) ci.IsFavorite = item.IsFavorite.Value;
-                        if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC.Value;
-                        if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo.Value;
+                        if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC;
+                        if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo;
 
                         // datetime
                         if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
@@ -209,7 +209,7 @@ namespace SwitchManager.nx.library
                         if (item.Updates != null)
                             foreach (var update in item.Updates)
                             {
-                                AddUpdateTitle(update.TitleID, item.TitleID, item.Name, update.Version, update.TitleKey);
+                                AddUpdateTitle(update, item.TitleID);
                             }
                         job.UpdateProgress(1);
                     }
@@ -323,17 +323,25 @@ namespace SwitchManager.nx.library
 
                             // If you haven't already marked the file as on switch, mark it owned
                             if (item.State != SwitchCollectionState.OnSwitch && item.State != SwitchCollectionState.Owned)
+                            {
                                 item.State = SwitchCollectionState.Owned;
-                            else if (item.State == SwitchCollectionState.NotOwned || item.State == SwitchCollectionState.New)
                                 item.Added = DateTime.Now;
+                            }
 
                             item.Size = size;
                         }
                         break;
                     case SwitchTitleType.Update:
-                        SwitchUpdate u = AddUpdateTitle(id, null, name, uint.Parse(version), null);
-                        // No size... right now updates don't have a size, because size is associated with collection items,
-                        // and updates don't have their own collection item.
+                        var u = AddUpdateTitle(id, null, uint.Parse(version), null);
+                        u.Size = size;
+                        u.RomPath = nspFile.FullName;
+
+                        // If you haven't already marked the file as on switch, mark it owned
+                        if (u.State != SwitchCollectionState.OnSwitch && u.State != SwitchCollectionState.Owned)
+                        {
+                            u.State = SwitchCollectionState.Owned;
+                            u.Added = DateTime.Now;
+                        }
                         break;
                     default:
                         break;
@@ -360,40 +368,84 @@ namespace SwitchManager.nx.library
             Collection.Remove(item);
         }
 
-        private SwitchUpdate AddUpdateTitle(string updateid, string gameid, string name, uint version, string titlekey)
+        private UpdateCollectionItem AddUpdateTitle(string updateid, string gameid, uint version, string titlekey)
         {
             if (gameid == null)
                 gameid = (updateid == null ? null : SwitchTitle.GetBaseGameIDFromUpdate(updateid));
             if (updateid != null && gameid != null)
             {
-                SwitchUpdate update = new SwitchUpdate(name, updateid, gameid, version, titlekey);
-                return AddUpdateTitle(update);
+                var parent = GetTitleByID(gameid);
+                UpdateCollectionItem item = parent.GetUpdate(version);
+                if (item == null)
+                {
+                    uint ver = version / 0x10000;
+                    //string name = parent.TitleName + " v" + ver;
+                    SwitchUpdate update = new SwitchUpdate(parent.TitleName, updateid, gameid, version, titlekey);
+                    item = AddOrGetUpdateTitle(update);
+                }
+                return item;
             }
             return null;
         }
 
-        private SwitchUpdate AddUpdateTitle(SwitchUpdate update)
+        private UpdateCollectionItem AddUpdateTitle(UpdateMetadataItem update, string parentid)
         {
-            var baseT = GetTitleByID(update.GameID); // Let's try adding this to the base game's list
-            if (baseT == null)
+            if (parentid == null)
+                parentid = (update.TitleID == null ? null : SwitchTitle.GetBaseGameIDFromUpdate(update.TitleID));
+            if (update.TitleID != null && parentid != null)
+            {
+                var parent = GetTitleByID(parentid);
+
+                UpdateCollectionItem item = parent.GetUpdate(update.Version);
+                if (item == null)
+                {
+                    SwitchUpdate su = new SwitchUpdate(update.Name, update.TitleID, parentid, update.Version, update.TitleKey);
+
+                    item = AddOrGetUpdateTitle(su);
+                }
+
+                if (update.Size.HasValue) item.Size = update.Size;
+                if (update.Added.HasValue) item.Added = update.Added;
+                if (update.State.HasValue) item.State = update.State.Value;
+                if (!string.IsNullOrWhiteSpace(update.Path)) item.RomPath = update.Path;
+                if (update.IsFavorite.HasValue) item.IsFavorite = update.IsFavorite.Value;
+
+                return item;
+            }
+            return null;
+        }
+
+        private UpdateCollectionItem AddOrGetUpdateTitle(SwitchUpdate update)
+        {
+            var parent = GetTitleByID(update.GameID); // Let's try adding this to the base game's list
+
+            if (parent == null)
             {
                 logger.Warn("Found an update for a game that doesn't exist.");
                 return null;
             }
-            else if (baseT.Title == null)
+            else if (parent.Title == null)
             {
                 logger.Warn("Found a collection item in the library with a null title.");
                 return null;
             }
-            else if (baseT.Title.IsGame)
+            else if (parent.Title.IsGame)
             {
-                SwitchGame game = baseT.Title as SwitchGame;
-                if (game.Updates == null)
-                    game.Updates = new List<SwitchUpdate>();
+                UpdateCollectionItem item = parent.GetUpdate(update.Version);
+                if (item == null)
+                {
+                    item = new UpdateCollectionItem(update);
+                    if (parent.Updates == null)
+                        parent.Updates = new List<UpdateCollectionItem>();
 
-                game.Updates.Add(update);
+                    parent.Updates.Add(item);
+                    item.Size = 0;
+                    item.IsFavorite = false;
+                    item.State = SwitchCollectionState.NotOwned;
+                }
+                return item;
             }
-            return update;
+            return null;
         }
 
         /// <summary>
@@ -461,7 +513,7 @@ namespace SwitchManager.nx.library
                 // [UPD] if it is an update
                 // [titleid]
                 // [vXXXXXX], where XXXXXX is the version number in decimal
-                string nspFile = (title.Type == SwitchTitleType.DLC && !titleName.StartsWith("[DLC]") ? "[DLC] " : "") + titleName + (title.Type == SwitchTitleType.Update?" [UPD]":" ") + $"[{title.TitleID}][v{version}].nsp";
+                string nspFile = (title.IsDLC && !titleName.StartsWith("[DLC]") ? "[DLC] " : "") + titleName + (title.IsUpdate?" [UPD]":" ") + $"[{title.TitleID}][v{version}].nsp";
                 string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
                 
                 // Repack the game files into an NSP
@@ -548,7 +600,11 @@ namespace SwitchManager.nx.library
                     {
                         SwitchUpdate update = title.GetUpdateTitle(v);
                         string updatePath = await DownloadTitle(update, v, repack, verify);
-                        AddUpdateTitle(update);
+                        var updateItem = AddOrGetUpdateTitle(update);
+
+                        updateItem.RomPath = Path.GetFullPath(updatePath);
+                        updateItem.Size = FileUtils.GetFileSystemSize(updatePath);
+                        updateItem.Added = DateTime.Now;
                         v -= 0x10000;
                     }
 
@@ -698,8 +754,10 @@ namespace SwitchManager.nx.library
                     {
                         // Existing title
                         // The only thing to do here is check for new data if the existing entry is missing anything
-                        if (!item.Title.IsTitleKeyValid)
-                            item.Title.TitleKey = tkey;
+                        string t = item.Title.TitleKey;
+                        item.Title.TitleKey = tkey;
+                        if (!item.Title.IsTitleKeyValid) //revert
+                            item.Title.TitleKey = t;
 
                         if (string.IsNullOrWhiteSpace(item.Title.Name))
                             item.Title.Name = name;
@@ -798,8 +856,13 @@ namespace SwitchManager.nx.library
         {
             if (!title.LatestVersion.HasValue || ver > title.LatestVersion.Value)
             {
+                string updateid = SwitchTitle.GetUpdateIDFromBaseGame(title.TitleID);
                 title.LatestVersion = ver;
-                // TODO: move code that generates update titles here instead of inside the SwitchCollectionItem.Updates property
+
+                for (uint i = 0; i < ver; i += 0x10000)
+                {
+                    AddUpdateTitle(updateid, title.TitleID, i, null);
+                }
             }
         }
 

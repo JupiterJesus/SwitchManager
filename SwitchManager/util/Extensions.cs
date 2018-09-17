@@ -98,17 +98,18 @@ namespace SwitchManager.util
 
         public static IEnumerable<SwitchCollectionItem> GetGames(this IEnumerable<SwitchCollectionItem> list)
         {
-            return list.Where(i => i.Title is SwitchGame && i.Title.IsGame);
+            return list.Where(i => i.Title.IsGame);
         }
 
         public static IEnumerable<SwitchCollectionItem> GetDLC(this IEnumerable<SwitchCollectionItem> list)
         {
-            return list.Where(i => i.Title is SwitchDLC && i.Title.IsDLC);
+            return list.Where(i => i.Title.IsDLC);
         }
         
         public static IEnumerable<SwitchCollectionItem> GetUpdates(this IEnumerable<SwitchCollectionItem> list)
         {
-            return list.GetGames().SelectMany(i => ((SwitchGame)i.Title).Updates).Select(i => new SwitchCollectionItem(i));
+            var u = list?.SelectMany(i => i?.Updates);
+            return u; 
         }
         
         public static IEnumerable<SwitchCollectionItem> GetTitlesNotDownloaded(this IEnumerable<SwitchCollectionItem> list)

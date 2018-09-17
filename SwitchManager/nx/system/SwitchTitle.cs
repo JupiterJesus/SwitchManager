@@ -160,15 +160,15 @@ namespace SwitchManager.nx.system
             set { this.category = value; NotifyPropertyChanged("Category"); }
         }
 
-        private bool hasAmiibo;
-        public bool HasAmiibo
+        private bool? hasAmiibo;
+        public bool? HasAmiibo
         {
             get { return hasAmiibo; }
             set { this.hasAmiibo = value; NotifyPropertyChanged("HasAmiibo"); }
         }
 
-        private bool hasDLC;
-        public bool HasDLC
+        private bool? hasDLC;
+        public bool? HasDLC
         {
             get { return hasDLC; }
             set { this.hasDLC = value; NotifyPropertyChanged("HasDLC"); }

@@ -62,10 +62,10 @@ namespace SwitchManager.nx.library
         public string Category { get { return title?.Category; } set { if (title != null) title.Category = value; } }
 
         [XmlElement(ElementName = "HasAmiibo")]
-        public bool HasAmiibo { get { return title?.HasAmiibo ?? false; } set { if (title != null) title.HasAmiibo = value; } }
+        public bool? HasAmiibo { get { return title?.HasAmiibo; } set { if (title != null) title.HasAmiibo = value; } }
 
         [XmlElement(ElementName = "HasDLC")]
-        public bool HasDLC { get { return title?.HasDLC ?? false; } set { if (title != null) title.HasDLC = value; } }
+        public bool? HasDLC { get { return title?.HasDLC; } set { if (title != null) title.HasDLC = value; } }
 
         [XmlElement(ElementName = "Intro")]
         public string Intro { get { return title?.Intro; } set { if (title != null) title.Intro = value; } }
@@ -152,31 +152,9 @@ namespace SwitchManager.nx.library
         }
         private string romPath;
 
-        [XmlElement(ElementName = "Updates")]
-        public List<UpdateMetadataItem> Updates
-        {
-            get
-            {
-                if (this.title?.Type != SwitchTitleType.Game) return null;
-
-                SwitchGame game = this.title as SwitchGame;
-                List<UpdateMetadataItem> updates = new List<UpdateMetadataItem>(game?.Updates?.Count ?? 0);
-                if (game?.Updates != null)
-                {
-                    foreach (var update in game.Updates)
-                    {
-                        var meta = new UpdateMetadataItem
-                        {
-                            TitleID = update.TitleID,
-                            TitleKey = update.TitleKey,
-                            Version = update.Version
-                        };
-                        updates.Add(meta);
-                    }
-                }
-                return updates;
-            }
-        }
+        [XmlElement(ElementName = "Update")]
+        public List<UpdateCollectionItem> Updates { get { return this.updates; } set { this.updates = value; NotifyPropertyChanged("Updates"); } }
+        private List<UpdateCollectionItem> updates = new List<UpdateCollectionItem>();
 
         [XmlIgnore]
         public bool IsOwned
@@ -189,7 +167,16 @@ namespace SwitchManager.nx.library
         {
             get { return IsOwned || State == SwitchCollectionState.Downloaded; }
         }
-        
+
+        #region XML
+
+        public virtual bool ShouldSerializeHasDLC() { return true; }
+        public virtual bool ShouldSerializeHasAmiibo() { return true; }
+        public virtual bool ShouldSerializeReleaseDate() { return true; }
+        public virtual bool ShouldSerializeLatestVersion() { return true; }
+
+        #endregion
+
         /// <summary>
         /// Default constructor. I don't like these but XmlSerializer requires it, even though I have NO NO NO
         /// intention of deserializing into this class  (just serializing). Make sure to populate fields if you call
@@ -255,6 +242,17 @@ namespace SwitchManager.nx.library
         public override int GetHashCode()
         {
             return title?.GetHashCode() ?? 0;
+        }
+
+        internal UpdateCollectionItem GetUpdate(uint version)
+        {
+            if (Updates == null || Updates.Count == 0) return null;
+
+            foreach (var u in Updates)
+            {
+                if (u.Version == version) return u;
+            }
+            return null;
         }
     }
 }
