@@ -396,11 +396,15 @@ namespace SwitchManager.nx.cdn
                 ControlData cdata = ControlData.Parse(controlFile);
                 if (cdata == null) return null;
 
-                var ct = cdata.Titles[(int)SwitchLanguage.AmericanEnglish];
-                if (ct != null)
+                for (int i = 0; i < cdata.Titles.Length; i++)
                 {
-                    title.Name = ct.Name;
-                    title.Publisher = ct.Publisher;
+                    var ct = cdata.Titles[i];
+                    if (ct != null)
+                    {
+                        title.Name = ct.Name;
+                        title.Publisher = ct.Publisher;
+                        break;
+                    }
                 }
                 return cdata;
             }
