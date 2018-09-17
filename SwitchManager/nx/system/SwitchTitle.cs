@@ -199,7 +199,7 @@ namespace SwitchManager.nx.system
         public abstract bool IsDLC { get; }
         public abstract bool IsUpdate { get; }
         public abstract bool IsDemo { get; }
-        public bool IsTitleKeyValid { get { return !string.IsNullOrWhiteSpace(TitleKey) && TitleKey.Length == 32; }  }
+        public bool IsTitleKeyValid { get { return SwitchTitle.CheckValidTitleKey(this.titlekey); }  }
 
         internal SwitchTitle(string name, string titleid, string titlekey)
         {
@@ -306,6 +306,15 @@ namespace SwitchManager.nx.system
             }
 
             versions.Add(0);
+        }
+
+        public static bool CheckValidTitleKey(string tkey)
+        {
+            string zerokey = "00000000000000000000000000000000";
+            if (string.IsNullOrWhiteSpace(tkey) || tkey.Length != 32) return false;
+            if (zerokey.Equals(tkey)) return false;
+
+            return true;
         }
 
         public override string ToString()

@@ -752,13 +752,11 @@ namespace SwitchManager.nx.library
                     }
                     else
                     {
-                        // Existing title
-                        // The only thing to do here is check for new data if the existing entry is missing anything
-                        string t = item.Title.TitleKey;
-                        item.Title.TitleKey = tkey;
-                        if (!item.Title.IsTitleKeyValid) //revert
-                            item.Title.TitleKey = t;
+                        // Existing title, replace title key
+                        if (SwitchTitle.CheckValidTitleKey(tkey))
+                            item.Title.TitleKey = tkey;
 
+                        // Replace existing name only if it is missing
                         if (string.IsNullOrWhiteSpace(item.Title.Name))
                             item.Title.Name = name;
                     }
