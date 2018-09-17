@@ -406,6 +406,9 @@ namespace SwitchManager.nx.cdn
                         break;
                     }
                 }
+
+                title.DisplayVersion = cdata.DisplayVersion;
+
                 return cdata;
             }
             return null;

@@ -188,12 +188,19 @@ namespace SwitchManager.nx.system
             set { this.publisher = value; NotifyPropertyChanged("Publisher"); }
         }
 
+        private string displayVersion;
+        public string DisplayVersion
+        {
+            get { return displayVersion; }
+            set { this.displayVersion = value; NotifyPropertyChanged("DisplayVersion"); }
+        }
+
         public abstract bool IsGame { get; }
         public abstract bool IsDLC { get; }
         public abstract bool IsUpdate { get; }
         public abstract bool IsDemo { get; }
         public bool IsTitleKeyValid { get { return !string.IsNullOrWhiteSpace(TitleKey) && TitleKey.Length == 32; }  }
-       
+
         internal SwitchTitle(string name, string titleid, string titlekey)
         {
             Name = name;

@@ -76,6 +76,9 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Publisher")]
         public string Publisher { get { return title?.Publisher; } set { if (title != null) title.Publisher = value; } }
 
+        [XmlElement(ElementName = "DisplayVersion")]
+        public string DisplayVersion { get { return title?.DisplayVersion; } set { if (title != null) title.DisplayVersion = value; } }
+
         [XmlElement(ElementName = "Developer")]
         public string Developer { get { return title?.Developer; } set { if (title != null) title.Developer = value; } }
 
