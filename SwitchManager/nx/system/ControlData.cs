@@ -372,6 +372,21 @@ namespace SwitchManager.nx.system
 
             logger.Info($"Generated XML file {Path.GetFileName(controlXmlFile)}!");
         }
+
+        /// <summary>
+        /// Generates a ControlData based on an XML representation of the object.
+        /// </summary>
+        /// <param name="inFile"></param>
+        /// <returns></returns>
+        public static ControlData FromXml(string inFile)
+        {
+            using (TextReader reader = new StreamReader(inFile))
+            {
+                XmlSerializer xmls = new XmlSerializer(typeof(ControlData));
+                ControlData ctrl = xmls.Deserialize(reader) as ControlData;
+                return ctrl;
+            }
+        }
     }
 
     [XmlRoot(ElementName = "Title")]
