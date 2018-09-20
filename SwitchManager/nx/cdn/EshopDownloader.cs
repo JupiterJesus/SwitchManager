@@ -338,7 +338,7 @@ namespace SwitchManager.nx.cdn
                             {
                                 string controlXmlFile = titleDir + Path.DirectorySeparatorChar + controlID + ".nacp.xml";
                                 cdata.GenerateXml(controlXmlFile);
-                                nsp.NacpXML = controlXmlFile;
+                                nsp.ControlXML = controlXmlFile;
                             }
                             ncaDir.Delete(true);
                         }
@@ -432,7 +432,7 @@ namespace SwitchManager.nx.cdn
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
 
-            return await DownloadFile(url, path, title?.Name).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
+            return await DownloadFile(url, path, title?.ToString()).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
         }
 
         internal void UpdateClientCert(string clientCertPath)
@@ -831,6 +831,9 @@ namespace SwitchManager.nx.cdn
             DirectoryInfo cnmtDir = await hactool.DecryptNCA(ncaPath).ConfigureAwait(false);
 
             CNMT cnmt = GetDownloadedCnmt(cnmtDir, ncaPath);
+            title.RequiredSystemVersion = cnmt.RequiredSystemVersion;
+            title.MasterKeyRevision = cnmt.MasterKeyRevision;
+
             return cnmt;
         }
 

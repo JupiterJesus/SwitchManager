@@ -61,6 +61,9 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Category")]
         public string Category { get { return title?.Category; } set { if (title != null) title.Category = value; } }
 
+        [XmlElement(ElementName = "IsDemo")]
+        public bool IsDemo { get { return title?.IsDemo ?? false; } set { if (title != null) title.IsDemo = value; } }
+
         [XmlElement(ElementName = "HasAmiibo")]
         public bool? HasAmiibo { get { return title?.HasAmiibo; } set { if (title != null) title.HasAmiibo = value; } }
 
@@ -72,6 +75,9 @@ namespace SwitchManager.nx.library
 
         [XmlElement(ElementName = "Description")]
         public string Description { get { return title?.Description; } set { if (title != null) title.Description = value; } }
+
+        [XmlElement(ElementName = "Region")]
+        public string Region { get { return title?.Region; } set { if (title != null) title.Region = value; } }
 
         [XmlElement(ElementName = "Publisher")]
         public string Publisher { get { return title?.Publisher; } set { if (title != null) title.Publisher = value; } }
@@ -87,6 +93,12 @@ namespace SwitchManager.nx.library
 
         [XmlElement(ElementName = "LatestVersion")]
         public uint? LatestVersion { get { return title?.LatestVersion; } set { if (title != null) title.LatestVersion = value; } }
+        
+        [XmlElement(ElementName = "RequiredSystemVersion")]
+        public long? RequiredSystemVersion { get { return title?.RequiredSystemVersion; } set { if (title != null) title.RequiredSystemVersion = value; } }
+
+        [XmlElement(ElementName = "MasterKeyRevision")]
+        public byte? MasterKeyRevision { get { return title?.MasterKeyRevision; } set { if (title != null) title.MasterKeyRevision = value; } }
 
         [XmlElement(ElementName = "State")]
         public SwitchCollectionState State

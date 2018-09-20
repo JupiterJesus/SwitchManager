@@ -27,7 +27,6 @@ namespace SwitchManager.nx.system
         public override bool IsGame => false;
         public override bool IsDLC => false;
         public override bool IsUpdate => true;
-        public override bool IsDemo => false;
 
         internal SwitchUpdate(string name, string gameid, uint version, string titlekey) : this(name, GetUpdateIDFromBaseGame(gameid), gameid, version, titlekey)
         {

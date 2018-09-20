@@ -39,6 +39,13 @@ namespace SwitchManager.nx.system
             set { this.desc = value; NotifyPropertyChanged("Description"); }
         }
 
+        private string region;
+        public string Region
+        {
+            get { return this.region; }
+            set { this.region = value; NotifyPropertyChanged("Region"); }
+        }
+
         private DateTime? releaseDate;
         public DateTime? ReleaseDate
         {
@@ -195,10 +202,35 @@ namespace SwitchManager.nx.system
             set { this.displayVersion = value; NotifyPropertyChanged("DisplayVersion"); }
         }
 
+        private bool isDemo;
+        public bool IsDemo
+        {
+            get { return isDemo; }
+            set { this.isDemo = value; NotifyPropertyChanged("IsDemo"); }
+        }
+
+        private long? requiredSystemVersion;
+        public long? RequiredSystemVersion
+        {
+            get { return requiredSystemVersion; }
+            set { this.requiredSystemVersion = value; NotifyPropertyChanged("RequiredSystemVersion"); }
+        }
+
+        private byte? masterKeyRevision;
+        public byte? MasterKeyRevision
+        {
+            get { return masterKeyRevision; }
+            set { this.masterKeyRevision = value; NotifyPropertyChanged("MasterKeyRevision"); }
+        }
+
+        public string RequiredFirmware
+        {
+            get { return SwitchFirmware.VersionToString(requiredSystemVersion); }
+        }
+
         public abstract bool IsGame { get; }
         public abstract bool IsDLC { get; }
         public abstract bool IsUpdate { get; }
-        public abstract bool IsDemo { get; }
         public bool IsTitleKeyValid { get { return SwitchTitle.CheckValidTitleKey(this.titlekey); }  }
 
         internal SwitchTitle(string name, string titleid, string titlekey)

@@ -61,14 +61,11 @@
         <MenuItem Header="Save Library _Metadata" Click="SaveLibrary_Click"/>
       </MenuItem>
       <MenuItem Header="_NSP">
-        <MenuItem Header="Unpack NSP" ToolTip="" Click="UnpackNSP_Click"/>
+        <MenuItem Header="Unpack NSP (and verify)" ToolTip="" Click="UnpackNSP_Click"/>
         <MenuItem Header="Unpack NSP (and all NCAs within)" ToolTip="" Click="UnpackNSPFiles_Click"/>
-        <MenuItem Header="Unpack NSP (and verify)" ToolTip="" Click="UnpackNSPVerify_Click"/>
-        <MenuItem Header="Repack NSP" ToolTip="" Click="RepackNSP_Click"/>
-        <MenuItem Header="Repack NSP (and verify)" ToolTip="" Click="RepackNSPVerify_Click"/>
+        <MenuItem Header="Unpack and Repack NSP (and verify)" ToolTip="" Click="RepackNSP_Click"/>
         <MenuItem Header="Repack Directory" ToolTip="" Click="RepackDir_Click"/>
-        <MenuItem Header="Repack Directory (and verify)" ToolTip="" Click="RepackDirVerify_Click"/>
-        <MenuItem Header="Verify NSP" ToolTip="" Click="VerifyNSP_Click"/>
+        <MenuItem Header="Verify Directory" ToolTip="" Click="VerifyDir_Click"/>
       </MenuItem>
       <MenuItem Header="_Options">
       </MenuItem>
@@ -80,17 +77,27 @@
         <TextBlock Margin="5,2" Height="20"  MinWidth="50" Text="Type to filter library by name..." 
                   Foreground="LightSteelBlue" Visibility="{Binding ElementName=TextBox_Search, Path=Text, Converter={StaticResource TextInputToVisibilityConverter}}" />
         <!-- enter term here -->
-        <TextBox Height="20" MinWidth="50" x:Name="TextBox_Search" Width="200" TextChanged="TextBox_Search_TextChanged"  Background="Transparent" />
+        <TextBox Height="20" MinWidth="50" x:Name="TextBox_Search" Width="200" TextChanged="SearchFilterChanged"  Background="Transparent" />
       </Grid>
-      <TextBlock VerticalAlignment="Center" Margin="5" FontWeight="Bold">Filters</TextBlock>
-      <CheckBox x:Name="CheckBox_Demos" Margin="5,5,5,5" Checked="CheckBox_Demos_Checked" Unchecked="CheckBox_Demos_Checked">Demos</CheckBox>
-      <CheckBox x:Name="CheckBox_DLC" Margin="5,5,5,5" Checked="CheckBox_DLC_Checked" Unchecked="CheckBox_DLC_Checked">DLC</CheckBox>
-      <CheckBox x:Name="CheckBox_Games" Margin="5,5,5,5" Checked="CheckBox_Games_Checked" Unchecked="CheckBox_Games_Checked" IsChecked="True">Games</CheckBox>
-      <CheckBox x:Name="CheckBox_Owned" Margin="5,5,5,5" Checked="CheckBox_Owned_Checked" Unchecked="CheckBox_Owned_Checked" IsChecked="True">Owned</CheckBox>
-      <CheckBox x:Name="CheckBox_NotOwned" Margin="5,5,5,5" Checked="CheckBox_NotOwned_Checked" Unchecked="CheckBox_NotOwned_Checked" IsChecked="True">Not Owned</CheckBox>
-      <CheckBox x:Name="CheckBox_Hidden" Margin="5,5,5,5" Checked="CheckBox_Hidden_Checked" Unchecked="CheckBox_Hidden_Checked">Hidden</CheckBox>
-      <CheckBox x:Name="CheckBox_Favorites" Margin="5,5,5,5" Checked="CheckBox_Favorites_Checked" Unchecked="CheckBox_Favorites_Checked">Favorites (hides non-favorites)</CheckBox>
-      <CheckBox x:Name="CheckBox_New" Margin="5,5,5,5" Checked="CheckBox_New_Checked" Unchecked="CheckBox_New_Checked">New (hides non-new)</CheckBox>
+      <StackPanel Orientation="Vertical">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock VerticalAlignment="Center" Margin="5" FontWeight="Bold">OR Filters</TextBlock>
+          <CheckBox x:Name="CheckBox_Demos" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">Demos</CheckBox>
+          <CheckBox x:Name="CheckBox_DLC" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">DLC</CheckBox>
+          <CheckBox x:Name="CheckBox_Games" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Games</CheckBox>
+          <CheckBox x:Name="CheckBox_Owned" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Owned</CheckBox>
+          <CheckBox x:Name="CheckBox_Preloaded" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">Preloaded</CheckBox>
+          <CheckBox x:Name="CheckBox_NotOwned" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Available</CheckBox>
+          <CheckBox x:Name="CheckBox_Preloadable" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Preloadable</CheckBox>
+          <CheckBox x:Name="CheckBox_Hidden" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">Hidden</CheckBox>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock VerticalAlignment="Center" Margin="5" FontWeight="Bold">AND Filters</TextBlock>
+          <CheckBox x:Name="CheckBox_Favorites" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">Favorites</CheckBox>
+          <CheckBox x:Name="CheckBox_New" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">New</CheckBox>
+          <CheckBox x:Name="CheckBox_Unlockable" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">Unlockable</CheckBox>
+        </StackPanel>
+      </StackPanel>
     </StackPanel>
     <DataGrid x:Name="DataGrid_Collection"
             AutoGenerateColumns="False" 
@@ -125,9 +132,13 @@
           <MenuItem Header="Download Everything" ToolTip="Downloads the currently expanded title and all updates and DLC for it." Click="DownloadAll_Click"/>
           <MenuItem Header="Download Updates" ToolTip="Downloads all updates for currently expanded Switch title from the CDN." Click="DownloadUpdates_Click"/>
           <MenuItem Header="Download DLC" ToolTip="Downloads all DLC for the currently expanded Switch title from the CDN." Click="DownloadDLC_Click"/>
+          <Separator />
           <MenuItem Header="Show NSP in Explorer" ToolTip="Shows the rom file in your default file manager." Click="OpenRomPath_Click"/>
           <MenuItem Header="Visit eShop Link" ToolTip="Opens the default Web Browser to the Nintendo eShop link for this title." Click="IconButton_Click"/>
           <MenuItem Header="Toggle Favorite" ToolTip="Toggles the Favorite check for this title." Click="ToggleFavorite_Click"/>
+          <Separator />
+          <MenuItem Header="Repack NSP from temp directory" ToolTip="Regenerates the NSP using the existing temp files. Totally offline." Click="RepackTitleDir_Click"/>
+          <MenuItem Header="Repack existing NSP file" ToolTip="Unpacks this title's NSP file and repacks it. Totally offline." Click="RepackTitle_Click"/>
           <Separator />
           <MenuItem Header="Delete Title" ToolTip="Deletes the Switch title from your library forever." Click="DeleteTitle_Click"/>
           <MenuItem Header="Remove Title From Library" ToolTip="Marks the title as Not Owned and clears the Rom Path." Click="RemoveTitle_Click"/>

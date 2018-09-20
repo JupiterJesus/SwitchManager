@@ -118,15 +118,18 @@ namespace SwitchManager
                     ShowError("Error reading library metadata file, it will be recreated on exit or when you force save it.\nIf your library is empty, make sure to update title keys and scan your library to get a fresh start.");
             }
 
-            TextBox_Search.Text = filterText = Settings.Default.FilterText;
-            CheckBox_Demos.IsChecked = showDemos = Settings.Default.ShowDemos;
-            CheckBox_DLC.IsChecked = showDLC = Settings.Default.ShowDLC;
-            CheckBox_Games.IsChecked = showGames = Settings.Default.ShowGames;
-            CheckBox_Favorites.IsChecked = showFavoritesOnly = Settings.Default.ShowFavorites;
-            CheckBox_New.IsChecked = showNewOnly = Settings.Default.ShowNew;
-            CheckBox_Owned.IsChecked = showOwned = Settings.Default.ShowOwned;
-            CheckBox_NotOwned.IsChecked = showNotOwned = Settings.Default.ShowNotOwned;
-            CheckBox_Hidden.IsChecked = showHidden = Settings.Default.ShowHidden;
+            TextBox_Search.Text = Settings.Default.FilterText;
+            CheckBox_Demos.IsChecked = Settings.Default.ShowDemos;
+            CheckBox_DLC.IsChecked = Settings.Default.ShowDLC;
+            CheckBox_Games.IsChecked = Settings.Default.ShowGames;
+            CheckBox_Favorites.IsChecked = Settings.Default.ShowFavorites;
+            CheckBox_New.IsChecked = Settings.Default.ShowNew;
+            CheckBox_Owned.IsChecked = Settings.Default.ShowOwned;
+            CheckBox_NotOwned.IsChecked = Settings.Default.ShowNotOwned;
+            CheckBox_Preloadable.IsChecked = Settings.Default.ShowPreloadable;
+            CheckBox_Preloaded.IsChecked = Settings.Default.ShowPreloaded;
+            CheckBox_Hidden.IsChecked = Settings.Default.ShowHidden;
+            CheckBox_Unlockable.IsChecked = Settings.Default.ShowUnlockable;
 
             // I wonder why I even use separate variables and a clicked handler for every checkbox
             // Why don't I grab the IsChecked values directly inside of the filter, and simply refresh
@@ -137,16 +140,33 @@ namespace SwitchManager
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
             Predicate<object> datagridFilter = (o =>
             {
+                string filterText = TextBox_Search.Text;
+                bool showDemos = CheckBox_Demos.IsChecked ?? false;
+                bool showDLC = CheckBox_DLC.IsChecked ?? false;
+                bool showGames = CheckBox_Games.IsChecked ?? true;
+                bool showFavoritesOnly = CheckBox_Favorites.IsChecked ?? false;
+                bool showNewOnly = CheckBox_New.IsChecked ?? false;
+                bool showUnlockableOnly = CheckBox_Unlockable.IsChecked ?? false;
+                bool showOwned = CheckBox_Owned.IsChecked ?? true;
+                bool showNotOwned = CheckBox_NotOwned.IsChecked ?? true;
+                bool showPreloaded = CheckBox_Preloaded.IsChecked ?? true;
+                bool showPreloadable = CheckBox_Preloadable.IsChecked ?? true;
+                bool showHidden = CheckBox_Hidden.IsChecked ?? false;
                 SwitchCollectionItem i = o as SwitchCollectionItem;
-                return ((this.showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
-                        ((this.showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
-                        ((this.showGames && i.Title.IsGame && !i.Title.IsDemo) || !(i.Title.IsGame && !i.Title.IsDemo)) &&
-                        (!this.showFavoritesOnly || (i.IsFavorite)) &&
-                        (!this.showNewOnly || (i.State == SwitchCollectionState.New)) &&
-                        ((this.showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
-                        ((this.showNotOwned && (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) || (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) &&
-                        ((this.showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
-                        (string.IsNullOrWhiteSpace(this.filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
+
+                return  //(!"JP".Equals(i.Region)) &&
+                        ((showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
+                        ((showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
+                        ((showGames && i.Title.IsGame && !i.Title.IsDemo) || !(i.Title.IsGame && !i.Title.IsDemo)) &&
+                        (!showFavoritesOnly || (i.IsFavorite)) &&
+                        (!showUnlockableOnly || (i.State == SwitchCollectionState.Unlockable)) &&
+                        (!showNewOnly || (i.State == SwitchCollectionState.New || i.State == SwitchCollectionState.NewNoKey)) &&
+                        ((showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
+                        ((showNotOwned && (i.State == SwitchCollectionState.NotOwned)) || (i.State != SwitchCollectionState.NotOwned)) &&
+                        ((showPreloadable && (i.State == SwitchCollectionState.NoKey)) || (i.State != SwitchCollectionState.NoKey)) &&
+                        ((showPreloaded && (i.State == SwitchCollectionState.Downloaded)) || (i.State != SwitchCollectionState.Downloaded)) &&
+                        ((showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
+                        (string.IsNullOrWhiteSpace(filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
             });
             cv.Filter = datagridFilter;
 
@@ -183,15 +203,18 @@ namespace SwitchManager
                 Settings.Default.WindowMaximized = false;
             }
 
-            Settings.Default.FilterText = filterText;
-            Settings.Default.ShowDemos = showDemos;
-            Settings.Default.ShowDLC = showDLC;
-            Settings.Default.ShowGames = showGames;
-            Settings.Default.ShowFavorites = showFavoritesOnly;
-            Settings.Default.ShowNew = showNewOnly;
-            Settings.Default.ShowOwned = showOwned;
-            Settings.Default.ShowNotOwned = showNotOwned;
-            Settings.Default.ShowHidden = showHidden;
+            Settings.Default.FilterText = TextBox_Search.Text;
+            Settings.Default.ShowDemos = CheckBox_Demos.IsChecked ?? false;
+            Settings.Default.ShowDLC = CheckBox_DLC.IsChecked ?? false;
+            Settings.Default.ShowGames = CheckBox_Games.IsChecked ?? true;
+            Settings.Default.ShowFavorites = CheckBox_Favorites.IsChecked ?? false;
+            Settings.Default.ShowNew = CheckBox_New.IsChecked ?? false;
+            Settings.Default.ShowUnlockable = CheckBox_Unlockable.IsChecked ?? false;
+            Settings.Default.ShowOwned = CheckBox_Owned.IsChecked ?? true;
+            Settings.Default.ShowNotOwned = CheckBox_NotOwned.IsChecked ?? true;
+            Settings.Default.ShowPreloadable = CheckBox_Preloadable.IsChecked ?? true;
+            Settings.Default.ShowPreloaded = CheckBox_Preloaded.IsChecked ?? true;
+            Settings.Default.ShowHidden = CheckBox_Hidden.IsChecked ?? false;
 
             var sd = DataGrid_Collection.Items.SortDescriptions.SingleOrDefault();
             if (sd != null)
@@ -349,13 +372,43 @@ namespace SwitchManager
         private void OpenRomPath_Click(object sender, RoutedEventArgs e)
         {
             if (!(DataGrid_Collection.SelectedItem is SwitchCollectionItem item)) return;
-            
-            if (!File.Exists(item.RomPath))
+
+            if (FileUtils.FileExists(item.RomPath) || FileUtils.DirectoryExists(item.RomPath))
+            {
+                OpenRomPath(item.RomPath);
+            }
+            else
             {
                 item.RomPath = null;
-                return;
             }
-            OpenRomPath(item.RomPath);
+        }
+
+        private async void RepackTitle_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(DataGrid_Collection.SelectedItem is SwitchCollectionItem item)) return;
+
+            if (FileUtils.FileExists(item.RomPath))
+            {
+                await RepackNSP(item.RomPath);
+            }
+        }
+
+        private async void RepackTitleDir_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(DataGrid_Collection.SelectedItem is SwitchCollectionItem item)) return;
+
+            if (FileUtils.DirectoryExists(item.RomPath))
+            {
+                await RepackDir(item.RomPath);
+            }
+            else
+            {
+                string tmp = Settings.Default.TempDirectory + Path.DirectorySeparatorChar + item.TitleId;
+                if (FileUtils.DirectoryExists(tmp))
+                {
+                    await RepackDir(tmp);
+                }
+            }
         }
 
         private void OpenRomPath(string filePath)
@@ -372,11 +425,18 @@ namespace SwitchManager
             // Okay so the below got way more complicated than it used to be. I wanted to catch an exception in case
             // the cert is denied. I had to put that in the threaded task. Since I didn't want the download window to open
             // or focus unless the download started, I think had to put that in there right after
-            Task.Run(async delegate
+            Task.Run(() => DoDownload(item, ver, o));
+        }
+
+        private async Task DoDownload(SwitchCollectionItem item, uint v, DownloadOptions o)
+        {
+            if (library.Loader.ClientCert == null)
+                ShowError("There is no certificate, so don't try downloading");
+            else
             {
                 try
                 {
-                    await DoDownload(item, ver, o);
+                    await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
                 }
                 catch (CertificateDeniedException)
                 {
@@ -400,15 +460,7 @@ namespace SwitchManager
                     }
                     ShowError(msg);
                 }
-            });
-        }
-
-        private async Task DoDownload(SwitchCollectionItem item, uint v, DownloadOptions o)
-        {
-            if (library.Loader.ClientCert == null)
-                ShowError("There is no certificate, so don't try downloading");
-            else
-                await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
+            }
         }
 
         private void RemoveTitle_Click(object sender, RoutedEventArgs e)
@@ -459,20 +511,10 @@ namespace SwitchManager
         VersionsConverter vcon = new VersionsConverter();
 
         #endregion 
+        
+        public event PropertyChangedEventHandler PropertyChanged;
 
         #region DataGrid filtering and sorting
-
-        private string filterText = null;
-        private bool showDemos = false;
-        private bool showDLC = false;
-        private bool showGames = true;
-        private bool showFavoritesOnly = false;
-        private bool showNewOnly = false;
-        private bool showOwned = true;
-        private bool showNotOwned = true;
-        private bool showHidden = false;
-
-        public event PropertyChangedEventHandler PropertyChanged;
 
         private void SortGrid(int columnIndex, ListSortDirection sortDirection = ListSortDirection.Ascending)
         {
@@ -499,118 +541,16 @@ namespace SwitchManager
             DataGrid_Collection.Items.Refresh();
         }
 
-        private void TextBox_Search_TextChanged(object sender, TextChangedEventArgs e)
+        private void FilterChanged(object sender, RoutedEventArgs e)
         {
-            TextBox searchBox = (TextBox)sender;
-            string filterText = searchBox.Text;
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
+            cv?.Refresh();
+        }
 
-            this.filterText = filterText;
+        private void SearchFilterChanged(object sender, TextChangedEventArgs e)
+        {
+            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
             cv.Refresh();
-        }
-
-        private void CheckBox_Demos_Checked(object sender, RoutedEventArgs e)
-        {
-            if (DataGrid_Collection == null) return;
-
-            CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            if (cbox.IsChecked.HasValue)
-            {
-                this.showDemos = cbox.IsChecked.Value;
-                cv?.Refresh();
-            }
-        }
-
-        private void CheckBox_DLC_Checked(object sender, RoutedEventArgs e)
-        {
-            if (DataGrid_Collection == null) return;
-
-            CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            if (cbox.IsChecked.HasValue)
-            {
-                this.showDLC = cbox.IsChecked.Value;
-                cv?.Refresh();
-            }
-        }
-
-        private void CheckBox_Games_Checked(object sender, RoutedEventArgs e)
-        {
-            if (DataGrid_Collection == null) return;
-
-            CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            if (cbox.IsChecked.HasValue)
-            {
-                this.showGames = cbox.IsChecked.Value;
-                cv?.Refresh();
-            }
-        }
-
-        private void CheckBox_Favorites_Checked(object sender, RoutedEventArgs e)
-        {
-            if (DataGrid_Collection == null) return;
-
-            CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            if (cbox.IsChecked.HasValue)
-            {
-                this.showFavoritesOnly = cbox.IsChecked.Value;
-                cv?.Refresh();
-            }
-        }
-
-        private void CheckBox_New_Checked(object sender, RoutedEventArgs e)
-        {
-            if (DataGrid_Collection == null) return;
-
-            CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            if (cbox.IsChecked.HasValue)
-            {
-                this.showNewOnly = cbox.IsChecked.Value;
-                cv?.Refresh();
-            }
-        }
-
-        private void CheckBox_Owned_Checked(object sender, RoutedEventArgs e)
-        {
-            if (DataGrid_Collection == null) return;
-
-            CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            if (cbox.IsChecked.HasValue)
-            {
-                this.showOwned = cbox.IsChecked.Value;
-                cv?.Refresh();
-            }
-        }
-
-        private void CheckBox_NotOwned_Checked(object sender, RoutedEventArgs e)
-        {
-            if (DataGrid_Collection == null) return;
-
-            CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            if (cbox.IsChecked.HasValue)
-            {
-                this.showNotOwned = cbox.IsChecked.Value;
-                cv?.Refresh();
-            }
-        }
-
-        private void CheckBox_Hidden_Checked(object sender, RoutedEventArgs e)
-        {
-            if (DataGrid_Collection == null) return;
-
-            CheckBox cbox = (CheckBox)sender;
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            if (cbox.IsChecked.HasValue)
-            {
-                this.showHidden = cbox.IsChecked.Value;
-                cv?.Refresh();
-            }
         }
 
         #endregion
@@ -619,15 +559,18 @@ namespace SwitchManager
 
         private async void MenuItemUpdate_Click(object sender, RoutedEventArgs e)
         {
-            string tkeysFile = System.IO.Path.GetFullPath(Settings.Default.TitleKeysFile);
+            string tkeysFile = Path.GetFullPath(Settings.Default.TitleKeysFile);
             string tempTkeysFile = tkeysFile + ".tmp";
+            string nutFile = Path.GetFullPath("nut.tmp");
 
             using (var client = new WebClient())
             {
                 await client.DownloadFileTaskAsync(new Uri(Settings.Default.TitleKeysURL), tempTkeysFile);
+                await client.DownloadFileTaskAsync(new Uri(Settings.Default.NutURL), nutFile);
             }
 
-            await LoadTitleKeys(tempTkeysFile);
+            await LoadTitleKeys(tempTkeysFile, nutFile);
+            FileUtils.DeleteFile(nutFile);
             FileUtils.DeleteFile(tempTkeysFile);
         }
 
@@ -730,151 +673,130 @@ namespace SwitchManager
 
         private async void BulkDownloadFavorites_Click(object sender, RoutedEventArgs e)
         {
-            try
+            var win = new DownloadWindow("Favorite Games");
+            bool s = win.ShowDialog() ?? false;
+            if (s)
             {
-                var win = new DownloadWindow("Favorite Games");
-                bool s = win.ShowDialog() ?? false;
-                if (s)
+                var method = win.Method ?? DownloadMethod.None;
+                switch (method)
                 {
-                    var method = win.Method ?? DownloadMethod.None;
-                    switch (method)
-                    {
-                        case DownloadMethod.Alphabetical:
-                            await DownloadAlphabetical(SwitchTitleType.Game);
-                            break;
-                        case DownloadMethod.BySize:
-                            await DownloadLimitedBySize(SwitchTitleType.Game);
-                            break;
-                        case DownloadMethod.LimitedByData:
+                    case DownloadMethod.Alphabetical:
+                        await DownloadAlphabetical(SwitchTitleType.Game);
+                        break;
+                    case DownloadMethod.BySize:
+                        await DownloadLimitedBySize(SwitchTitleType.Game);
+                        break;
+                    case DownloadMethod.LimitedByData:
 
-                            var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. Favorites will be downloaded until the next download would exceed this number, or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
-                            s = maxDataWin.ShowDialog() ?? false;
-                            if (s)
-                            {
-                                string maxSize = maxDataWin.ResponseText;
-                                long bytes = Miscellaneous.FromFileSize(maxSize);
-                                await DownloadLimitedByData(SwitchTitleType.Game, bytes);
-                            }
-                            break;
-                        case DownloadMethod.LimitedBySize:
+                        var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. Favorites will be downloaded until the next download would exceed this number, or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                        s = maxDataWin.ShowDialog() ?? false;
+                        if (s)
+                        {
+                            string maxSize = maxDataWin.ResponseText;
+                            long bytes = Miscellaneous.FromFileSize(maxSize);
+                            await DownloadLimitedByData(SwitchTitleType.Game, bytes);
+                        }
+                        break;
+                    case DownloadMethod.LimitedBySize:
 
-                            var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest game you want to download. If the next title is larger than this amount, or if the size is unknown, downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
-                            s = maxSizeWin.ShowDialog() ?? false;
-                            if (s)
-                            {
-                                string maxSize = maxSizeWin.ResponseText;
-                                long bytes = Miscellaneous.FromFileSize(maxSize);
-                                await DownloadLimitedBySize(SwitchTitleType.Game, bytes);
-                            }
-                            break;
-                        default:
-                            break;
-                    }
+                        var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest game you want to download. If the next title is larger than this amount, or if the size is unknown, downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                        s = maxSizeWin.ShowDialog() ?? false;
+                        if (s)
+                        {
+                            string maxSize = maxSizeWin.ResponseText;
+                            long bytes = Miscellaneous.FromFileSize(maxSize);
+                            await DownloadLimitedBySize(SwitchTitleType.Game, bytes);
+                        }
+                        break;
+                    default:
+                        break;
                 }
-            }
-            catch (CertificateDeniedException)
-            {
-                ShowError("Can't download because the certificate was denied.");
             }
         }
 
         private async void BulkDownloadUpdates_Click(object sender, RoutedEventArgs e)
         {
-            try
+            var win = new DownloadWindow("Updates");
+            bool s = win.ShowDialog() ?? false;
+            if (s)
             {
-                var win = new DownloadWindow("Updates");
-                bool s = win.ShowDialog() ?? false;
-                if (s)
+                var method = win.Method ?? DownloadMethod.None;
+                switch (method)
                 {
-                    var method = win.Method ?? DownloadMethod.None;
-                    switch (method)
-                    {
-                        case DownloadMethod.Alphabetical:
-                            await DownloadAlphabetical(SwitchTitleType.Update);
-                            break;
-                        case DownloadMethod.BySize:
-                            await DownloadLimitedBySize(SwitchTitleType.Update);
-                            break;
-                        case DownloadMethod.LimitedByData:
+                    case DownloadMethod.Alphabetical:
+                        await DownloadAlphabetical(SwitchTitleType.Update);
+                        break;
+                    case DownloadMethod.BySize:
+                        await DownloadLimitedBySize(SwitchTitleType.Update);
+                        break;
+                    case DownloadMethod.LimitedByData:
 
-                            var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. Updates will be downloaded until the next download would exceed this number, or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
-                            s = maxDataWin.ShowDialog() ?? false;
-                            if (s)
-                            {
-                                string maxSize = maxDataWin.ResponseText;
-                                long bytes = Miscellaneous.FromFileSize(maxSize);
-                                await DownloadLimitedByData(SwitchTitleType.Update, bytes);
-                            }
-                            break;
-                        case DownloadMethod.LimitedBySize:
+                        var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. Updates will be downloaded until the next download would exceed this number, or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                        s = maxDataWin.ShowDialog() ?? false;
+                        if (s)
+                        {
+                            string maxSize = maxDataWin.ResponseText;
+                            long bytes = Miscellaneous.FromFileSize(maxSize);
+                            await DownloadLimitedByData(SwitchTitleType.Update, bytes);
+                        }
+                        break;
+                    case DownloadMethod.LimitedBySize:
 
-                            var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest update you want to download. If the next update is larger than this amount, or if the size is unknown,  downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
-                            s = maxSizeWin.ShowDialog() ?? false;
-                            if (s)
-                            {
-                                string maxSize = maxSizeWin.ResponseText;
-                                long bytes = Miscellaneous.FromFileSize(maxSize);
-                                await DownloadLimitedBySize(SwitchTitleType.Update, bytes);
-                            }
-                            break;
-                        default:
-                            break;
-                    }
+                        var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest update you want to download. If the next update is larger than this amount, or if the size is unknown,  downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                        s = maxSizeWin.ShowDialog() ?? false;
+                        if (s)
+                        {
+                            string maxSize = maxSizeWin.ResponseText;
+                            long bytes = Miscellaneous.FromFileSize(maxSize);
+                            await DownloadLimitedBySize(SwitchTitleType.Update, bytes);
+                        }
+                        break;
+                    default:
+                        break;
                 }
-            }
-            catch (CertificateDeniedException)
-            {
-                ShowError("Can't download because the certificate was denied.");
             }
         }
 
         private async void BulkDownloadDLC_Click(object sender, RoutedEventArgs e)
         {
-            try
+            var win = new DownloadWindow("DLC");
+            bool s = win.ShowDialog() ?? false;
+            if (s)
             {
-                var win = new DownloadWindow("DLC");
-                bool s = win.ShowDialog() ?? false;
-                if (s)
+                var method = win.Method ?? DownloadMethod.None;
+                switch (method)
                 {
-                    var method = win.Method ?? DownloadMethod.None;
-                    switch (method)
-                    {
-                        case DownloadMethod.Alphabetical:
-                            await DownloadAlphabetical(SwitchTitleType.DLC);
-                            break;
-                        case DownloadMethod.BySize:
-                            await DownloadLimitedBySize(SwitchTitleType.DLC);
-                            break;
-                        case DownloadMethod.LimitedByData:
+                    case DownloadMethod.Alphabetical:
+                        await DownloadAlphabetical(SwitchTitleType.DLC);
+                        break;
+                    case DownloadMethod.BySize:
+                        await DownloadLimitedBySize(SwitchTitleType.DLC);
+                        break;
+                    case DownloadMethod.LimitedByData:
 
-                            var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. DLC will be downloaded until the next download would exceed this number,  or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
-                            s = maxDataWin.ShowDialog() ?? false;
-                            if (s)
-                            {
-                                string maxSize = maxDataWin.ResponseText;
-                                long bytes = Miscellaneous.FromFileSize(maxSize);
-                                await DownloadLimitedByData(SwitchTitleType.DLC, bytes);
-                            }
-                            break;
-                        case DownloadMethod.LimitedBySize:
+                        var maxDataWin = new TextInputWindow("Please enter the total amount of data you are willing to download. DLC will be downloaded until the next download would exceed this number,  or if the size is unknown, then stops.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                        s = maxDataWin.ShowDialog() ?? false;
+                        if (s)
+                        {
+                            string maxSize = maxDataWin.ResponseText;
+                            long bytes = Miscellaneous.FromFileSize(maxSize);
+                            await DownloadLimitedByData(SwitchTitleType.DLC, bytes);
+                        }
+                        break;
+                    case DownloadMethod.LimitedBySize:
 
-                            var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest DLC you want to download. If the next DLC is larger than this amount, or if the size is unknown, downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
-                            s = maxSizeWin.ShowDialog() ?? false;
-                            if (s)
-                            {
-                                string maxSize = maxSizeWin.ResponseText;
-                                long bytes = Miscellaneous.FromFileSize(maxSize);
-                                await DownloadLimitedBySize(SwitchTitleType.DLC, bytes);
-                            }
-                            break;
-                        default:
-                            break;
-                    }
+                        var maxSizeWin = new TextInputWindow("Please enter a limit to the biggest DLC you want to download. If the next DLC is larger than this amount, or if the size is unknown, downloading will stop.\n\nPlease enter your answer like the following, with a number followed by a unit size: 1000 bytes, 6000 MB, 100 GB, 1.36 TB.");
+                        s = maxSizeWin.ShowDialog() ?? false;
+                        if (s)
+                        {
+                            string maxSize = maxSizeWin.ResponseText;
+                            long bytes = Miscellaneous.FromFileSize(maxSize);
+                            await DownloadLimitedBySize(SwitchTitleType.DLC, bytes);
+                        }
+                        break;
+                    default:
+                        break;
                 }
-            }
-            catch (CertificateDeniedException)
-            {
-                ShowError("Can't download because the certificate was denied.");
             }
         }
 
@@ -962,8 +884,8 @@ namespace SwitchManager
         private async Task DownloadLimitedBySize(SwitchTitleType type, long limit = 0)
         {
             DownloadsCancelled = false;
-            var titles = GetDownloadList(type).ToList();
-            var ordered = titles.OrderBy(x => x.Size).ToList();
+            var titles = GetDownloadList(type);
+            var ordered = titles.OrderBy(x => x.Size);
 
             foreach (var item in ordered)
             {
@@ -1014,10 +936,10 @@ namespace SwitchManager
             else if (type == SwitchTitleType.Update)
             {
                 // First get the games we own, then extract their list of updates, then filter by updates not downloaded
-                var games = this.library.Collection.GetGames().ToList();
-                var downloaded = games.GetDownloadedTitles().ToList();
-                var updates = downloaded.GetUpdates().ToList();
-                var newUpdates = updates.GetTitlesNotDownloaded().ToList();
+                var games = this.library.Collection.GetGames();
+                var downloaded = games.GetDownloadedTitles();
+                var updates = downloaded.GetUpdates();
+                var newUpdates = updates.GetTitlesNotDownloaded();
                 return newUpdates;
             }
             else if (type == SwitchTitleType.DLC) // can't use GetDLC() because that gets DLC we own already, when what we want is unowned dlc for games we own
@@ -1035,7 +957,7 @@ namespace SwitchManager
             return null;
         }
 
-        private async Task LoadTitleKeys(string tkeysFile)
+        private async Task LoadTitleKeys(string tkeysFile, string nutFile = null)
         {
             FileInfo tempTkeys = new FileInfo(tkeysFile);
 
@@ -1043,6 +965,11 @@ namespace SwitchManager
             {
                 logger.Info("Successfully downloaded new title keys file");
                 var newTitles = library.UpdateTitleKeysFile(tkeysFile);
+                if (nutFile != null)
+                {
+                    var nutTitles = library.UpdateNutFile(nutFile);
+                    nutTitles.ForEach(i => newTitles.Add(i));
+                }
 
                 if (newTitles.Count > 0)
                 {
@@ -1250,39 +1177,16 @@ namespace SwitchManager
                 string nspFile = dlg.FileName;
                 try
                 {
-                    await NSP.Unpack(nspFile, false);
+                    NSP nsp = await NSP.Unpack(nspFile);
+                    nsp.Verify();
                 }
                 catch (InvalidNspException n)
                 {
                     ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
-                }
-            }
-        }
-
-        private async void UnpackNSPVerify_Click(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                DefaultExt = ".nsp",
-                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
-                InitialDirectory = Settings.Default.NSPDirectory,
-            };
-
-            bool? result = dlg.ShowDialog();
-            if (result == true)
-            {
-                string nspFile = dlg.FileName;
-                try
-                {
-                    await NSP.Unpack(nspFile, true);
                 }
                 catch (BadNcaException b)
                 {
                     ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
-                }
-                catch (InvalidNspException n)
-                {
-                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
                 }
             }
         }
@@ -1303,10 +1207,13 @@ namespace SwitchManager
                 try
                 {
                     // First, unpack the NSP
-                    NSP nsp = await NSP.Unpack(nspFile, true);
+                    NSP nsp = await NSP.Unpack(nspFile);
+                    nsp.Verify();
                     CNMT cnmt = nsp.CNMT;
                     var item = library.GetTitleByID(cnmt.Id);
                     string titlekey = item?.TitleKey;
+                    item.RequiredSystemVersion = cnmt.RequiredSystemVersion;
+                    item.MasterKeyRevision = cnmt.MasterKeyRevision;
 
                     // Once unpacked, decrypt all the NCAs.They all go into subdirectories inside of the 
                     // NSP directory. The directory names are the NCA ID / file name without extension.
@@ -1344,93 +1251,101 @@ namespace SwitchManager
             if (result == true)
             {
                 string nspFile = dlg.FileName;
-                try
+
+                await RepackNSP(nspFile);
+            }
+        }
+
+        private async Task RepackNSP(string nspFile)
+        {
+            try
+            {
+                // First, unpack the NSP
+                NSP nsp = await NSP.Unpack(nspFile);
+
+                File.Move(nspFile, nspFile + ".old");
+                await nsp.Repack(nspFile);
+            }
+            catch (BadNcaException b)
+            {
+                ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+            }
+            catch (InvalidNspException n)
+            {
+                ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+            }
+        }
+
+        private async void RepackDir_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.NSPDirectory, Description = "Choose a directory to scan for titles" };
+            bool? result = dialog.ShowDialog();
+            if (result ?? false)
+            {
+                await RepackDir(dialog.SelectedPath);
+            }
+        }
+
+        private async Task RepackDir(string dir)
+        {
+            if (!string.IsNullOrWhiteSpace(dir))
+            {
+                if (Directory.Exists(dir))
                 {
-                    // First, unpack the NSP
-                    NSP nsp = await NSP.Unpack(nspFile, false);
-                    File.Move(nspFile, nspFile + ".old");
-                    await nsp.Repack(nspFile);
-                }
-                catch (BadNcaException b)
-                {
-                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
-                }
-                catch (InvalidNspException n)
-                {
-                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                    try
+                    {
+                        // First, unpack the NSP
+                        NSP nsp = NSP.FromDirectory(dir);
+                        CNMT cnmt = nsp.CNMT;
+
+                        string id = cnmt.Id;
+
+                        SwitchTitle title = null;
+                        uint version = cnmt.Version;
+
+                        if (cnmt.Type == TitleType.Patch)
+                        {
+                            var parent = library.GetTitleByID(id);
+                            title = parent.GetUpdate(version).Title;
+                        }
+                        else
+                        {
+                            title = library.GetTitleByID(id)?.Title;
+                        }
+                        title.RequiredSystemVersion = cnmt.RequiredSystemVersion;
+                        title.MasterKeyRevision = cnmt.MasterKeyRevision;
+
+                        string nspFile = await library.DoNspRepack(title, version, nsp);
+                    }
+                    catch (BadNcaException b)
+                    {
+                        ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                    }
                 }
             }
         }
 
-        private async void RepackNSPVerify_Click(object sender, RoutedEventArgs e)
+        private void VerifyDir_Click(object sender, RoutedEventArgs e)
         {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.NSPDirectory, Description = "Choose a directory to scan for titles" };
+            bool? result = dialog.ShowDialog();
+            if (result ?? false)
             {
-                DefaultExt = ".nsp",
-                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
-                InitialDirectory = Settings.Default.NSPDirectory,
-            };
-
-            bool? result = dlg.ShowDialog();
-            if (result == true)
-            {
-                string nspFile = dlg.FileName;
-                try
+                if (!string.IsNullOrWhiteSpace(dialog.SelectedPath))
                 {
-                    // First, unpack the NSP
-                    NSP nsp = await NSP.Unpack(nspFile, true);
-                    File.Move(nspFile, nspFile + ".old");
-                    await nsp.Repack(nspFile);
-                }
-                catch (BadNcaException b)
-                {
-                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
-                }
-                catch (InvalidNspException n)
-                {
-                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
-                }
-                catch (IOException i)
-                {
-                    ShowError($"Error while reading or writing files.\nFile: {nspFile}\nReason: {i.Message}");
-                }
-            }
-        }
-
-        private void RepackDir_Click(object sender, RoutedEventArgs e)
-        {
-            ShowMessage("Repacking a directory into an NSP is not yet implemented", "Not Yet Implemented", "Oh...");
-        }
-
-        private void RepackDirVerify_Click(object sender, RoutedEventArgs e)
-        {
-            ShowMessage("Repacking a directory into an NSP is not yet implemented", "Not Yet Implemented", "Oh...");
-        }
-
-        private void VerifyNSP_Click(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                DefaultExt = ".nsp",
-                Filter = "Nintendo NSP Titles (*.nsp)|*.nsp",
-                InitialDirectory = Settings.Default.NSPDirectory,
-            };
-
-            bool? result = dlg.ShowDialog();
-            if (result == true)
-            {
-                string nspFile = dlg.FileName;
-                try
-                {
-                    NSP.Verify(nspFile);
-                }
-                catch (BadNcaException b)
-                {
-                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
-                }
-                catch (InvalidNspException n)
-                {
-                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                    if (Directory.Exists(dialog.SelectedPath))
+                    {
+                        try
+                        {
+                            // First, unpack the NSP
+                            NSP nsp = NSP.FromDirectory(dialog.SelectedPath);
+                            nsp.Verify();
+                        }
+                        catch (BadNcaException b)
+                        {
+                            ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                        }
+                    }
                 }
             }
         }
@@ -1452,7 +1367,8 @@ namespace SwitchManager
         {
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
             var item = cv.CurrentItem as SwitchCollectionItem;
-            string url = $"https://ec.nintendo.com/apps/{item.TitleId}/{Settings.Default.Region}";
+            string region = item.Region ?? Settings.Default.Region;
+            string url = $"https://ec.nintendo.com/apps/{item.TitleId}/{region}";
             Process.Start(new ProcessStartInfo(url));
             e.Handled = true;
         }

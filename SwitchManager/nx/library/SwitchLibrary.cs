@@ -66,7 +66,7 @@ namespace SwitchManager.nx.library
         {
             if (item != null)
             {
-                Collection.Add(item);
+                 Collection.Add(item);
                 titlesByID[item.Title.TitleID] = item;
             }
             return item;
@@ -149,10 +149,11 @@ namespace SwitchManager.nx.library
                     
                     foreach (var item in metadata)
                     {
+                        RepairMetadata(item);
                         SwitchCollectionItem ci = GetTitleByID(item.TitleID);
                         if (ci == null)
                         {
-                            ci = LoadTitle(item.TitleID, item.TitleKey, item.Name);
+                            ci = LoadTitle(item.TitleID, item.TitleKey, item.Name, 0 /*ignore,only for updates*/);
                         }
                         else
                         {
@@ -177,14 +178,21 @@ namespace SwitchManager.nx.library
 
                         // long?
                         if (item.Size.HasValue) ci.Size = item.Size;
+                        if (item.RequiredSystemVersion.HasValue) ci.RequiredSystemVersion = item.RequiredSystemVersion;
 
                         // uint?
                         if (item.LatestVersion.HasValue) ci.LatestVersion = item.LatestVersion;
+
+                        // byte?
+                        if (item.MasterKeyRevision.HasValue) ci.MasterKeyRevision = item.MasterKeyRevision;
 
                         // bool?
                         if (item.IsFavorite.HasValue) ci.IsFavorite = item.IsFavorite.Value;
                         if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC;
                         if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo;
+                        if (item.IsDemo.HasValue) ci.IsDemo = item.IsDemo.Value;
+
+                        // bool
 
                         // datetime
                         if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
@@ -205,17 +213,72 @@ namespace SwitchManager.nx.library
                         if (!string.IsNullOrWhiteSpace(item.Code)) ci.Code = item.Code;
                         if (!string.IsNullOrWhiteSpace(item.RatingContent)) ci.RatingContent = item.RatingContent;
                         if (!string.IsNullOrWhiteSpace(item.Price)) ci.Price = item.Price;
+                        if (!string.IsNullOrWhiteSpace(item.Region)) ci.Region = item.Region;
+                        if (!string.IsNullOrWhiteSpace(item.DisplayVersion)) ci.DisplayVersion = item.DisplayVersion;
 
                         if (item.Updates != null)
                             foreach (var update in item.Updates)
                             {
-                                AddUpdateTitle(update, item.TitleID);
+                                if (update.Version > 0)
+                                {
+                                    RepairMetadata(update);
+                                    AddUpdateTitle(update, item.TitleID);
+                                }
                             }
+
                         job.UpdateProgress(1);
                     }
                     job.Finish();
                 }).ConfigureAwait(false);
             }
+        }
+
+        private void RepairMetadata(LibraryMetadataItem item)
+        {
+            if (FileUtils.FileExists(item.Path))
+            {
+                if (item.State != SwitchCollectionState.OnSwitch && item.State != SwitchCollectionState.Owned)
+                {
+                    if (item.State != SwitchCollectionState.Hidden)
+                    {
+                        item.State = SwitchCollectionState.Owned;
+                        item.Added = DateTime.Now;
+                    }
+                    item.Size = FileUtils.GetFileSystemSize(item.Path);
+                }
+            }
+            else if (FileUtils.DirectoryExists(item.Path))
+            {
+                if (item.State != SwitchCollectionState.Downloaded && item.State != SwitchCollectionState.Unlockable)
+                {
+                    if (item.State != SwitchCollectionState.Hidden)
+                    {
+                        if (SwitchTitle.CheckValidTitleKey(item.TitleKey))
+                            item.State = SwitchCollectionState.Unlockable;
+                        else
+                            item.State = SwitchCollectionState.Downloaded;
+                        item.Added = DateTime.Now;
+                    }
+                    item.Size = FileUtils.GetFileSystemSize(item.Path);
+                }
+            }
+            else if (!SwitchTitle.CheckValidTitleKey(item.TitleKey))
+            {
+                item.Path = null;
+                item.Added = null;
+                if (item.State != SwitchCollectionState.Hidden)
+                    item.State = SwitchCollectionState.NoKey;
+            }
+            else
+            {
+                item.Path = null;
+                item.Added = null;
+                if (item.State != SwitchCollectionState.Hidden && item.State != SwitchCollectionState.New)
+                    item.State = SwitchCollectionState.NotOwned;
+            }
+
+            if (SwitchTitle.IsDLCID(item.TitleID))
+                item.Updates.Clear();
         }
 
         internal void SaveMetadata(string path)
@@ -378,10 +441,12 @@ namespace SwitchManager.nx.library
                 UpdateCollectionItem item = parent.GetUpdate(version);
                 if (item == null)
                 {
-                    uint ver = version / 0x10000;
+                    //uint ver = version / 0x10000;
                     //string name = parent.TitleName + " v" + ver;
                     SwitchUpdate update = new SwitchUpdate(parent.TitleName, updateid, gameid, version, titlekey);
-                    item = AddOrGetUpdateTitle(update);
+                    item = new UpdateCollectionItem(update);
+                    parent.Updates.Add(item);
+                    //item = AddOrGetUpdateTitle(update);
                 }
                 return item;
             }
@@ -499,29 +564,13 @@ namespace SwitchManager.nx.library
             }
         }
 
-        private async Task<string> DoNspDownloadAndRepack(SwitchTitle title, uint version, DirectoryInfo dir, bool repack, bool verify)
+        public async Task<string> DoNspDownloadAndRepack(SwitchTitle title, uint version, DirectoryInfo dir, bool repack, bool verify)
         {
             var nsp = await Loader.DownloadTitle(title, version, dir.FullName, repack, verify).ConfigureAwait(false);
 
             if (repack && nsp != null)
             {
-                string titleName = Miscellaneous.SanitizeFileName(title.Name);
-
-                // format is
-                // [DLC] at the start, plus space, if it is DLC - this is already party of the name for DLC, typically
-                // title name
-                // [UPD] if it is an update
-                // [titleid]
-                // [vXXXXXX], where XXXXXX is the version number in decimal
-                string nspFile = (title.IsDLC && !titleName.StartsWith("[DLC]") ? "[DLC] " : "") + titleName + (title.IsUpdate?" [UPD]":" ") + $"[{title.TitleID}][v{version}].nsp";
-                string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
-                
-                // Repack the game files into an NSP
-                bool success = await nsp.Repack(nspPath).ConfigureAwait(false);
-
-                // If the NSP failed somehow but the file exists any, remove it
-                if (!success && File.Exists(nspPath))
-                    FileUtils.DeleteFile(nspPath);
+                string nspPath = await DoNspRepack(title, version, nsp);
 
                 if (this.RemoveContentAfterRepack)
                     dir.Delete(true);
@@ -529,6 +578,29 @@ namespace SwitchManager.nx.library
                 return nspPath;
             }
             return dir.FullName;
+        }
+
+        public async Task<string> DoNspRepack(SwitchTitle title, uint version, NSP nsp)
+        {
+            string titleName = Miscellaneous.SanitizeFileName(title.Name);
+
+            // format is
+            // [DLC] at the start, plus space, if it is DLC - this is already party of the name for DLC, typically
+            // title name
+            // [UPD] if it is an update
+            // [titleid]
+            // [vXXXXXX], where XXXXXX is the version number in decimal
+            string nspFile = (title.IsDLC && !titleName.StartsWith("[DLC]") ? "[DLC] " : "") + titleName + (title.IsUpdate ? " [UPD]" : " ") + $"[{title.TitleID}][v{version}].nsp";
+            string nspPath = $"{this.RomsPath}{Path.DirectorySeparatorChar}{nspFile}";
+
+            // Repack the game files into an NSP
+            bool success = await nsp.Repack(nspPath).ConfigureAwait(false);
+
+            // If the NSP failed somehow but the file exists any, remove it
+            //if (!success && File.Exists(nspPath))
+            //    FileUtils.DeleteFile(nspPath);
+
+            return nspPath;
         }
 
         /// <summary>
@@ -595,17 +667,28 @@ namespace SwitchManager.nx.library
                 case DownloadOptions.UpdateOnly:
                     if (v == 0) return;
 
-                    // If a version greater than 0 is selected, download it and every version below it
-                    while (v > 0)
+                    if (title.IsUpdate)
                     {
-                        SwitchUpdate update = title.GetUpdateTitle(v);
-                        string updatePath = await DownloadTitle(update, v, repack, verify);
-                        var updateItem = AddOrGetUpdateTitle(update);
+                        string updatePath = await DownloadTitle(titleItem.Title, v, repack, verify);
+                        titleItem.RomPath = Path.GetFullPath(updatePath);
+                        titleItem.Size = FileUtils.GetFileSystemSize(updatePath);
+                        titleItem.Added = DateTime.Now;
+                        titleItem.State = SwitchCollectionState.Owned;
+                    }
+                    else if (title.IsGame)
+                    {
+                        // If a version greater than 0 is selected, download it and every version below it
+                        while (v > 0)
+                        {
+                            var updateItem = titleItem.GetUpdate(v);
+                            string updatePath = await DownloadTitle(updateItem.Title, v, repack, verify);
 
-                        updateItem.RomPath = Path.GetFullPath(updatePath);
-                        updateItem.Size = FileUtils.GetFileSystemSize(updatePath);
-                        updateItem.Added = DateTime.Now;
-                        v -= 0x10000;
+                            updateItem.RomPath = Path.GetFullPath(updatePath);
+                            updateItem.Size = FileUtils.GetFileSystemSize(updatePath);
+                            updateItem.Added = DateTime.Now;
+                            updateItem.State = SwitchCollectionState.Owned;
+                            v -= 0x10000;
+                        }
                     }
 
                     if (options == DownloadOptions.UpdateAndDLC || options == DownloadOptions.BaseGameAndUpdateAndDLC)
@@ -700,18 +783,100 @@ namespace SwitchManager.nx.library
         public static string BlankImage { get { return "blank.jpg"; } }
 
 
-        public void LoadTitleKeysFile(string filename)
+        public List<SwitchCollectionItem> UpdateNutFile(string filename)
         {
+            var newTitles = new List<SwitchCollectionItem>();
             var lines = File.ReadLines(filename);
             foreach (var line in lines)
             {
-                string[] split = line.Split('|');
-                string tid = split[0]?.Trim()?.Substring(0, 16);
-                string tkey = split[1]?.Trim()?.Substring(0, 32);
-                string name = split[2]?.Trim();
+                if (string.IsNullOrWhiteSpace(line)) continue;
 
-                var item = LoadTitle(tid, tkey, name);
+                var entry = line.Trim();
+                if (entry.StartsWith("#")) continue;
+
+                string[] split = entry.Split('|');
+
+                string id = split[0]?.Trim();
+                if (id?.Length != 16)
+                    continue;
+                else
+                    id = id?.Substring(0, 16);
+
+                string rightsId = split[1]?.Trim()?.Substring(0, 32);
+                string key = split[2]?.Trim()?.Substring(0, 32);
+
+                bool isUpdate = "1".Equals(split[3]?.Trim()) || SwitchTitle.IsUpdateTitleID(id);
+                bool isDLC = "1".Equals(split[4]?.Trim()) || SwitchTitle.IsDLCID(id);
+                bool isDemo = "1".Equals(split[5]?.Trim());
+
+                string name = split[6]?.Trim();
+                uint.TryParse(split[7]?.Trim(), out uint version);
+                string region = split[8]?.Trim();
+                bool retailOnly = "1".Equals(split[9]?.Trim());
+                string englishName = split[10]?.Trim();
+
+                // Skip retail only (not on eshop)
+                if (retailOnly) continue;
+
+                SwitchCollectionItem item = null;
+                
+                if (isUpdate)
+                {
+                    if (version == 0) continue;
+                    if (!SwitchTitle.CheckValidTitleKey(key)) continue;
+
+                    var parent = GetBaseTitleByID(id);
+                    if (parent == null) continue; // This is pretty much always because of an update that references a retail-only ID that was skipped previously
+                    else item = parent.GetUpdate(version);
+
+                    if (item == null)
+                        item = LoadTitle(id, key, name, version);
+                }
+                else
+                {
+                    item = GetTitleByID(id);
+                    if (item == null) // not interested in adding new asian games
+                    {
+                        if ("US".Equals(region))
+                        {
+                            item = LoadTitle(id, key, name, version);
+                            newTitles.Add(item);
+
+                            // If the key is missing, mark it as such, otherwise it is a properly working New title
+                            if (item.Title.IsTitleKeyValid)
+                                item.State = SwitchCollectionState.New;
+                            else
+                                item.State = SwitchCollectionState.NewNoKey;
+                        }
+                    }
+                    else
+                    {
+                        // If we replace an invalid title key with a valid one
+                        if (!item.Title.IsTitleKeyValid && SwitchTitle.CheckValidTitleKey(key))
+                        {
+                            if (item.State == SwitchCollectionState.NoKey)
+                                item.State = SwitchCollectionState.New;
+                            else if (item.State == SwitchCollectionState.Downloaded)
+                                item.State = SwitchCollectionState.Unlockable;
+                            newTitles.Add(item);
+                        }
+                    }
+                }
+                if (item == null) continue;
+
+                if (SwitchTitle.CheckValidTitleKey(key)) item.TitleKey = key;
+                if (string.IsNullOrWhiteSpace(item.TitleName)) item.TitleName = name;
+
+                item.Region = region;
+
+                englishName = " (" + englishName + ")";
+                if ("JP".Equals(region) && !item.TitleName.EndsWith(englishName))
+                    item.TitleName += englishName;
+
+                item.IsDemo = isDemo;
             }
+
+            return newTitles;
         }
 
         public ICollection<SwitchCollectionItem> UpdateTitleKeysFile(string file)
@@ -740,21 +905,35 @@ namespace SwitchManager.nx.library
                         // New title!!
 
                         // A missing tkey can always be added in later
-                        item = LoadTitle(tid, tkey, name);
+                        item = LoadTitle(tid, tkey, name, 0);
 
                         // If the key is missing, mark it as such, otherwise it is a properly working New title
                         if (item.Title.IsTitleKeyValid)
                             item.State = SwitchCollectionState.New;
                         else
-                            item.State = SwitchCollectionState.NoKey;
-
+                            item.State = SwitchCollectionState.NewNoKey;
+                        
                         newTitles.Add(item);
                     }
                     else
                     {
+                        // If we replace an invalid title key with a valid one
+                        if (!item.Title.IsTitleKeyValid && SwitchTitle.CheckValidTitleKey(tkey))
+                        {
+                            if (item.State == SwitchCollectionState.NoKey)
+                                item.State = SwitchCollectionState.New;
+                            else if (item.State == SwitchCollectionState.Downloaded)
+                                item.State = SwitchCollectionState.Unlockable;
+                            newTitles.Add(item);
+                        }
+
                         // Existing title, replace title key
                         if (SwitchTitle.CheckValidTitleKey(tkey))
-                            item.Title.TitleKey = tkey;
+                        {
+                            // hack to not update torna dlc key
+                            if (!tid.Equals("0100e95004039001"))
+                                item.Title.TitleKey = tkey;
+                        }
 
                         // Replace existing name only if it is missing
                         if (string.IsNullOrWhiteSpace(item.Title.Name))
@@ -776,7 +955,7 @@ namespace SwitchManager.nx.library
         /// <param name="name">The name of game or DLC</param>
         /// <param name="versions">The dictionary of all the latest versions for every game. Get this via the CDN.</param>
         /// <returns></returns>
-        private SwitchCollectionItem LoadTitle(string tid, string tkey, string name)
+        private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, uint version)
         {
             if (string.IsNullOrWhiteSpace(tid)) return null;
             else tid = tid.ToLower();
@@ -787,6 +966,9 @@ namespace SwitchManager.nx.library
             if (SwitchTitle.IsBaseGameID(tid))
             {
                 var item = NewGame(name, tid, tkey);
+                if (name.ToUpper().Contains("DEMO") || name.ToUpper().Contains("TRIAL VER") || name.ToUpper().Contains("SPECIAL TRIAL"))
+                    item.IsDemo = true;
+
                 var game = item?.Title as SwitchGame;
 
                 AddTitle(item);
@@ -808,9 +990,9 @@ namespace SwitchManager.nx.library
                         logger.Warn("Couldn't find base game ID {baseGameID} for DLC {dlc.Name}");
                 }
             }
-            else
+            else if (SwitchTitle.IsUpdateTitleID(tid))
             {
-                // ?? huh ??
+                return AddUpdateTitle(tid, null, version, tkey);
             }
             return null;
         }
@@ -833,6 +1015,7 @@ namespace SwitchManager.nx.library
                 foreach (var i in titles)
                 {
                     var t = i.Title;
+
                     if (versions != null && versions.TryGetValue(t.TitleID, out uint ver))
                     {
                         UpdateVersion(t, ver);
@@ -854,10 +1037,12 @@ namespace SwitchManager.nx.library
         {
             if (!title.LatestVersion.HasValue || ver > title.LatestVersion.Value)
             {
-                string updateid = SwitchTitle.GetUpdateIDFromBaseGame(title.TitleID);
                 title.LatestVersion = ver;
 
-                for (uint i = 0; i < ver; i += 0x10000)
+                if (title.IsDLC) return;
+
+                string updateid = SwitchTitle.GetUpdateIDFromBaseGame(title.TitleID);
+                for (uint i = 0x10000; i <= title.LatestVersion; i += 0x10000)
                 {
                     AddUpdateTitle(updateid, title.TitleID, i, null);
                 }

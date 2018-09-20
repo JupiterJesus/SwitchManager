@@ -61,7 +61,7 @@ namespace SwitchManager.nx.system
                 if (!string.IsNullOrWhiteSpace(CnmtXML)) files.Add(CnmtXML);
                 if (!string.IsNullOrWhiteSpace(LegalinfoXML)) files.Add(LegalinfoXML);
                 if (!string.IsNullOrWhiteSpace(PrograminfoXML)) files.Add(PrograminfoXML);
-                if (!string.IsNullOrWhiteSpace(NacpXML)) files.Add(NacpXML);
+                if (!string.IsNullOrWhiteSpace(ControlXML)) files.Add(ControlXML);
 
                 files.AddRange(this.IconFiles);
                 files.AddRange(this.miscFiles);
@@ -83,7 +83,7 @@ namespace SwitchManager.nx.system
         public string CnmtXML { get; set; }
         public string PrograminfoXML { get; set; }
         public string LegalinfoXML { get; set; }
-        public string NacpXML { get; set; }
+        public string ControlXML { get; set; }
 
         // Images/icons from the control file
         public List<string> IconFiles { get; private set; } = new List<string>();
@@ -113,7 +113,6 @@ namespace SwitchManager.nx.system
 
         /// <summary>
         /// Repacks this NSP from a set of files into a single file and writes the file out to the given path.
-        /// TODO: Bugfix and test.
         /// </summary>
         /// <param name="path"></param>
         public async Task<bool> Repack(string path)
@@ -136,7 +135,7 @@ namespace SwitchManager.nx.system
                 return true;
             }
 
-            using (JobFileStream str = new JobFileStream(path, "NSP repack of " + Title.Name, totalSize, 0))
+            using (JobFileStream str = new JobFileStream(path, "NSP repack of " + Title.ToString(), totalSize, 0))
             {
                 await str.WriteAsync(hd, 0, hd.Length).ConfigureAwait(false);
                 // Copy each file to the end of the NSP in sequence. Nothing special here just copy them all.
@@ -246,14 +245,10 @@ namespace SwitchManager.nx.system
         }
 
         /// <summary>
-        /// Repacks this NSP from a set of files into a single file and writes the file out to the given path.
-        /// TODO: Bugfix and test.
         /// </summary>
         /// <param name="path"></param>
-        public static async Task<NSP> ParseNSP(string path, bool unpack, bool verify)
+        public static async Task<NSP> ParseNSP(string path)
         {
-            if (unpack == false && verify == false) return null;
-
             if (string.IsNullOrWhiteSpace(path))
             {
                 logger.Error("Empty path passed to NSP.Unpack.");
@@ -347,7 +342,7 @@ namespace SwitchManager.nx.system
                         else if (filePath.ToLower().EndsWith(".legalinfo.xml"))
                             nsp.LegalinfoXML = filePath;
                         else if (filePath.ToLower().EndsWith(".nacp.xml"))
-                            nsp.NacpXML = filePath;
+                            nsp.ControlXML = filePath;
                         else if (filePath.ToLower().EndsWith(".cert"))
                             nsp.Certificate = filePath;
                         else if (filePath.ToLower().EndsWith(".tik"))
@@ -365,51 +360,81 @@ namespace SwitchManager.nx.system
                             logger.Warn($"Unknown file type found in NSP, {filePath}");
                             nsp.AddFile(filePath);
                         }
-
-                        if (unpack)
+                        
+                        using (FileStream fs = FileUtils.OpenWriteStream(filePath))
                         {
                             logger.Info($"Unpacking NSP from file {path}.");
-                            FileStream fs = FileUtils.OpenWriteStream(filePath);
-
                             await nspReadStream.CopyToAsync(fs, fileSizes[i]).ConfigureAwait(false);
                             logger.Info($"Copied NSP contents to file {filePath}");
-                            fs.Dispose();
                         }
                     }
-
-                    if (nsp.CnmtXML == null)
-                        return null;
-
                     CNMT cnmt = nsp.CNMT = CNMT.FromXml(nsp.CnmtXML);
                     var cnmtNcas = cnmt.ParseContent();
-                    foreach (string n in ncas)
+                    foreach (var ncafile in ncas)
                     {
-                        // Do it twice to handle both .nca and .cnmt.nca
-                        string ncaid = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(n));
+                        string ncaid = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(ncafile));
                         var entry = cnmtNcas[ncaid];
-
-                        if (verify)
-                        {
-                            logger.Info($"Verifying NSP from file {path}.");
-                            bool good = Crypto.VerifySha256Hash(n, entry.HashData);
-                            if (!good) throw new BadNcaException(n, "Hash of NCA file didn't match expected hash from CNMT");
-                            else logger.Info($"Verification succeeded.");
-                        }
-                        nsp.AddNCAFile(entry.Type, n);
+                        nsp.AddNCAByID(entry.Type, ncaid);
                     }
                     return nsp;
                 }
             }
         }
-
-        public async static void Verify(string nspFile)
+        public static NSP FromDirectory(string path)
         {
-            await ParseNSP(nspFile, false, true).ConfigureAwait(false);
+            DirectoryInfo directory = new DirectoryInfo(path);
+            if (directory.Exists)
+            {
+                NSP nsp = new NSP(path);
+                nsp.CnmtXML = directory.EnumerateFiles("*.cnmt.xml").SingleOrDefault().FullName;
+                if (nsp.CnmtXML == null)
+                    return null;
+
+                CNMT cnmt = nsp.CNMT = CNMT.FromXml(nsp.CnmtXML);
+                var cnmtNcas = cnmt.ParseContent();
+                foreach (var e in cnmtNcas)
+                {
+                    string ncaid = e.Key;
+                    var entry = e.Value;
+                    nsp.AddNCAByID(entry.Type, ncaid);
+                }
+
+                foreach (var jpeg in directory.EnumerateFiles("*.jpg"))
+                    nsp.AddImage(jpeg.FullName);
+
+                nsp.ControlXML = directory.EnumerateFiles("*.nacp.xml").SingleOrDefault().FullName;
+                nsp.LegalinfoXML = directory.EnumerateFiles("*.legalinfo.xml").SingleOrDefault().FullName;
+                nsp.PrograminfoXML = directory.EnumerateFiles("*.programinfo.xml").SingleOrDefault().FullName;
+                nsp.Certificate = directory.EnumerateFiles("*.cert").SingleOrDefault().FullName;
+                nsp.Ticket = directory.EnumerateFiles("*.tik").SingleOrDefault().FullName;
+                return nsp;
+            }
+
+            return null;
         }
 
-        public async static Task<NSP> Unpack(string nspFile, bool verify = false)
+        public void Verify()
         {
-            return await ParseNSP(nspFile, true, verify).ConfigureAwait(false);
+            if (CnmtXML == null || NcaFiles == null)
+                return;
+
+            CNMT cnmt = CNMT = CNMT.FromXml(CnmtXML);
+            var cnmtNcas = cnmt.ParseContent();
+            foreach (string ncafile in this.NcaFiles)
+            {
+                string ncaid = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(ncafile));
+                var entry = cnmtNcas[ncaid];
+
+                logger.Info($"Verifying NSP from file {ncafile}.");
+                bool good = Crypto.VerifySha256Hash(ncafile, entry.HashData);
+                if (!good) throw new BadNcaException(ncafile, "Hash of NCA file didn't match expected hash from CNMT");
+                else logger.Info($"Verification succeeded.");
+            }
+        }
+
+        public async static Task<NSP> Unpack(string nspFile)
+        {
+            return await ParseNSP(nspFile).ConfigureAwait(false);
         }
 
         public void AddFile(string filePath)

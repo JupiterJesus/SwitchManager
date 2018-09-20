@@ -92,6 +92,21 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Path")]
         public string Path { get; set; }
 
+        [XmlElement(ElementName = "DisplayVersion")]
+        public string DisplayVersion { get; set; }
+
+        [XmlElement(ElementName = "Region")]
+        public string Region { get; set; }
+
+        [XmlElement(ElementName = "IsDemo")]
+        public bool? IsDemo { get; set; }
+
+        [XmlElement(ElementName = "RequiredSystemVersion")]
+        public long? RequiredSystemVersion { get; set; }
+
+        [XmlElement(ElementName = "MasterKeyRevision")]
+        public byte? MasterKeyRevision { get; set; }
+
         [XmlElement(ElementName = "Update")]
         public List<UpdateMetadataItem> Updates { get; set; }
     }

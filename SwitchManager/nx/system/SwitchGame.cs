@@ -14,7 +14,6 @@ namespace SwitchManager.nx.system
         public List<SwitchDLC> DLC { get; set; }
 
         public override bool IsGame => true;
-        public override bool IsDemo => Name.ToUpper().Contains("DEMO") || Name.ToUpper().Contains("TRIAL VER") || Name.ToUpper().Contains("SPECIAL TRIAL");
         public override bool IsDLC => false;
         public override bool IsUpdate => false;
 

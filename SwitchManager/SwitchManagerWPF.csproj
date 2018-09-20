@@ -112,6 +112,7 @@
     <Compile Include="nx\library\UpdateCollectionItem.cs" />
     <Compile Include="nx\system\BadNcaException.cs" />
     <Compile Include="io\FileUtils.cs" />
+    <Compile Include="nx\system\SwitchFirmware.cs" />
     <Compile Include="nx\system\RatingOrganisation.cs" />
     <Compile Include="util\HactoolFailedException.cs" />
     <Compile Include="io\JobFileStream.cs" />
