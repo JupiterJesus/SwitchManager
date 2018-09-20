@@ -78,7 +78,7 @@ namespace SwitchManager.nx.system
         public byte MasterKeyRevision { get; set; }
 
         [XmlElement(ElementName = "RequiredSystemVersion")]
-        public string RequiredSystemVersion { get; set; }
+        public long RequiredSystemVersion { get; set; }
 
         [XmlElement(ElementName = "PatchId")]
         public string PatchId
@@ -164,7 +164,7 @@ namespace SwitchManager.nx.system
             br.BaseStream.Seek(0x18, SeekOrigin.Begin); this.RequiredDownloadSystemVersion = br.ReadUInt64().ToString();
 
             // Minimum System Version is at offset 0x28 and is 8 bytes long
-            br.BaseStream.Seek(0x28, SeekOrigin.Begin); this.RequiredSystemVersion = br.ReadUInt64().ToString();
+            br.BaseStream.Seek(0x28, SeekOrigin.Begin); this.RequiredSystemVersion = br.ReadInt64();
 
             // Get the hash/digest from the last 0x20 bytes
             br.BaseStream.Seek(-0x20, SeekOrigin.End); this.hash = br.ReadBytes(0x20);
