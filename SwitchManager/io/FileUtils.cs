@@ -125,5 +125,15 @@ namespace SwitchManager.io
                 //GC.WaitForPendingFinalizers();
             }
         }
+
+        internal static bool FileExists(string path)
+        {
+            return !string.IsNullOrEmpty(path) && File.Exists(path);
+        }
+
+        internal static bool DirectoryExists(string path)
+        {
+            return !string.IsNullOrEmpty(path) && Directory.Exists(path);
+        }
     }
 }
