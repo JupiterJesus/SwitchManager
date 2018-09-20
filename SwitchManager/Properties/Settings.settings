@@ -107,5 +107,17 @@
     <Setting Name="ClientCertPassword" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
+    <Setting Name="NutURL" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">http://snip.li/nutdb</Value>
+    </Setting>
+    <Setting Name="ShowUnlockable" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="ShowPreloaded" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="ShowPreloadable" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

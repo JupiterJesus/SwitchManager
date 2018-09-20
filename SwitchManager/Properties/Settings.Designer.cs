@@ -412,5 +412,50 @@ namespace SwitchManager.Properties {
                 this["ClientCertPassword"] = value;
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("http://snip.li/nutdb")]
+        public string NutURL {
+            get {
+                return ((string)(this["NutURL"]));
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ShowUnlockable {
+            get {
+                return ((bool)(this["ShowUnlockable"]));
+            }
+            set {
+                this["ShowUnlockable"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowPreloaded {
+            get {
+                return ((bool)(this["ShowPreloaded"]));
+            }
+            set {
+                this["ShowPreloaded"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowPreloadable {
+            get {
+                return ((bool)(this["ShowPreloadable"]));
+            }
+            set {
+                this["ShowPreloadable"] = value;
+            }
+        }
     }
 }
