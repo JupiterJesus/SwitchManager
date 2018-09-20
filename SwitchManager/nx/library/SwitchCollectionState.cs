@@ -6,7 +6,7 @@ namespace SwitchManager.nx.library
     [TypeConverter(typeof(EnumDescriptionTypeConverter))]
     public enum SwitchCollectionState
     {
-        [Description("Not Owned")]
+        [Description("Available")]
         NotOwned,
 
         [Description("Owned")]
@@ -24,7 +24,13 @@ namespace SwitchManager.nx.library
         [Description("Preloadable")]
         NoKey,
 
+        [Description("New Preloadable")]
+        NewNoKey,
+
         [Description("Preloaded")]
         Downloaded,
+
+        [Description("Unlockable")]
+        Unlockable,
     }
 }
