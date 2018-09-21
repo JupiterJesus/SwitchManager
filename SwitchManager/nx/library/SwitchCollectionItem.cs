@@ -180,7 +180,43 @@ namespace SwitchManager.nx.library
         [XmlIgnore]
         public bool IsDownloaded
         {
-            get { return IsOwned || State == SwitchCollectionState.Downloaded; }
+            get { return IsOwned || IsPreloaded || IsUnlockable; }
+        }
+
+        [XmlIgnore]
+        public bool IsNew
+        {
+            get { return State == SwitchCollectionState.New || State == SwitchCollectionState.NewNoKey; }
+        }
+
+        [XmlIgnore]
+        public bool IsAvailable
+        {
+            get { return IsNew || State == SwitchCollectionState.NotOwned || State == SwitchCollectionState.NoKey; }
+        }
+
+        [XmlIgnore]
+        public bool IsUnlockable
+        {
+            get { return State == SwitchCollectionState.Unlockable; }
+        }
+
+        [XmlIgnore]
+        public bool IsHidden
+        {
+            get { return State == SwitchCollectionState.Hidden; }
+        }
+
+        [XmlIgnore]
+        public bool IsPreloadable
+        {
+            get { return State == SwitchCollectionState.NoKey || State == SwitchCollectionState.NewNoKey; }
+        }
+
+        [XmlIgnore]
+        public bool IsPreloaded
+        {
+            get { return State == SwitchCollectionState.Downloaded; }
         }
 
         #region XML

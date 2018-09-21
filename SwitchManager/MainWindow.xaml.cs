@@ -158,14 +158,14 @@ namespace SwitchManager
                         ((showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
                         ((showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
                         ((showGames && i.Title.IsGame && !i.Title.IsDemo) || !(i.Title.IsGame && !i.Title.IsDemo)) &&
-                        (!showFavoritesOnly || (i.IsFavorite)) &&
-                        (!showUnlockableOnly || (i.State == SwitchCollectionState.Unlockable)) &&
-                        (!showNewOnly || (i.State == SwitchCollectionState.New || i.State == SwitchCollectionState.NewNoKey)) &&
-                        ((showOwned && (i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch)) || (!(i.State == SwitchCollectionState.Owned || i.State == SwitchCollectionState.OnSwitch))) &&
-                        ((showNotOwned && (i.State == SwitchCollectionState.NotOwned)) || (i.State != SwitchCollectionState.NotOwned)) &&
-                        ((showPreloadable && (i.State == SwitchCollectionState.NoKey)) || (i.State != SwitchCollectionState.NoKey)) &&
-                        ((showPreloaded && (i.State == SwitchCollectionState.Downloaded)) || (i.State != SwitchCollectionState.Downloaded)) &&
-                        ((showHidden && (i.State == SwitchCollectionState.Hidden)) || (i.State != SwitchCollectionState.Hidden)) &&
+                        (!showFavoritesOnly || i.IsFavorite) &&
+                        (!showUnlockableOnly || i.IsUnlockable) &&
+                        (!showNewOnly || i.IsNew) &&
+                        ((showOwned && i.IsOwned) || i.IsAvailable) &&
+                        ((showNotOwned && i.IsAvailable) || i.IsOwned) &&
+                        ((showPreloadable && i.IsPreloadable) || !i.IsPreloadable) &&
+                        ((showPreloaded && i.IsPreloaded) || !i.IsPreloaded) &&
+                        ((showHidden && i.IsHidden) || !i.IsHidden) &&
                         (string.IsNullOrWhiteSpace(filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
             });
             cv.Filter = datagridFilter;
@@ -494,7 +494,7 @@ namespace SwitchManager
             if (DataGrid_Collection.SelectedValue is SwitchCollectionItem selected)
             {
                 library.DeleteTitle(selected);
-                DataGrid_Collection.Items.Refresh();
+                RefreshGrid();
             }
         }
 
@@ -515,6 +515,12 @@ namespace SwitchManager
         public event PropertyChangedEventHandler PropertyChanged;
 
         #region DataGrid filtering and sorting
+        
+        private void RefreshGrid()
+        {
+            if (DataGrid_Collection != null)
+                CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource)?.Refresh();
+        }
 
         private void SortGrid(int columnIndex, ListSortDirection sortDirection = ListSortDirection.Ascending)
         {
@@ -538,19 +544,17 @@ namespace SwitchManager
             }
 
             // Refresh items to display sort
-            DataGrid_Collection.Items.Refresh();
+            RefreshGrid();
         }
 
         private void FilterChanged(object sender, RoutedEventArgs e)
         {
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            cv?.Refresh();
+            RefreshGrid();
         }
 
         private void SearchFilterChanged(object sender, TextChangedEventArgs e)
         {
-            ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection?.ItemsSource);
-            cv.Refresh();
+            RefreshGrid();
         }
 
         #endregion
@@ -990,7 +994,7 @@ namespace SwitchManager
                 ShowError("Failed to download new title keys.");
                 FileUtils.DeleteFile(tkeysFile);
             }
-            DataGrid_Collection.Items.Refresh();
+            RefreshGrid();
         }
 
         private void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
