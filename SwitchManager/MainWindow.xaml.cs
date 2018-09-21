@@ -978,11 +978,13 @@ namespace SwitchManager
                 if (newTitles.Count > 0)
                 {
                     // Update versions for the new titles!
-                    await library.UpdateVersions(newTitles);
+                    Task t = Task.Run(() => library.UpdateVersions(newTitles));
 
                     // New titles to show you!
                     var message = string.Join(Environment.NewLine, newTitles);
                     ShowMessage(message, "New Title Keys Found!", "Awesome!");
+                    RefreshGrid();
+                    await t;
                 }
                 else
                 {
@@ -994,7 +996,6 @@ namespace SwitchManager
                 ShowError("Failed to download new title keys.");
                 FileUtils.DeleteFile(tkeysFile);
             }
-            RefreshGrid();
         }
 
         private void MenuItemImportCreds_Click(object sender, RoutedEventArgs e)
