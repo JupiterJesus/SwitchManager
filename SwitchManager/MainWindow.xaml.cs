@@ -1115,6 +1115,22 @@ namespace SwitchManager
                             lib = xml.Deserialize(fs) as LibraryMetadata;
 
                         games = lib.Items;
+                        foreach (var game in games)
+                        {
+                            game.Added = null;
+                            game.IsFavorite = null;
+                            game.Path = null;
+                            game.Size = null;
+                            game.State = null;
+                            foreach (var u in game.Updates)
+                            {
+                                u.Added = null;
+                                u.IsFavorite = null;
+                                u.Path = null;
+                                u.Size = null;
+                                u.State = null;
+                            }
+                        }
                     }
 
                     await library.LoadMetadata(games);
