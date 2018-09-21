@@ -216,7 +216,9 @@
     <None Include="certs\nx_tls_client_cert.pem" />
     <None Include="certs\eshop-pkey.pem" />
     <None Include="certs\ShopN.p12" />
-    <None Include="Game_info.json" />
+    <Content Include="Game_info.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="packages.config" />
     <None Include="Properties\Certificate.cert" />
     <None Include="Properties\Settings.settings">

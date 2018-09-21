@@ -1,4 +1,5 @@
-﻿using System;
+﻿using log4net.Config;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -19,6 +20,7 @@ namespace SwitchManager
         /// </summary>
         public App()
         {
+            XmlConfigurator.Configure();
         }
     }
 }
