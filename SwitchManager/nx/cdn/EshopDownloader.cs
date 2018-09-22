@@ -45,6 +45,8 @@ namespace SwitchManager.nx.cdn
         public X509Certificate ClientCert { get; private set; }
         public X509Certificate EshopCert { get; private set; }
 
+        private EshopLogin EShopLogin { get; set; }
+
         public EshopDownloader(string clientCertPath, string eShopCertificate, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath) :
            this(clientCertPath, eShopCertificate, File.ReadAllBytes(titleCertPath), File.ReadAllBytes(titleTicketPath), deviceId, firmware, environment, region, imagesPath, hactoolPath, keysPath)
         {
@@ -68,6 +70,8 @@ namespace SwitchManager.nx.cdn
 
             UpdateClientCert(clientCertPath);
             UpdateEshopCert(eShopCertPath);
+
+            this.EShopLogin = EshopLogin().Result; // Force waiting because constructor, but it is fast anyway
         }
 
         /// <summary>

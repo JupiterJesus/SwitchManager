@@ -109,8 +109,6 @@ namespace SwitchManager
                     MakeBackup(Settings.Default.NumMetadataBackups);
                     await library.LoadMetadata(this.metadataFile);
                     Task t = Task.Run(() => library.UpdateVersions());
-
-                    var login = await library.Loader.EshopLogin();
                 }
             }
             catch (AggregateException ex)
