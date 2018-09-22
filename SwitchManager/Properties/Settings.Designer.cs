@@ -34,15 +34,6 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("US")]
-        public string Region {
-            get {
-                return ((string)(this["Region"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("5.1.0-3.0")]
         public string Firmware {
             get {
@@ -95,15 +86,6 @@ namespace SwitchManager.Properties {
             }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("certs\\eshop.pfx")]
-        public string EShopCertPath {
-            get {
-                return ((string)(this["EShopCertPath"]));
-            }
-        }
-        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("library")]
@@ -113,18 +95,6 @@ namespace SwitchManager.Properties {
             }
             set {
                 this["MetadataFile"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("titlekeys.txt")]
-        public string TitleKeysFile {
-            get {
-                return ((string)(this["TitleKeysFile"]));
-            }
-            set {
-                this["TitleKeysFile"] = value;
             }
         }
         
@@ -455,6 +425,27 @@ namespace SwitchManager.Properties {
             }
             set {
                 this["ShowPreloadable"] = value;
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\eshop.pfx")]
+        public string EShopCertPath {
+            get {
+                return ((string)(this["EShopCertPath"]));
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("US")]
+        public string Region {
+            get {
+                return ((string)(this["Region"]));
+            }
+            set {
+                this["Region"] = value;
             }
         }
     }

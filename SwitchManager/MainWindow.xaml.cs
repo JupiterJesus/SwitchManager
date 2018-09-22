@@ -583,8 +583,7 @@ namespace SwitchManager
 
         private async void MenuItemUpdate_Click(object sender, RoutedEventArgs e)
         {
-            string tkeysFile = Path.GetFullPath(Settings.Default.TitleKeysFile);
-            string tempTkeysFile = tkeysFile + ".tmp";
+            string tempTkeysFile = "titlekeys.txt.tmp";
             string nutFile = Path.GetFullPath("nut.tmp");
 
             using (var client = new WebClient())
@@ -604,8 +603,6 @@ namespace SwitchManager
             {
                 DefaultExt = ".txt",
                 Filter = "Title Keys Files (*.txt)|*.txt",
-                FileName = Settings.Default.TitleKeysFile,
-                InitialDirectory = new FileInfo(Settings.Default.TitleKeysFile).Directory.FullName,
             };
 
             bool? result = dlg.ShowDialog();
@@ -625,7 +622,7 @@ namespace SwitchManager
             if (result ?? false)
             {
                 string keys = win.ResponseText;
-                string temp = Settings.Default.TitleKeysFile + ".tmp";
+                string temp = "titlekeys.txt.tmp";
                 File.WriteAllText(temp, keys);
                 await LoadTitleKeys(temp);
                 FileUtils.DeleteFile(temp);
