@@ -188,24 +188,45 @@ namespace SwitchManager.util
         }
 
 
-        public static byte[] GenerateAESKek(byte[] MasterKey, byte[] AESUseSrc, byte[] DAuth_KEK, byte[] DAuth_Src)
+        public static byte[] GenerateAESKek(byte[] masterKey, byte[] AESUseSrc, byte[] dauthKEK, byte[] dauthSource)
         {
-            byte[] GenAESKey = Decrypt(AESUseSrc, MasterKey);
-            byte[] GenAESKek = Decrypt(DAuth_KEK, GenAESKey);
-            return Decrypt(DAuth_Src, GenAESKek);
+            byte[] decryptedAESKey = DecryptAES(AESUseSrc, masterKey);
+            byte[] decryptedAESKEK = DecryptAES(dauthKEK, decryptedAESKey);
+            return DecryptAES(dauthSource, decryptedAESKEK);
         }
 
-        public static byte[] Decrypt(byte[] Data, byte[] Key)
+        public static byte[] DecryptAES(byte[] Data, byte[] Key)
         {
-            RijndaelManaged Unwrap = new RijndaelManaged
+            RijndaelManaged aes = new RijndaelManaged
             {
                 Mode = CipherMode.ECB,
                 Key = Key,
                 Padding = PaddingMode.None
             };
-            var decrypt = Unwrap.CreateDecryptor();
+            var decrypt = aes.CreateDecryptor();
             byte[] Out = decrypt.TransformFinalBlock(Data, 0, 16);
             return Out;
+        }
+
+        //Code taken from https://stackoverflow.com/questions/29163493/aes-cmac-calculation-c-sharp
+        public static byte[] EncryptAES(byte[] key, byte[] iv, byte[] data)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                AesCryptoServiceProvider aes = new AesCryptoServiceProvider
+                {
+                    Mode = CipherMode.CBC,
+                    Padding = PaddingMode.None
+                };
+
+                using (CryptoStream cs = new CryptoStream(ms, aes.CreateEncryptor(key, iv), CryptoStreamMode.Write))
+                {
+                    cs.Write(data, 0, data.Length);
+                    cs.FlushFinalBlock();
+
+                    return ms.ToArray();
+                }
+            }
         }
 
         //------- Parses binary ans.1 RSA private key; returns RSACryptoServiceProvider  ---
@@ -322,31 +343,12 @@ namespace SwitchManager.util
             return count;
         }
 
-        internal static object GenerateAesKEK(byte[] data)
-        {
-            throw new NotImplementedException();
-        }
-        
-        //Code taken from https://stackoverflow.com/questions/29163493/aes-cmac-calculation-c-sharp
-        public static byte[] AESEncrypt(byte[] key, byte[] iv, byte[] data)
-        {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                AesCryptoServiceProvider aes = new AesCryptoServiceProvider
-                {
-                    Mode = CipherMode.CBC,
-                    Padding = PaddingMode.None
-                };
-
-                using (CryptoStream cs = new CryptoStream(ms, aes.CreateEncryptor(key, iv), CryptoStreamMode.Write))
-                {
-                    cs.Write(data, 0, data.Length);
-                    cs.FlushFinalBlock();
-
-                    return ms.ToArray();
-                }
-            }
-        }
+        /// <summary>
+        /// Does a circular shift left (equivalent to a processors ROL instruction), but 
+        /// for an entire byte array, rather than a single byte or int
+        /// </summary>
+        /// <param name="b"></param>
+        /// <returns></returns>
         public static byte[] Rol(byte[] b)
         {
             byte[] r = new byte[b.Length];
@@ -363,16 +365,20 @@ namespace SwitchManager.util
         }
         public static byte[] AESCMAC(byte[] key, byte[] data)
         {
-            byte[] L = AESEncrypt(key, new byte[16], new byte[16]);
+            // 1. Calculate a temporary value k_0 = E_k(0). "0" is an empty byte array.
+            byte[] L = EncryptAES(key, new byte[16], new byte[16]);
 
+            // 2. If msb(k0) = 0, then k1 = k0 ≪ 1, else k1 = (k0 ≪ 1) ⊕ C; where C is a certain constant that depends only on b.
             byte[] FirstSubkey = Rol(L);
             if ((L[0] & 0x80) == 0x80)
                 FirstSubkey[15] ^= 0x87;
 
+            // 3. If msb(k1) = 0, then k2 = k1 ≪ 1, else k2 = (k1 ≪ 1) ⊕ C.
             byte[] SecondSubkey = Rol(FirstSubkey);
             if ((FirstSubkey[0] & 0x80) == 0x80)
                 SecondSubkey[15] ^= 0x87;
 
+            // Generate the CMAC tag
             if (((data.Length != 0) && (data.Length % 16 == 0)) == true)
             {
                 for (int j = 0; j < FirstSubkey.Length; j++)
@@ -389,7 +395,7 @@ namespace SwitchManager.util
                     data[data.Length - 16 + j] ^= SecondSubkey[j];
             }
 
-            byte[] encResult = AESEncrypt(key, new byte[16], data);
+            byte[] encResult = EncryptAES(key, new byte[16], data);
 
             byte[] HashValue = new byte[16];
             Array.Copy(encResult, encResult.Length - HashValue.Length, HashValue, 0, HashValue.Length);
