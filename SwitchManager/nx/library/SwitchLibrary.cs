@@ -722,21 +722,6 @@ namespace SwitchManager.nx.library
         }
 
         /// <summary>
-        /// Loads all title icons in the background. It does so asynchronously, so the caller better be able to update
-        /// the image file display at any time after the calls complete. If preload is true, it also tries to remotely load
-        /// every single image if it isn't found locally.
-        /// </summary>
-        /// <param name="localPath"></param>
-        internal void LoadTitleIcons(string localPath)
-        {
-            foreach (SwitchCollectionItem item in Collection)
-            {
-                if (item.Title.Icon == null)
-                    Task.Run(()=>LoadTitleIcon(item.Title, true)); // This is async, let it do its thing we don't need the results now
-            }
-        }
-
-        /// <summary>
         /// Gets a title icon. If it isn't cached locally, gets it from nintendo. Only loads a local image if downloadRemote is false, but will download
         /// from the CDN if downloadRemote is true.
         /// </summary>

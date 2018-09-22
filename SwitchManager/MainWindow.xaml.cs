@@ -41,6 +41,7 @@ namespace SwitchManager
         private SwitchLibrary library;
         private ProgressWindow downloadWindow;
         private string metadataFile;
+        private bool allowMultipleDownloads = true;
 
         #endregion 
 
@@ -78,7 +79,7 @@ namespace SwitchManager
                                                          Settings.Default.KeysPath);
 
             downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
-
+            
             library = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory, Settings.Default.TempDirectory);
 
             downloadWindow = new ProgressWindow(library);
@@ -108,6 +109,8 @@ namespace SwitchManager
                     MakeBackup(Settings.Default.NumMetadataBackups);
                     await library.LoadMetadata(this.metadataFile);
                     Task t = Task.Run(() => library.UpdateVersions());
+
+                    var login = await library.Loader.EshopLogin();
                 }
             }
             catch (AggregateException ex)
@@ -420,14 +423,31 @@ namespace SwitchManager
             System.Diagnostics.Process.Start("explorer.exe", argument);
         }
 
-        private void DoThreadedDownload(SwitchCollectionItem item, uint ver, DownloadOptions o)
+        /// <summary>
+        /// Downloads a title using a separate thread (if enabled).
+        /// </summary>
+        /// <param name="item">Collection item to download.</param>
+        /// <param name="ver">Highest version to download, if applicable (also downloads all lower versions).</param>
+        /// <param name="o">Options</param>
+        private async void DoThreadedDownload(SwitchCollectionItem item, uint ver, DownloadOptions o)
         {
-            // Okay so the below got way more complicated than it used to be. I wanted to catch an exception in case
-            // the cert is denied. I had to put that in the threaded task. Since I didn't want the download window to open
-            // or focus unless the download started, I think had to put that in there right after
-            Task.Run(() => DoDownload(item, ver, o));
+            if (allowMultipleDownloads)
+            {
+                Task t = Task.Run(() => DoDownload(item, ver, o));
+            }
+            else
+            {
+                await DoDownload(item, ver, o);
+            }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="item"></param>
+        /// <param name="v"></param>
+        /// <param name="o"></param>
+        /// <returns></returns>
         private async Task DoDownload(SwitchCollectionItem item, uint v, DownloadOptions o)
         {
             if (library.Loader.ClientCert == null)
@@ -627,7 +647,7 @@ namespace SwitchManager
 
             Task.Run(delegate
             {
-                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && (t.Size ?? 0) == 0).ToList().ForEach(async t => await UpdateSize(t));
+                this.library.Collection.Where(t => t.Title != null && (t.Size ?? 0) == 0).ToList().ForEach(async t => await UpdateSize(t));
             });
             //Parallel.ForEach(this.library.Collection, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async t => await UpdateSize(t));
         }
@@ -637,13 +657,17 @@ namespace SwitchManager
             // Just like regular estimate sizes, but force updates any that don't have a filename
             Task.Run(delegate
             {
-                this.library.Collection.Where(t => t.Title != null && t.Title.Type == SwitchTitleType.Game && string.IsNullOrWhiteSpace(t.RomPath)).ToList().ForEach(async t => await UpdateSize(t));
+                this.library.Collection.Where(t => t.Title != null && string.IsNullOrWhiteSpace(t.RomPath)).ToList().ForEach(async t => await UpdateSize(t));
             });
         }
 
         private void MenuItemPreloadImages_Click(object sender, RoutedEventArgs e)
         {
-            Task.Run(() => library.LoadTitleIcons(Settings.Default.ImageCache));
+            Task.Run(delegate
+            {
+                this.library.Collection.Where(t => t.Title != null && !t.Title.HasIcon).ToList().ForEach(async t => await library.LoadTitleIcon(t.Title, true));
+
+            });
         }
 
         private void MenuItemShowDownloads_Click(object sender, RoutedEventArgs e)
@@ -1447,7 +1471,7 @@ namespace SwitchManager
                         {
                             if (title.IsGame)
                             {
-                                DownloadOption = DownloadOptions.BaseGameOnly;
+                                DownloadOption = DownloadOptions.BaseGameAndUpdate;
                             }
                             else if (title.IsDLC)
                             {
@@ -1455,8 +1479,8 @@ namespace SwitchManager
                             }
                         }
 
-                        // If anything is null, or the blank image is used, get a new image
-                        if (title.IsGame && (title.Icon == null || (!title.Icon.Equals(title.BoxArtUrl) && !File.Exists(title.Icon))))
+                        // If anything is null, get a new image
+                        if (title.IsGame && !title.HasIcon)
                         {
                             try
                             {

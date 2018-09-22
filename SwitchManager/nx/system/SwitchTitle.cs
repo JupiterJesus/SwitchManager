@@ -1,4 +1,5 @@
-﻿using SwitchManager.nx.library;
+﻿using SwitchManager.io;
+using SwitchManager.nx.library;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -232,6 +233,8 @@ namespace SwitchManager.nx.system
         public abstract bool IsDLC { get; }
         public abstract bool IsUpdate { get; }
         public bool IsTitleKeyValid { get { return SwitchTitle.CheckValidTitleKey(this.titlekey); }  }
+
+        public bool HasIcon { get { return FileUtils.FileExists(Icon) || !string.IsNullOrWhiteSpace(BoxArtUrl); } }
 
         internal SwitchTitle(string name, string titleid, string titlekey)
         {

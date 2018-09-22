@@ -442,7 +442,7 @@ namespace SwitchManager.nx.cdn
 
         internal void UpdateEshopCert(string clientCertPath)
         {
-            this.EshopCert = Crypto.LoadCertificate(eShopCertPath);
+            this.EshopCert = Crypto.LoadCertificate(eShopCertPath, "switch");
         }
 
         public async Task<long> GetContentLength(string url)
@@ -689,12 +689,9 @@ namespace SwitchManager.nx.cdn
         /// <param name="args"></param>
         private async Task<HttpResponseMessage> EshopPost(string url, HttpContent payload, Dictionary<string, string> args = null)
         {
-            payload.Headers.Add("Host", $"dauth-{environment}.ndas.srv.nintendo.net");
-            payload.Headers.Add("User-Agent", "libcurl (nnDauth; 789f928b - 138e-4b2f - afeb - 1acae821d897; SDK 5.3.0.0; Add - on 5.3.0.0)");
-            payload.Headers.Add("Accept", "*/*");
-            if (args != null) args.ToList().ForEach(x => payload.Headers.Add(x.Key, x.Value));
-
-            var client = GetSingletonClient(ClientCert);
+            var client = GetPostClient(EshopCert);
+            if (args != null) args.ToList().ForEach(x => client.DefaultRequestHeaders.Add(x.Key, x.Value));
+            
             return await client.PostAsync(url, payload).ConfigureAwait(false);
         }
 
@@ -738,6 +735,26 @@ namespace SwitchManager.nx.cdn
             return singletonClient;
         }
 
+        public HttpClient GetPostClient(X509Certificate cert)
+        {
+            // Add the client certificate
+            var handler = new HttpClientHandler
+            {
+                ClientCertificateOptions = ClientCertificateOption.Manual,
+            };
+            handler.ClientCertificates.Add(cert);
+
+            ServicePointManager.ServerCertificateValidationCallback += (o, c, ch, er) => true;
+
+            // Create client and get response
+            var client = new HttpClient(handler);
+
+            client.DefaultRequestHeaders.Add("Host", $"dauth-{environment}.ndas.srv.nintendo.net");
+            client.DefaultRequestHeaders.Add("User-Agent", "libcurl (nnDauth; 789f928b - 138e-4b2f - afeb - 1acae821d897; SDK 5.3.0.0; Add - on 5.3.0.0)");
+            client.DefaultRequestHeaders.Add("Accept", "*/*");
+
+            return client;
+        }
         /// <summary>
         /// Makes a request to Ninty's server. Gets back the entire response.
         /// WHY THE FUCK IS THIS SO COMPLICATED???? JUST LET ME SEND A REQUEST
@@ -864,12 +881,20 @@ namespace SwitchManager.nx.cdn
             return response;
         }
 
-        private static byte[] MasterKey = { 0xCF, 0xA2, 0x17, 0x67, 0x90, 0xA5, 0x3F, 0xF7, 0x49, 0x74, 0xBF, 0xF2, 0xAF, 0x18, 0x09, 0x21 };
+        private static byte[] MasterKey = { 0xC1, 0xDB, 0xED, 0xCE, 0xBF, 0x0D, 0xD6, 0x95, 0x60, 0x79, 0xE5, 0x06, 0xCF, 0xA1, 0xAF, 0x6E };
         private static byte[] AESUseSrc = { 0x4D, 0x87, 0x09, 0x86, 0xC4, 0x5D, 0x20, 0x72, 0x2F, 0xBA, 0x10, 0x53, 0xDA, 0x92, 0xE8, 0xA9 };
         private static byte[] DAuth_KEK = { 0x8B, 0xE4, 0x5A, 0xBC, 0xF9, 0x87, 0x02, 0x15, 0x23, 0xCA, 0x4F, 0x5E, 0x23, 0x00, 0xDB, 0xF0 };
         private static byte[] DAuth_Src = { 0xDE, 0xD2, 0x4C, 0x35, 0xA5, 0xD8, 0xC0, 0xD7, 0x6C, 0xB8, 0xD7, 0x8C, 0xA0, 0xA5, 0xA5, 0x22 };
         public static string SysDigest = "gW93A#00050100#29uVhARHOdeTZmfdPnP785egrfRbPUW5n3IAACuHoPw=";
 
+        /// <summary>
+        /// Logs into the eshop via DAuth.
+        /// Currently, I get an error on the second response (using the public cert) that the device has
+        /// been banned. I interpret this to mean that the cert is from a device that was "regular" banned,
+        /// but it is apparently still accepted by the CDN - so not CDN-banned or "burned". It might work
+        /// if I used my personal cert...
+        /// </summary>
+        /// <returns></returns>
         public async Task<EshopLogin> EshopLogin()
         {
             string clientId = "93af0acb26258de9"; // whats this? device id or different?
@@ -878,39 +903,47 @@ namespace SwitchManager.nx.cdn
             string challengeUrl = $"https://dauth-{environment}.ndas.srv.nintendo.net/v3-59ed5fa1c25bb2aea8c4d73d74b919a94d89ed48d6865b728f63547943b17404/challenge";
             string deviceAuthTokenUrl = $"https://dauth-{environment}.ndas.srv.nintendo.net/v3-59ed5fa1c25bb2aea8c4d73d74b919a94d89ed48d6865b728f63547943b17404/device_auth_token";
 
-            var response = await EshopPost(challengeUrl, new Dictionary<string, string>() { { "key_generation", "5" } }).ConfigureAwait(false);
-            string text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            JObject json = JObject.Parse(text);
+            var response = await EshopPost(challengeUrl, new Dictionary<string, string>() { { "key_generation", "6" } }).ConfigureAwait(false);
+            string challengeData = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            JObject challengeJson = JObject.Parse(challengeData);
 
-            string base64data = json?.Value<string>("data");
-            string challenge = json?.Value<string>("challenge");
+            string base64data = challengeJson?.Value<string>("data");
+            string challenge = challengeJson?.Value<string>("challenge");
 
             byte[] keySource = Crypto.DecodeBase64(base64data);
-            var kek = Crypto.GenerateAESKek(MasterKey, AESUseSrc, DAuth_KEK, keySource);
+            byte[] kek = Crypto.GenerateAESKek(MasterKey, AESUseSrc, DAuth_KEK, keySource);
 
-            string req = $"challenge={Uri.EscapeDataString(challenge)}&client_id={Uri.EscapeDataString(clientId)}&key_generation=5&system_version={Uri.EscapeDataString(SysDigest)}";
+            //string req = $"challenge={Uri.EscapeDataString(challenge)}&client_id={Uri.EscapeDataString(clientId)}&key_generation=5&system_version={Uri.EscapeDataString(SysDigest)}";
+            string baseRequest = $"challenge={challenge}&client_id={clientId}&key_generation=6&system_version={SysDigest}";
 
-            byte[] cmacData = Crypto.AESCMAC(kek, Encoding.UTF8.GetBytes(req));
+            byte[] cmacData = Crypto.AESCMAC(kek, Encoding.UTF8.GetBytes(baseRequest));
             string base64Cmac = Crypto.EncodeBase64(cmacData);
             string mac = base64Cmac.Replace("+", "-").Replace("/", "_").Replace("=", "");
-            req += $"&mac={Uri.EscapeDataString(mac)}";
+            string request = $"{baseRequest}&mac={mac}";
 
-            /*
-            Dictionary<string, string> payload = new Dictionary<string, string>();
-            payload.Add("challenge", challenge);
-            payload.Add("client_id", clientId);
-            payload.Add("key_generation", "5");
-            payload.Add("system_version", "gW93A#00050100#29uVhARHOdeTZmfdPnP785egrfRbPUW5n3IAACuHoPw=");
 
-            var content = new FormUrlEncodedContent(payload);
-            */
-            var content = new StringContent(req);
+            //Dictionary<string, string> payload = new Dictionary<string, string>();
+            //payload.Add("challenge", challenge);
+            //payload.Add("client_id", clientId);
+            //payload.Add("key_generation", "6");
+            //payload.Add("system_version", "gW93A#00060000#9k9lgdev3glK0ltQTdWmdK7jU1BL9oWNJRAFkQpHUYI=");
+            //payload.Add("mac", mac);
+
+            var payload = Encoding.UTF8.GetBytes(request);
+            //var content = new StringContent(payload);
+            //var content = new FormUrlEncodedContent(payload);
+            var content = new ByteArrayContent(payload);
+
             response = await EshopPost(deviceAuthTokenUrl, content).ConfigureAwait(false);
-            text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            json = JObject.Parse(text);
-            string token = json?.Value<string>("device_auth_token");
-            EshopLogin l = new EshopLogin();
-            l.Token = token;
+
+            challengeData = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            challengeJson = JObject.Parse(challengeData);
+
+            string token = challengeJson.Value<string>("device_auth_token");
+            long expires = challengeJson.Value<long>("expires");
+
+            EshopLogin l = new EshopLogin(token, expires);
+
             return l;
         }
 
