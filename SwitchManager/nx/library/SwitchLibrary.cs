@@ -1,12 +1,17 @@
 ﻿using log4net;
+using Newtonsoft.Json.Linq;
+using Supremes;
 using SwitchManager.io;
 using SwitchManager.nx.cdn;
 using SwitchManager.nx.system;
 using SwitchManager.util;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 
@@ -42,6 +47,9 @@ namespace SwitchManager.nx.library
 
         [XmlIgnore]
         public string ImagesPath { get; set; }
+
+        [XmlIgnore]
+        public string PreferredRegion { get; set; }
 
         private Dictionary<string, SwitchCollectionItem> titlesByID = new Dictionary<string, SwitchCollectionItem>();
 
@@ -130,7 +138,7 @@ namespace SwitchManager.nx.library
             using (FileStream fs = File.OpenRead(path))
                 metadata = xml.Deserialize(fs) as LibraryMetadata;
 
-            await LoadMetadata(metadata?.Items).ConfigureAwait(false);
+            await LoadMetadata(metadata?.Items, true).ConfigureAwait(false);
             logger.Info($"Finished loading library metadata from {path}");
         }
 
@@ -138,7 +146,7 @@ namespace SwitchManager.nx.library
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal async Task LoadMetadata(IEnumerable<LibraryMetadataItem> metadata)
+        internal async Task LoadMetadata(LibraryMetadataItem[] metadata, bool allowRepair)
         {
             if (metadata != null)
             {
@@ -149,7 +157,7 @@ namespace SwitchManager.nx.library
                     
                     foreach (var item in metadata)
                     {
-                        RepairMetadata(item);
+                        if (allowRepair) RepairMetadata(item);
                         SwitchCollectionItem ci = GetTitleByID(item.TitleID);
                         if (ci == null)
                         {
@@ -182,6 +190,7 @@ namespace SwitchManager.nx.library
 
                         // uint?
                         if (item.LatestVersion.HasValue) ci.LatestVersion = item.LatestVersion;
+                        if (item.NumPlayers.HasValue) ci.NumPlayers = item.NumPlayers;
 
                         // byte?
                         if (item.MasterKeyRevision.HasValue) ci.MasterKeyRevision = item.MasterKeyRevision;
@@ -191,9 +200,7 @@ namespace SwitchManager.nx.library
                         if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC;
                         if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo;
                         if (item.IsDemo.HasValue) ci.IsDemo = item.IsDemo.Value;
-
-                        // bool
-
+                        
                         // datetime
                         if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
                         if (item.Added.HasValue) ci.Added = item.Added;
@@ -208,20 +215,20 @@ namespace SwitchManager.nx.library
                         if (!string.IsNullOrWhiteSpace(item.BoxArtUrl)) ci.BoxArtUrl = item.BoxArtUrl;
                         if (!string.IsNullOrWhiteSpace(item.Icon)) ci.Icon = item.Icon;
                         if (!string.IsNullOrWhiteSpace(item.Rating)) ci.Rating = item.Rating;
-                        if (!string.IsNullOrWhiteSpace(item.NumPlayers)) ci.NumPlayers = item.NumPlayers;
                         if (!string.IsNullOrWhiteSpace(item.NsuId)) ci.NsuId = item.NsuId;
-                        if (!string.IsNullOrWhiteSpace(item.Code)) ci.Code = item.Code;
+                        if (!string.IsNullOrWhiteSpace(item.ProductCode)) ci.ProductCode = item.ProductCode;
                         if (!string.IsNullOrWhiteSpace(item.RatingContent)) ci.RatingContent = item.RatingContent;
                         if (!string.IsNullOrWhiteSpace(item.Price)) ci.Price = item.Price;
                         if (!string.IsNullOrWhiteSpace(item.Region)) ci.Region = item.Region;
                         if (!string.IsNullOrWhiteSpace(item.DisplayVersion)) ci.DisplayVersion = item.DisplayVersion;
+                        if (!string.IsNullOrWhiteSpace(item.OfficialSite)) ci.OfficialSite = item.OfficialSite;
 
                         if (item.Updates != null)
                             foreach (var update in item.Updates)
                             {
                                 if (update.Version > 0)
                                 {
-                                    RepairMetadata(update);
+                                    if (allowRepair) RepairMetadata(update);
                                     AddUpdateTitle(update, item.TitleID);
                                 }
                             }
@@ -266,7 +273,9 @@ namespace SwitchManager.nx.library
             {
                 item.Path = null;
                 item.Added = null;
-                if (item.State != SwitchCollectionState.Hidden)
+                if (SwitchTitle.IsUpdateTitleID(item.TitleID))
+                    item.State = SwitchCollectionState.NotOwned;
+                else if (item.State != SwitchCollectionState.Hidden && item.State != SwitchCollectionState.NewNoKey)
                     item.State = SwitchCollectionState.NoKey;
             }
             else
@@ -279,6 +288,12 @@ namespace SwitchManager.nx.library
 
             if (SwitchTitle.IsDLCID(item.TitleID))
                 item.Updates.Clear();
+
+            if ((item.IsDemo ?? false) && item.BoxArtUrl != null)
+            {
+                item.Icon = null;
+                item.BoxArtUrl = null;
+            }
         }
 
         internal void SaveMetadata(string path)
@@ -766,7 +781,276 @@ namespace SwitchManager.nx.library
         }
         
         public static string BlankImage { get { return "blank.jpg"; } }
+        
+        public async Task<JObject> ReadEShopAPI(SwitchTitle title, string region, string lang)
+        {
+            var response = await Loader.GetEshopData(title, region, lang).ConfigureAwait(false);
+            if (response != null)
+            {
+                string r = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                return JObject.Parse(r);
+            }
 
+            return null;
+        }
+
+        public JObject ReadEShopPage(SwitchCollectionItem title, string region)
+        {
+            string link = title?.Title?.EshopLink;
+            if (link == null) return null;
+            var doc = Dcsoup.Parse(new Uri(link), 5000);
+
+            JObject json = new JObject();
+            json.Add("titleid", title.TitleId);
+            json.Add("eshop_link", link);
+            
+            // irritating, what comes up when you look up a demo is the page for the main game
+            if (title.IsDemo)
+            {
+                var demoLink = doc.Select("a#demo-download]");
+                if (demoLink != null)
+                    json.Add("nsuid", demoLink.Attr("data-nsuid"));
+            }
+            if (title.Size.HasValue) json.Add("Game_size", title.Size.Value);
+
+            string description = doc.Select("section#overview div[itemprop=description] p").Text;
+            json.Add("description", description);
+
+            string intro = doc.Select("section#overview h1 p").Text;
+            json.Add("intro", intro);
+            
+            var hasDLC = doc.Select("span.dlc-info");
+            if (hasDLC != null && hasDLC.Count > 0 && !title.IsDemo)
+                json.Add("dlc", "true");
+            else
+                json.Add("dlc", "false");
+
+            var hasAmiibo = doc.Select("section#amiibo");
+            if (hasAmiibo != null && hasAmiibo.Count > 0 && !title.IsDemo)
+                json.Add("amiibo_compatibility", "true");
+            else
+                json.Add("amiibo_compatibility", "false");
+
+            if (!title.IsDemo)
+            {
+                var boxart = doc.Select("span.boxart img");
+                json.Add("front_box_art", boxart.Attr("src"));
+            }
+
+            var site = doc.Select("a[itemprop='URL sameAs']");
+            json.Add("official_site", site.Attr("href"));
+
+            var date_added = DateTime.Now.ToString("yyyyMMdd");
+            json.Add("date_added", date_added);
+
+            var rating_content = doc.Select("span.esrb-rating span.descriptors div").Text;
+            json.Add("content", rating_content);
+
+            var list = doc.Select("div.flex dl div");
+            foreach (var item in list)
+            {
+                var dt = item.Select("dt").Text;
+                var dd = item.Select("dd").Text;
+                switch (dt)
+                {
+                    case "No. of Players":
+                        json.Add("number_of_players", dd);
+                        break;
+
+                    case "Release Date":
+
+                        json.Add("release_date_string", dd);
+                        if (DateTime.TryParseExact(dd, "MMM dd, yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime rDate))
+                        {
+                            string release_date_iso = rDate.ToString("yyyyMMdd");
+                            json.Add("release_date_iso", release_date_iso);
+                        }
+                        break;
+
+                    case "Category":
+                        json.Add("category", dd);
+                        break;
+
+                    case "Publisher":
+                        json.Add("publisher", dd);
+                        break;
+
+                    case "Developer":
+                        json.Add("developer", dd);
+                        break;
+                }
+            }
+
+            var scripts = doc.Select("script");
+            foreach (var scr in scripts)
+            {
+                string text = scr.Html;
+                if (text.Contains("window.game"))
+                {
+                    Match m = Regex.Match(text, "window\\.game = Object\\.freeze\\(([\\S\\s]+?)\\);");
+                    if (m.Success && m.Groups.Count > 1)
+                    {
+                        text = m.Groups[1].Value;
+                        var gj = JObject.Parse(text);
+
+                        if (!json.ContainsKey("product_id")) json.Add("product_id", gj.Value<string>("id"));
+                        if (!json.ContainsKey("publisher")) json.Add("title", gj.Value<string>("publisher"));
+                        if (!json.ContainsKey("category")) json.Add("category", gj.Value<string>("genre"));
+                        if (!json.ContainsKey("slug")) json.Add("slug", gj.Value<string>("slug"));
+                        if (!json.ContainsKey("nsuid")) json.Add("nsuid", gj.Value<string>("nsuid"));
+                        if (!json.ContainsKey("game_code")) json.Add("game_code", gj.Value<string>("productCode"));
+
+                        if (!json.ContainsKey("title"))
+                        {
+                            string name = gj.Value<string>("title");
+                            if (title.IsDemo)
+                                name += " (Demo)";
+                            json.Add("title", name);
+                        }
+
+                        if (!json.ContainsKey("price") && !title.IsDemo)
+                        {
+                            string price = gj.Value<string>("msrp");
+                            json.Add("price", price);
+                            json.Add(region + "_price", price);
+                        }
+
+                        if (!json.ContainsKey("release_date_iso") && DateTime.TryParse(gj.Value<string>("releaseDate"), out DateTime rdate))
+                        {
+                            string release_date_iso = rdate.ToString("yyyyMMdd");
+                            json.Add("release_date_iso", release_date_iso);
+                            string release_date_string = rdate.ToString("MMM dd, yyyy");
+                            json.Add("release_date_string", release_date_string);
+                        }
+                        if (!json.ContainsKey("rating"))
+                        {
+                            string rating = gj.Value<string>("esrbRating")?.ToUpper();
+                            switch (rating)
+                            {
+                                case "E": json.Add("rating", "Everyone"); break;
+                                case "E10+": json.Add("rating", "Everyone 10 and older"); break;
+                                case "T": json.Add("rating", "Teen"); break;
+                                case "M": json.Add("rating", "Mature"); break;
+                                case "AO": json.Add("rating", "Adults Only"); break;
+                            }
+                        }
+                    }
+                }
+            }
+            return json;
+        }
+
+        public async Task UpdateEShopData(SwitchCollectionItem item, string lang = "en")
+        {
+            var title = item?.Title;
+            string region = item?.Region ?? this.PreferredRegion;
+
+            if (title != null && title.IsGame)
+            {
+                if (Loader.EShopLoginToken == null)
+                {
+                    JObject data = ReadEShopPage(item, region);
+                    var meta = ParseGameInfoJson(title?.TitleID, data);
+                    await LoadMetadata(new LibraryMetadataItem[] { meta }, false).ConfigureAwait(false);
+                }
+                else
+                {
+                    JObject data = await ReadEShopAPI(title, region, lang).ConfigureAwait(false);
+                    UpdateEShopData(item, data);
+                }
+            }
+        }
+
+        public void UpdateEShopData(SwitchCollectionItem item, JObject json)
+        {
+            var title = item?.Title;
+            if (title != null && json != null && title.IsGame)
+            {
+                title.Name = json.Value<string>("formal_name");
+                title.Description = json.Value<string>("description");
+                title.Category = json.Value<string>("genre");
+                title.Intro = json.Value<string>("catch_copy");
+                title.HasDLC = json.Value<bool>("in_app_purchase");
+
+                string disclaimer = json.Value<string>("disclaimer");
+                string featureDesc = json.Value<string>("network_feature_description");
+                if ((disclaimer != null && disclaimer.Contains("amiibo™ compatible game")) || (featureDesc != null && featureDesc.Contains("amiibo")))
+                    title.HasAmiibo = true;
+
+                if (!item.Size.HasValue || !FileUtils.FileExists(item.RomPath))
+                {
+                    string sSize = json.Value<string>("total_rom_size");
+                    if (long.TryParse(sSize, out long size))
+                        item.Size = size;
+                }
+                
+                if (DateTime.TryParseExact(json?.Value<string>("release_date_on_eshop"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime rDate))
+                    title.ReleaseDate = rDate;
+
+                var pubtoken = json.GetValue("publisher");
+                if (pubtoken != null)
+                    title.Publisher = pubtoken.Value<string>("name");
+
+                var ratingToken = json["rating_info"]["rating"];
+                if (ratingToken != null)
+                {
+                    string rating = ratingToken.Value<string>("name");
+                    switch (rating)
+                    {
+                        case "E": title.Rating = "Everyone"; break;
+                        case "E10+": title.Rating = "Everyone 10 and older"; break;
+                        case "T": title.Rating = "Teen"; break;
+                        case "M": title.Rating = "Mature"; break;
+                        case "AO": title.Rating = "Adults Only"; break;
+                            // no such thing as AO on switch right?
+                    }
+                }
+
+                var ratingContentToken = json["rating_info"]["content_descriptors"];
+                if (ratingContentToken != null)
+                {
+                    List<string> descriptors = new List<string>();
+                    foreach (var desc in ratingContentToken)
+                    {
+                        string name = desc.Value<string>("name");
+                        if (!string.IsNullOrWhiteSpace(name))
+                            descriptors.Add(name);
+                    }
+                    if (descriptors.Count > 0)
+                        title.RatingContent = string.Join(",", descriptors);
+                }
+
+                var playerstoken = json.GetValue("player_number");
+                if (playerstoken != null)
+                {
+                    string offPlayers = playerstoken.Value<string>("offline_max");
+                    string onPlayers = playerstoken.Value<string>("online_max");
+                    if (uint.TryParse(offPlayers, out uint np) && uint.TryParse(onPlayers, out uint npo))
+                        title.NumPlayers = Math.Max(np, npo);
+                }
+
+                // todo rating info
+                // todo size?
+                // todo amiibo?
+                // todo check a demo, see if it is flagged as a demo, otherwise find
+                // something with a demo and see if it shows its demo so i can mark it as demo
+                // could get images here but why bother, lots of other places
+                string bannerImageUrl = $"https://bugyo.hac.lp1.eshop.nintendo.net/{json.Value<string>("hero_banner_url")}?w=640";
+                // TODO: banner image url?
+
+                var sshotsToken = json["screenshots"];
+                if (sshotsToken != null)
+                    foreach (var sshot in sshotsToken)
+                    {
+                        var imagesToken = sshot["images"];
+                        foreach (var img in imagesToken)
+                        {
+                            string sshotUrl = $"https://bugyo.hac.lp1.eshop.nintendo.net/{img.Value<string>("url")}?w=640";
+                            // TODO: screenshots?
+                        }
+                    }
+            }
+        }
 
         public List<SwitchCollectionItem> UpdateNutFile(string filename)
         {
@@ -822,10 +1106,11 @@ namespace SwitchManager.nx.library
                     item = GetTitleByID(id);
                     if (item == null) // not interested in adding new asian games
                     {
-                        if ("US".Equals(region))
+                        string pregion = this.PreferredRegion ?? "US";
+                        if (pregion.Equals(region))
                         {
                             item = LoadTitle(id, key, name, version);
-                            newTitles.Add(item);
+                            if (item != null) newTitles.Add(item);
 
                             // If the key is missing, mark it as such, otherwise it is a properly working New title
                             if (item.Title.IsTitleKeyValid)
@@ -942,7 +1227,7 @@ namespace SwitchManager.nx.library
         /// <returns></returns>
         private SwitchCollectionItem LoadTitle(string tid, string tkey, string name, uint version)
         {
-            if (string.IsNullOrWhiteSpace(tid)) return null;
+            if (!SwitchTitle.CheckValidTitleID(tid)) return null;
             else tid = tid.ToLower();
 
             if (string.IsNullOrWhiteSpace(tkey)) tkey = null;
@@ -1070,6 +1355,73 @@ namespace SwitchManager.nx.library
                 return null;
 
             return titlesByID.TryGetValue(titleID, out SwitchCollectionItem returnValue) ? returnValue : null;
+        }
+
+        internal LibraryMetadataItem ParseGameInfoJson(string tid, JToken jsonGame)
+        {
+            if (SwitchTitle.IsBaseGameID(tid) && jsonGame.HasValues)
+            {
+                LibraryMetadataItem game = new LibraryMetadataItem();
+
+                game.TitleID = jsonGame?.Value<string>("titleid");
+                game.Name = jsonGame?.Value<string>("title");
+                game.Publisher = jsonGame?.Value<string>("publisher");
+                game.Developer = jsonGame?.Value<string>("developer");
+                game.Description = jsonGame?.Value<string>("description");
+                game.Intro = jsonGame?.Value<string>("intro");
+                game.Category = jsonGame?.Value<string>("category");
+                game.BoxArtUrl = jsonGame?.Value<string>("front_box_art");
+                game.Rating = jsonGame?.Value<string>("rating");
+                game.NsuId = jsonGame?.Value<string>("nsuid");
+                game.ProductCode = jsonGame?.Value<string>("game_code");
+                game.RatingContent = jsonGame?.Value<string>("content");
+                game.OfficialSite = jsonGame?.Value<string>("official_site");
+
+                string price = jsonGame?.Value<string>("price");
+                if (price == null)
+                {
+                    price = jsonGame?.Value<string>("US_price");
+                }
+                game.Price = price;
+
+                string sNumPlayers = jsonGame?.Value<string>("number_of_players");
+                if (sNumPlayers != null)
+                {
+                    if (sNumPlayers.StartsWith("1"))
+                    {
+                        game.NumPlayers = 1;
+                    }
+                    else if (sNumPlayers.StartsWith("2")) game.NumPlayers = 2;
+                    else
+                    {
+                        sNumPlayers = sNumPlayers.Replace("up to ", string.Empty);
+                        sNumPlayers = sNumPlayers.Replace(" players", string.Empty);
+                        if (uint.TryParse(sNumPlayers, out uint np))
+                            game.NumPlayers = np;
+                    }
+                }
+
+                string s = jsonGame?.Value<string>("dlc");
+                if (!string.IsNullOrWhiteSpace(s) && bool.TryParse(s, out bool hasDlc))
+                    game.HasDLC = hasDlc;
+                else
+                    game.HasDLC = false;
+
+                s = jsonGame?.Value<string>("amiibo_compatibility");
+                if (!string.IsNullOrWhiteSpace(s) && bool.TryParse(s, out bool hasA))
+                    game.HasAmiibo = hasA;
+                else
+                    game.HasAmiibo = false;
+
+                string sSize = jsonGame?.Value<string>("Game_size");
+                if (long.TryParse(sSize, out long size))
+                    game.Size = size;
+
+                if (DateTime.TryParseExact(jsonGame?.Value<string>("release_date_iso"), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime rDate))
+                    game.ReleaseDate = rDate;
+                return game;
+            }
+            return null;
         }
 
         public SwitchCollectionItem GetBaseTitleByID(string titleID)

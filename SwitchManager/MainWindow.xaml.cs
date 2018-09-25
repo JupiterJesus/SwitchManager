@@ -22,6 +22,7 @@ using System.Xml.Serialization;
 using Newtonsoft.Json.Linq;
 using log4net;
 using SwitchManager.io;
+using System.Threading;
 
 namespace SwitchManager
 {
@@ -41,7 +42,8 @@ namespace SwitchManager
         private SwitchLibrary library;
         private ProgressWindow downloadWindow;
         private string metadataFile;
-        private bool allowMultipleDownloads = true;
+        private int MaxConcurrentDownloads { get; set; }
+        private SemaphoreSlim DownloadThrottle { get; set; }
 
         #endregion 
 
@@ -50,6 +52,9 @@ namespace SwitchManager
         public MainWindow()
         {
             InitializeComponent();
+
+            MaxConcurrentDownloads = Settings.Default.MaxConcurrentDownloads == 0 ? System.Environment.ProcessorCount : Settings.Default.MaxConcurrentDownloads;
+            DownloadThrottle = new SemaphoreSlim(MaxConcurrentDownloads);
 
             // Initialize the window dimensions from saved settings
             if (!double.IsInfinity(Settings.Default.WindowTop) && !double.IsNaN(Settings.Default.WindowTop))
@@ -66,21 +71,22 @@ namespace SwitchManager
                 WindowState = WindowState.Maximized;
             }
 
-            EshopDownloader downloader = new EshopDownloader(Settings.Default.ClientCertPath,
-                                                         Settings.Default.EShopCertPath,
-                                                         Properties.Resources.TitleCertTemplate,
+            EshopDownloader downloader = new EshopDownloader(Properties.Resources.TitleCertTemplate,
                                                          Properties.Resources.TitleTicketTemplate,
                                                          Settings.Default.DeviceID,
                                                          Settings.Default.Firmware,
                                                          Settings.Default.Environment,
                                                          Settings.Default.Region,
-                                                         Settings.Default.ImageCache,
-                                                         Settings.Default.HactoolPath,
-                                                         Settings.Default.KeysPath);
-
+                                                         Settings.Default.ImageCache);
+            downloader.UpdateClientCert(Settings.Default.ClientCertPath);
+            downloader.UpdateLoginCert(Settings.Default.LoginCertPath);
+            downloader.UpdateEShopCert(Settings.Default.EShopCertPath);
+            downloader.ConfigureHacTool(Settings.Default.HactoolPath, Settings.Default.KeysPath);
+            
             downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
             
             library = new SwitchLibrary(downloader, Settings.Default.ImageCache, Settings.Default.NSPDirectory, Settings.Default.TempDirectory);
+            library.PreferredRegion = Settings.Default.Region;
 
             downloadWindow = new ProgressWindow(library);
             downloadWindow.Show();
@@ -155,7 +161,7 @@ namespace SwitchManager
                 bool showHidden = CheckBox_Hidden.IsChecked ?? false;
                 SwitchCollectionItem i = o as SwitchCollectionItem;
 
-                return  //(!"JP".Equals(i.Region)) &&
+                return  //(library.PreferredRegion.Equals(i.Region)) &&
                         ((showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
                         ((showDLC && i.Title.IsDLC) || !i.Title.IsDLC) &&
                         ((showGames && i.Title.IsGame && !i.Title.IsDemo) || !(i.Title.IsGame && !i.Title.IsDemo)) &&
@@ -224,7 +230,8 @@ namespace SwitchManager
                 Settings.Default.SortDirection = sd.Direction.ToString();
             }
 
-            // Save all settings
+            // Save all settings                
+            Settings.Default.Upgrade();
             Settings.Default.Save();
 
             // Save library
@@ -429,14 +436,13 @@ namespace SwitchManager
         /// <param name="o">Options</param>
         private async void DoThreadedDownload(SwitchCollectionItem item, uint ver, DownloadOptions o)
         {
-            if (allowMultipleDownloads)
+            await DownloadThrottle.WaitAsync();
+
+            Task t = Task.Run(async delegate
             {
-                Task t = Task.Run(() => DoDownload(item, ver, o));
-            }
-            else
-            {
-                await DoDownload(item, ver, o);
-            }
+                await DoDownload(item, ver, o).ConfigureAwait(false);
+                DownloadThrottle.Release();
+            });
         }
 
         /// <summary>
@@ -456,25 +462,27 @@ namespace SwitchManager
                 {
                     await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
                 }
-                catch (CertificateDeniedException)
+                catch (CertificateDeniedException ex)
                 {
-                    ShowError("Can't download because the certificate was denied.");
+                    ShowError($"Can't download because the certificate was denied.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}");
                 }
-                catch (CnmtMissingException)
+                catch (CnmtMissingException ex)
                 {
-                    ShowError("Can't download because we couldn't find the CNMT ID for the title");
+                    ShowError($"Can't download because we couldn't find the CNMT ID for the title.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}");
                 }
-                catch (DownloadFailedException f)
+                catch (DownloadFailedException ex)
                 {
-                    ShowError("Can't download because the download failed - " + f.Message);
+                    ShowError($"Can't download because the download failed.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}");
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    string msg = "Can't download because of an unknown error";
-                    while (e != null)
+                    string msg = $"Can't download because of an unknown error.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}";
+
+                    ex = ex.InnerException;
+                    while (ex != null)
                     {
-                        msg = msg + "\n" + e.Message;
-                        e = e.InnerException;
+                        msg = msg + "\n" + ex.Message;
+                        ex = ex.InnerException;
                     }
                     ShowError(msg);
                 }
@@ -1075,54 +1083,17 @@ namespace SwitchManager
 
                     if (".json".Equals(ext))
                     {
-                        var lGames = new List<LibraryMetadataItem>();
 
                         JObject json = JObject.Parse(File.ReadAllText(gameInfoFileName));
+                        var lGames = new List<LibraryMetadataItem>();
                         foreach (var pair in json)
                         {
                             string tid = pair.Key;
                             var jsonGame = pair.Value;
-                            if (SwitchTitle.IsBaseGameID(tid) && jsonGame.HasValues)
-                            {
-                                LibraryMetadataItem game = new LibraryMetadataItem();
-
-                                game.TitleID = jsonGame?.Value<string>("titleid");
-                                game.Name = jsonGame?.Value<string>("title");
-                                game.Publisher = jsonGame?.Value<string>("publisher");
-                                game.Developer = jsonGame?.Value<string>("developer");
-                                game.Description = jsonGame?.Value<string>("description");
-                                game.Intro = jsonGame?.Value<string>("intro");
-                                game.Category = jsonGame?.Value<string>("category");
-                                game.BoxArtUrl = jsonGame?.Value<string>("front_box_art");
-                                game.Rating = jsonGame?.Value<string>("rating");
-                                game.NumPlayers = jsonGame?.Value<string>("number_of_players");
-                                game.NsuId = jsonGame?.Value<string>("nsuid");
-                                game.Code = jsonGame?.Value<string>("game_code");
-                                game.RatingContent = jsonGame?.Value<string>("content");
-                                game.Price = jsonGame?.Value<string>("US_price");
-
-                                string s = jsonGame?.Value<string>("dlc");
-                                if (!string.IsNullOrWhiteSpace(s) && bool.TryParse(s, out bool hasDlc))
-                                    game.HasDLC = hasDlc;
-                                else
-                                    game.HasDLC = false;
-
-                                s = jsonGame?.Value<string>("amiibo_compatibility");
-                                if (!string.IsNullOrWhiteSpace(s) && bool.TryParse(s, out bool hasA))
-                                    game.HasAmiibo = hasA;
-                                else
-                                    game.HasAmiibo = false;
-
-                                string sSize = jsonGame?.Value<string>("Game_size");
-                                if (long.TryParse(sSize, out long size))
-                                    game.Size = size;
-
-                                if (DateTime.TryParseExact(jsonGame?.Value<string>("release_date_iso"), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime rDate))
-                                    game.ReleaseDate = rDate;
-
-                                lGames.Add(game);
-                            }
+                            var game = library.ParseGameInfoJson(tid, jsonGame);
+                            lGames.Add(game);
                         }
+
                         games = lGames;
                     }
                     else if (".xml".Equals(ext))
@@ -1152,7 +1123,7 @@ namespace SwitchManager
                         }
                     }
 
-                    await library.LoadMetadata(games);
+                    await library.LoadMetadata(games.ToArray(), false);
                     Task t = Task.Run(() => library.UpdateVersions());
                     ShowMessage("Imported game metadata.", "Finished");
                 }
@@ -1222,11 +1193,11 @@ namespace SwitchManager
                 }
                 catch (InvalidNspException n)
                 {
-                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}");
                 }
                 catch (BadNcaException b)
                 {
-                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}");
                 }
             }
         }
@@ -1265,15 +1236,15 @@ namespace SwitchManager
                 }
                 catch (BadNcaException b)
                 {
-                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}");
                 }
                 catch (InvalidNspException n)
                 {
-                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}");
                 }
                 catch (HactoolFailedException h)
                 {
-                    ShowError($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nReason: {h.Message}");
+                    ShowError($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nMessage: {h.Message}");
                 }
             }
         }
@@ -1308,11 +1279,11 @@ namespace SwitchManager
             }
             catch (BadNcaException b)
             {
-                ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}");
             }
             catch (InvalidNspException n)
             {
-                ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nReason: {n.Message}");
+                ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}");
             }
         }
 
@@ -1332,6 +1303,7 @@ namespace SwitchManager
             {
                 if (Directory.Exists(dir))
                 {
+                    SwitchTitle title = null;
                     try
                     {
                         // First, unpack the NSP
@@ -1340,7 +1312,6 @@ namespace SwitchManager
 
                         string id = cnmt.Id;
 
-                        SwitchTitle title = null;
                         uint version = cnmt.Version;
 
                         if (cnmt.Type == TitleType.Patch)
@@ -1359,7 +1330,7 @@ namespace SwitchManager
                     }
                     catch (BadNcaException b)
                     {
-                        ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                        ShowError($"NSP was unpacked but couldn't be verified.\nTitle: {title?.Name ?? "Unknown"}\nFile: {b.NcaFile}\nMessage: {b.Message}");
                     }
                 }
             }
@@ -1407,8 +1378,7 @@ namespace SwitchManager
         {
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
             var item = cv.CurrentItem as SwitchCollectionItem;
-            string region = item.Region ?? Settings.Default.Region;
-            string url = $"https://ec.nintendo.com/apps/{item.TitleId}/{region}";
+            string url = item?.Title?.EshopLink;
             Process.Start(new ProcessStartInfo(url));
             e.Handled = true;
         }
@@ -1462,16 +1432,22 @@ namespace SwitchManager
                     {
                         var title = item.Title;
 
-                        if (item != null && item.Title != null)
+                        if (title.IsGame)
                         {
-                            if (title.IsGame)
-                            {
-                                DownloadOption = DownloadOptions.BaseGameAndUpdate;
-                            }
-                            else if (title.IsDLC)
-                            {
-                                DownloadOption = DownloadOptions.AllDLC;
-                            }
+                            DownloadOption = DownloadOptions.BaseGameAndUpdate;
+                        }
+                        else if (title.IsDLC)
+                        {
+                            DownloadOption = DownloadOptions.AllDLC;
+                        }
+
+                        try
+                        {
+                            Task t = Task.Run(() => library.UpdateEShopData(item));
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.Error($"Exception getting eshop data.\nTitle: {title.Name}\nMessage: {ex.Message}");
                         }
 
                         // If anything is null, get a new image
@@ -1482,27 +1458,35 @@ namespace SwitchManager
                                 title.Icon = null;
                                 await library.LoadTitleIcon(title, true);
                             }
-                            catch (HactoolFailedException)
+                            catch (HactoolFailedException ex)
                             {
-                                logger.Error("Hactool failed while getting icon file.");
+                                logger.Error($"Hactool failed while getting icon file.\nTitle: {title.Name}\nMessage: {ex.Message}");
                             }
-                            catch (CertificateDeniedException)
+                            catch (CertificateDeniedException ex)
                             {
-                                logger.Error("Cert denied while getting icon file.");
+                                logger.Error($"Cert denied while getting icon file.\nTitle: {title.Name}\nMessage: {ex.Message}");
                             }
-                            catch (DownloadFailedException d)
+                            catch (DownloadFailedException ex)
                             {
-                                logger.Error("WARNING: Downloading a file failed: " + d.Message);
+                                logger.Error($"WARNING: Downloading a file failed.\nTitle: {title.Name}\nMessage: {ex.Message}");
                             }
-                            catch (Exception)
+                            catch (Exception ex)
                             {
-                                logger.Error("WTF something failed while getting icon file.");
+                                logger.Error($"WTF something failed while getting icon file.\nTitle: {title.Name}\nMessage: {ex.Message}");
                             }
                         }
 
                         if ((item.Size ?? 0) == 0)
                         {
-                            await UpdateSize(item);
+                            logger.Info($"Missing size for title '{title.Name}', attempting to calculate it.");
+                            try
+                            {
+                                await UpdateSize(item).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.Error($"Exception while updating title size.\nTitle: {title.Name}\nMessage: {ex.Message}");
+                            }
                         }
                     }
                 }
@@ -1552,11 +1536,13 @@ namespace SwitchManager
 
         private void ShowError(string text)
         {
+            logger.Error(text);
             Dispatcher?.InvokeOrExecute(()=>MaterialMessageBox.ShowError(text));
         }
 
         private void ShowMessage(string text, string title, string okButton = null, string cancel = null)
         {
+            logger.Info(text);
             Dispatcher?.InvokeOrExecute(delegate
             {
                 var msg = new CustomMaterialMessageBox

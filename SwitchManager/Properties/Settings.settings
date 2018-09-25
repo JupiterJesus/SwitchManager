@@ -116,5 +116,11 @@
     <Setting Name="Region" Type="System.String" Scope="User">
       <Value Profile="(Default)">US</Value>
     </Setting>
+    <Setting Name="MaxConcurrentDownloads" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">4</Value>
+    </Setting>
+    <Setting Name="LoginCertPath" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">certs\login.pfx</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

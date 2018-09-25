@@ -25,15 +25,20 @@ namespace SwitchManager.nx.cdn
 
         private readonly string environment;
         private readonly string firmware;
-
         private readonly string deviceId;
         private readonly string region;
 
         private readonly string imagesPath;
-        private readonly string hactoolPath;
-        private readonly string keysPath;
-        private readonly string clientCertPath;
-        private readonly string eShopCertPath;
+
+        private string hactoolPath;
+        private string keysPath;
+
+        private string clientCertPath;
+        private string loginCertPath;
+        private string eShopCertPath;
+        public X509Certificate ClientCert { get; private set; }
+        public X509Certificate LoginCert { get; private set; }
+        public X509Certificate EShopCert { get; private set; }
 
         private readonly byte[] titleCertTemplateData;
         private readonly byte[] titleTicketTemplateData;
@@ -42,36 +47,27 @@ namespace SwitchManager.nx.cdn
 
         public int DownloadBuffer { get; set; }
 
-        public X509Certificate ClientCert { get; private set; }
-        public X509Certificate EshopCert { get; private set; }
+        public EshopLogin EShopLoginToken { get; set; }
 
-        private EshopLogin EShopLogin { get; set; }
-
-        public EshopDownloader(string clientCertPath, string eShopCertificate, string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath) :
-           this(clientCertPath, eShopCertificate, File.ReadAllBytes(titleCertPath), File.ReadAllBytes(titleTicketPath), deviceId, firmware, environment, region, imagesPath, hactoolPath, keysPath)
+        public EshopDownloader(string titleCertPath, string titleTicketPath, string deviceId, string firmware, string environment, string region, string imagesPath) :
+           this(File.ReadAllBytes(titleCertPath), File.ReadAllBytes(titleTicketPath), deviceId, firmware, environment, region, imagesPath)
         {
         }
         
-        public EshopDownloader(string clientCertPath, string eShopCertificate, byte[] certTemplateData, byte[] ticketTemplateData, string deviceId, string firmware, string environment, string region, string imagesPath, string hactoolPath, string keysPath)
+        public EshopDownloader(byte[] titleCertTemplateData, byte[] titleTicketTemplateData, string deviceId, string firmware, string environment, string region, string imagesPath)
         {
-            this.clientCertPath = clientCertPath;
-            this.eShopCertPath = eShopCertificate;
-            this.titleCertTemplateData = certTemplateData;
-            this.titleTicketTemplateData = ticketTemplateData;
+            this.titleCertTemplateData = titleCertTemplateData;
+            this.titleTicketTemplateData = titleTicketTemplateData;
             this.deviceId = deviceId;
             this.firmware = firmware;
             this.environment = environment;
             this.region = region;
             this.imagesPath = Path.GetFullPath(imagesPath);
-            this.hactoolPath = Path.GetFullPath(hactoolPath);
-            this.keysPath = Path.GetFullPath(keysPath);
+
             //this.CDNUserAgent = $"NintendoSDK Firmware/{firmware} (platform:NX; did:{deviceId}; eid:{environment})";
             this.CDNUserAgent = $"NintendoSDK Firmware/{firmware} (platform:NX; eid:{environment})";
 
-            UpdateClientCert(clientCertPath);
-            UpdateEshopCert(eShopCertPath);
-
-            this.EShopLogin = EshopLogin().Result; // Force waiting because constructor, but it is fast anyway
+            this.EShopLoginToken = LogInToEshop().Result; // Force waiting because constructor, but it is fast anyway
         }
 
         /// <summary>
@@ -134,6 +130,12 @@ namespace SwitchManager.nx.cdn
             {
                 ReleaseLock(@lock);
             }
+        }
+
+        public void ConfigureHacTool(string hactoolPath, string keysPath)
+        {
+            this.hactoolPath = Path.GetFullPath(hactoolPath);
+            this.keysPath = Path.GetFullPath(keysPath);
         }
 
         private static Dictionary<string, SemaphoreSlim> locks = new Dictionary<string, SemaphoreSlim>();
@@ -439,14 +441,30 @@ namespace SwitchManager.nx.cdn
             return await DownloadFile(url, path, title?.ToString()).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
         }
 
-        internal void UpdateClientCert(string clientCertPath)
+        public void UpdateClientCert(string path)
         {
-            this.ClientCert = Crypto.LoadCertificate(clientCertPath);
+            this.clientCertPath = path;
+            this.ClientCert = Crypto.LoadCertificate(path);
         }
 
-        internal void UpdateEshopCert(string clientCertPath)
+        internal void UpdateLoginCert(string path)
         {
-            this.EshopCert = Crypto.LoadCertificate(eShopCertPath, "switch");
+            if (path == null)
+            {
+                this.loginCertPath = clientCertPath;
+                this.LoginCert = Crypto.LoadCertificate(clientCertPath);
+            }
+            else
+            {
+                this.loginCertPath = path;
+                this.LoginCert = Crypto.LoadCertificate(path, "switch");
+            }
+        }
+
+        internal void UpdateEShopCert(string path)
+        {
+            this.eShopCertPath = path;
+            this.EShopCert = Crypto.LoadCertificate(path);
         }
 
         public async Task<long> GetContentLength(string url)
@@ -523,14 +541,14 @@ namespace SwitchManager.nx.cdn
 
                 task = StartDownload(fs, result, expectedSize, downloaded, jobName).ContinueWith(a =>
                 {
+                    string jn = jobName;
                     bool done = a.Result;
                     fs.Dispose();
                     result.Dispose();
-
-                    var newFile = new FileInfo(fpath);
-                    if (done && expectedSize != 0 && newFile.Length != expectedSize)
+                    
+                    if (done && expectedSize != 0 && FileUtils.GetFileSystemSize(fpath) != expectedSize)
                     {
-                        throw new Exception("Downloaded file doesn't match expected size after download completion: " + newFile.FullName);
+                        throw new Exception($"Downloaded file doesn't match expected size after download completion.\nFile: {fpath}\nJob: {jn}");
                     }
                     downloadTasks.Remove(fpath);
                     return done;
@@ -693,7 +711,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="args"></param>
         private async Task<HttpResponseMessage> EshopPost(string url, HttpContent payload, Dictionary<string, string> args = null)
         {
-            var client = GetPostClient(EshopCert);
+            var client = GetPostClient(LoginCert);
             if (args != null) args.ToList().ForEach(x => client.DefaultRequestHeaders.Add(x.Key, x.Value));
             
             return await client.PostAsync(url, payload).ConfigureAwait(false);
@@ -868,6 +886,17 @@ namespace SwitchManager.nx.cdn
             return new CNMT(extractedCnmt.FullName, headerFile.FullName, cnmtDir.FullName, ncaPath);
         }
 
+        public async Task<HttpResponseMessage> GetEshopData(SwitchTitle title, string region, string lang)
+        {
+            if (this.EShopLoginToken == null || DateTime.Now >= this.EShopLoginToken.Expiration)
+            {
+                if (this.loginCertPath != null)
+                    this.EShopLoginToken = await LogInToEshop().ConfigureAwait(false);
+            }
+
+            return await GetEShopData(this.EShopLoginToken, title, region, lang);
+        }
+
         /// <summary>
         /// Eshop requests do not work. I suspect it has something to do with sending them a bearer token,
         /// but I have no idea how to get that, short of trying to log in with my own account and copying the token,
@@ -876,13 +905,58 @@ namespace SwitchManager.nx.cdn
         /// <param name="title"></param>
         /// <param name="lang"></param>
         /// <returns></returns>
-        public async Task<HttpResponseMessage> GetEshopData(EshopLogin token, SwitchTitle title, string lang)
+        public async Task<HttpResponseMessage> GetEShopData(EshopLogin login, SwitchTitle title, string region, string lang)
         {
-            string url = $"https://bugyo.hac.{environment}.eshop.nintendo.net/shogun/v1/contents/ids?shop_id=4&lang={lang}&country={region}&type=title&title_ids={title.TitleID}";
+            if (login == null) return null;
 
-            var response = await WebRequest(HttpMethod.Get, url, EshopCert).ConfigureAwait(false);
+            string nsuid = title.NsuId;
+            var args = new Dictionary<string, string> { { "X-DeviceAuthorization", $"Bearer {login.Token}" } };
+            string url;
+            HttpResponseMessage response;
 
-            return response;
+            if (string.IsNullOrWhiteSpace(nsuid))
+            {
+                url = $"https://bugyo.hac.{environment}.eshop.nintendo.net/shogun/v1/contents/ids?shop_id=4&lang={lang?.ToLower()}&country={region?.ToUpper()}&type=title&title_ids={title.TitleID}";
+
+                response = await WebRequest(HttpMethod.Get, url, EShopCert, args).ConfigureAwait(false);
+
+                string data = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (response.IsSuccessStatusCode)
+                {
+                    JObject json = JObject.Parse(data);
+                    foreach (var pair in json)
+                    {
+                        if ("id_pairs".Equals(pair.Key))
+                        {
+                            var idPairs = pair.Value;
+                            var first = idPairs.First();
+                            nsuid = title.NsuId = first.Value<string>("id");
+                        }
+                    }
+                    
+                    if (string.IsNullOrWhiteSpace(nsuid)) return null;
+                }
+                else if (response.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    throw new Exception("Failed to get eshop data because the connection was blocked/forbidden: " + data);
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            url = $"https://bugyo.hac.{environment}.eshop.nintendo.net/shogun/v1/titles/{nsuid}?shop_id=4&lang={lang?.ToLower()}&country={region?.ToUpper()}";
+
+            response = await WebRequest(HttpMethod.Get, url, EShopCert, args).ConfigureAwait(false);
+
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                return response;
+            }
+            else
+            {
+                return null;
+            }
         }
 
         private static byte[] MasterKey = { 0xC1, 0xDB, 0xED, 0xCE, 0xBF, 0x0D, 0xD6, 0x95, 0x60, 0x79, 0xE5, 0x06, 0xCF, 0xA1, 0xAF, 0x6E };
@@ -899,8 +973,10 @@ namespace SwitchManager.nx.cdn
         /// if I used my personal cert...
         /// </summary>
         /// <returns></returns>
-        public async Task<EshopLogin> EshopLogin()
+        public async Task<EshopLogin> LogInToEshop()
         {
+            if (LoginCert == null) return null;
+            
             string clientId = "93af0acb26258de9"; // whats this? device id or different?
             //string clientId2 = "81333c548b2e876d";
 
@@ -939,16 +1015,30 @@ namespace SwitchManager.nx.cdn
             var content = new ByteArrayContent(payload);
 
             response = await EshopPost(deviceAuthTokenUrl, content).ConfigureAwait(false);
-
             challengeData = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             challengeJson = JObject.Parse(challengeData);
+            if (response.IsSuccessStatusCode)
+            {
 
-            string token = challengeJson.Value<string>("device_auth_token");
-            long expires = challengeJson.Value<long>("expires");
+                string token = challengeJson.Value<string>("device_auth_token");
+                long expires = challengeJson.Value<long>("expires");
 
-            EshopLogin l = new EshopLogin(token, expires);
+                EshopLogin l = new EshopLogin(token, expires);
 
-            return l;
+                return l;
+            }
+            else
+            {
+                var errors = challengeJson["errors"];
+                if (errors.Count() > 0)
+                {
+                    var error = errors[0];
+                    string code = error.Value<string>("code");
+                    string message = error.Value<string>("message");
+                    logger.Warn($"Failed to log in to eshop. Error Code: {code} Message: {message}");
+                }
+                return null;
+            }
         }
 
         /// <summary>

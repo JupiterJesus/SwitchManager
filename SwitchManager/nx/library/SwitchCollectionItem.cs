@@ -40,14 +40,14 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Price")]
         public string Price { get { return title?.Price; } set { if (title != null) title.Price = value; } }
 
-        [XmlElement(ElementName = "Code")]
-        public string Code { get { return title?.Code; } set { if (title != null) title.Code = value; } }
+        [XmlElement(ElementName = "ProductCode")]
+        public string ProductCode { get { return title?.ProductCode; } set { if (title != null) title.ProductCode = value; } }
 
         [XmlElement(ElementName = "NsuId")]
         public string NsuId { get { return title?.NsuId; } set { if (title != null) title.NsuId = value; } }
 
         [XmlElement(ElementName = "NumPlayers")]
-        public string NumPlayers { get { return title?.NumPlayers; } set { if (title != null) title.NumPlayers = value; } }
+        public uint? NumPlayers { get { return title?.NumPlayers; } set { if (title != null) title.NumPlayers = value; } }
 
         [XmlElement(ElementName = "Rating")]
         public string Rating { get { return title?.Rating; } set { if (title != null) title.Rating = value; } }
@@ -75,12 +75,15 @@ namespace SwitchManager.nx.library
 
         [XmlElement(ElementName = "Description")]
         public string Description { get { return title?.Description; } set { if (title != null) title.Description = value; } }
-
+        
         [XmlElement(ElementName = "Region")]
         public string Region { get { return title?.Region; } set { if (title != null) title.Region = value; } }
 
         [XmlElement(ElementName = "Publisher")]
         public string Publisher { get { return title?.Publisher; } set { if (title != null) title.Publisher = value; } }
+
+        [XmlElement(ElementName = "OfficialSite")]
+        public string OfficialSite { get { return title?.OfficialSite; } set { if (title != null) title.OfficialSite = value; } }
 
         [XmlElement(ElementName = "DisplayVersion")]
         public string DisplayVersion { get { return title?.DisplayVersion; } set { if (title != null) title.DisplayVersion = value; } }
@@ -186,7 +189,7 @@ namespace SwitchManager.nx.library
         [XmlIgnore]
         public bool IsNew
         {
-            get { return State == SwitchCollectionState.New || State == SwitchCollectionState.NewNoKey; }
+            get { return State == SwitchCollectionState.New || State == SwitchCollectionState.NewNoKey || State == SwitchCollectionState.Unlockable; }
         }
 
         [XmlIgnore]

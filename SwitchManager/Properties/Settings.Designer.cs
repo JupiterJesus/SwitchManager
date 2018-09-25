@@ -448,5 +448,23 @@ namespace SwitchManager.Properties {
                 this["Region"] = value;
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("4")]
+        public int MaxConcurrentDownloads {
+            get {
+                return ((int)(this["MaxConcurrentDownloads"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("certs\\login.pfx")]
+        public string LoginCertPath {
+            get {
+                return ((string)(this["LoginCertPath"]));
+            }
+        }
     }
 }

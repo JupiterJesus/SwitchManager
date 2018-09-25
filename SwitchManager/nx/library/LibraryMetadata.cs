@@ -44,6 +44,9 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "BoxArt")]
         public string BoxArtUrl { get; set; }
 
+        [XmlElement(ElementName = "OfficialSite")]
+        public string OfficialSite { get; set; }
+
         [XmlElement(ElementName = "ReleaseDate")]
         public DateTime? ReleaseDate { get; set; }
 
@@ -54,7 +57,7 @@ namespace SwitchManager.nx.library
         public string RatingContent { get; set; }
 
         [XmlElement(ElementName = "NumPlayers")]
-        public string NumPlayers { get; set; }
+        public uint? NumPlayers { get; set; }
 
         [XmlElement(ElementName = "Size")]
         public long? Size { get; set; }
@@ -65,8 +68,8 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "NsuId")]
         public string NsuId { get; set; }
 
-        [XmlElement(ElementName = "Code")]
-        public string Code { get; set; }
+        [XmlElement(ElementName = "ProductCode")]
+        public string ProductCode { get; set; }
 
         [XmlElement(ElementName = "HasDLC")]
         public bool? HasDLC { get; set; }

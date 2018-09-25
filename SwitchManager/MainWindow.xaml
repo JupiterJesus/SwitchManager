@@ -159,7 +159,14 @@
               </StackPanel>
             </StackPanel>
             <StackPanel Margin="20,10" Orientation="Vertical" Width="400">
-              <TextBlock FontSize="16" Text="{Binding Path=Title.Name, Mode=OneWay}"/>
+              <TextBlock FontSize="14" FontWeight="DemiBold">
+                <TextBlock.Text>
+                  <MultiBinding StringFormat="{}{0} v{1}">
+                    <Binding Path="Title.Name" Mode="OneWay" TargetNullValue="Unknown" />
+                    <Binding Path="Title.DisplayVersion" Mode="OneWay" TargetNullValue="1.0.0"/>
+                  </MultiBinding>
+                </TextBlock.Text>
+              </TextBlock>
               <TextBlock Margin="5" FontSize="12" FontStyle="Italic">
                 <TextBlock.Text>
                   <MultiBinding StringFormat="Developed by {0}, Published by {1} on {2:MM/dd/yyyy}">
@@ -170,7 +177,18 @@
                 </TextBlock.Text>
               </TextBlock>
               <ScrollViewer Height="100" VerticalScrollBarVisibility="Auto">
-                <TextBlock Margin="5" FontSize="11" Text="{Binding Path=Title.Description, Mode=OneWay, TargetNullValue=No description available.}" /> 
+                <StackPanel HorizontalAlignment="Stretch" >
+                  <TextBlock Margin="5" FontSize="12" FontWeight="Bold" Text="{Binding Path=Title.Intro, Mode=OneWay, TargetNullValue=''}" HorizontalAlignment="Stretch" TextWrapping="Wrap"  />
+                  <TextBlock Margin="5" FontSize="11" Text="{Binding Path=Title.Description, Mode=OneWay, TargetNullValue=No description available.}" HorizontalAlignment="Stretch" TextWrapping="Wrap"  />
+                  <TextBlock Margin="5" FontSize="11" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
+                    <TextBlock.Text>
+                      <MultiBinding StringFormat="Rating {0} for {1}" >
+                        <Binding Path="Title.Rating" Mode="OneWay" TargetNullValue="Unknown" />
+                        <Binding Path="Title.RatingContent" Mode="OneWay" TargetNullValue="Unspecified Reasons"/>
+                      </MultiBinding>
+                    </TextBlock.Text>
+                  </TextBlock>
+                </StackPanel>
               </ScrollViewer>
             </StackPanel>
 

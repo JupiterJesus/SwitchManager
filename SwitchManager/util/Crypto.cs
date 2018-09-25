@@ -12,6 +12,7 @@ using Org.BouncyCastle.Crypto.Encodings;
 using Org.BouncyCastle.Crypto.Engines;
 using System.Security.Cryptography.X509Certificates;
 using log4net;
+using SwitchManager.io;
 
 namespace SwitchManager.util
 {
@@ -143,20 +144,17 @@ namespace SwitchManager.util
 
         public static System.Security.Cryptography.X509Certificates.X509Certificate LoadCertificate(string path, string password = null)
         {
+            if (!FileUtils.FileExists(path)) return null;
+            var certificate = password == null ? new System.Security.Cryptography.X509Certificates.X509Certificate2(path) : new System.Security.Cryptography.X509Certificates.X509Certificate2(path, password);
+            return certificate;
+
             //string contents = File.ReadAllText(path); 
             //byte[] bytes = GetBytesFromPEM(contents, "CERTIFICATE");
             //byte[] bytes = GetBytesFromPEM(contents, "RSA PRIVATE KEY");
             //var certificate = new X509Certificate2(bytes);
-            if (string.IsNullOrEmpty(path))
-                return null;
 
-            if (!File.Exists(path))
-                return null;
-
-            var certificate = password == null ? new System.Security.Cryptography.X509Certificates.X509Certificate2(path) : new System.Security.Cryptography.X509Certificates.X509Certificate2(path, password);
             //var certificate = X509Certificate.CreateFromSignedFile(path);
             //var certificate = X509Certificate.CreateFromCertFile(path);
-            return certificate;
         }
 
         public static byte[] GetBytesFromPEM(string pemString, string section)

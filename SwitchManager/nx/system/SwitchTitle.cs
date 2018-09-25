@@ -94,6 +94,13 @@ namespace SwitchManager.nx.system
             set { this.boxArtUrl = value; NotifyPropertyChanged("BoxArtUrl"); NotifyPropertyChanged("Icon"); }
         }
 
+        private string officialSite;
+        public string OfficialSite
+        {
+            get { return officialSite; }
+            set { this.officialSite = value; NotifyPropertyChanged("OfficialSite"); }
+        }
+
         public uint BaseVersion { get { return 0; } }
 
         private uint? latestVersion;
@@ -127,7 +134,7 @@ namespace SwitchManager.nx.system
         }
 
         private string code;
-        public string Code
+        public string ProductCode
         {
             get { return code; }
             set { this.code = value; NotifyPropertyChanged("Code"); }
@@ -140,8 +147,8 @@ namespace SwitchManager.nx.system
             set { this.nsuId = value; NotifyPropertyChanged("NsuId"); }
         }
 
-        private string numPlayers;
-        public string NumPlayers
+        private uint? numPlayers;
+        public uint? NumPlayers
         {
             get { return numPlayers; }
             set { this.numPlayers = value; NotifyPropertyChanged("NumPlayers"); }
@@ -235,6 +242,8 @@ namespace SwitchManager.nx.system
         public bool IsTitleKeyValid { get { return SwitchTitle.CheckValidTitleKey(this.titlekey); }  }
 
         public bool HasIcon { get { return FileUtils.FileExists(Icon) || !string.IsNullOrWhiteSpace(BoxArtUrl); } }
+
+        public string EshopLink { get { return $"https://ec.nintendo.com/apps/{TitleID}/{Region ?? "US"}"; } }
 
         internal SwitchTitle(string name, string titleid, string titlekey)
         {
@@ -348,6 +357,17 @@ namespace SwitchManager.nx.system
             string zerokey = "00000000000000000000000000000000";
             if (string.IsNullOrWhiteSpace(tkey) || tkey.Length != 32) return false;
             if (zerokey.Equals(tkey)) return false;
+
+            return true;
+        }
+
+        public static bool CheckValidTitleID(string tid)
+        {
+            string zerokey = "0000000000000000";
+            if (string.IsNullOrWhiteSpace(tid)) return false;
+            if (tid.Length < 16) return false;
+            tid = tid.Substring(0, 16);
+            if (zerokey.Equals(tid)) return false;
 
             return true;
         }
