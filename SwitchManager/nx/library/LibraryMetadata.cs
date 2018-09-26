@@ -68,6 +68,12 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "NsuId")]
         public string NsuId { get; set; }
 
+        [XmlElement(ElementName = "ProductId")]
+        public string ProductId { get; set; }
+
+        [XmlElement(ElementName = "SLUG")]
+        public string SLUG { get; set; }
+
         [XmlElement(ElementName = "ProductCode")]
         public string ProductCode { get; set; }
 
@@ -76,9 +82,6 @@ namespace SwitchManager.nx.library
 
         [XmlElement(ElementName = "HasAmiibo")]
         public bool? HasAmiibo { get; set; }
-
-        [XmlElement(ElementName = "SLUG")]
-        public string SLUG { get; set; }
 
         [XmlElement(ElementName = "Price")]
         public string Price { get; set; }

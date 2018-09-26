@@ -1149,7 +1149,7 @@ namespace SwitchManager
 
         private void SelectLibraryLocation_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.NSPDirectory, Description = "Choose a directory to store downloaded titles" };
+            var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.NSPDirectory, Description = "Choose a directory to store repacked NSP titles." };
             bool? result = dialog.ShowDialog();
             if (result ?? false)
             {
@@ -1163,12 +1163,52 @@ namespace SwitchManager
             }
         }
 
+        private void SelectTempLocation_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.TempDirectory, Description = "Choose a directory to store downloaded title files." };
+            bool? result = dialog.ShowDialog();
+            if (result ?? false)
+            {
+                if (!string.IsNullOrWhiteSpace(dialog.SelectedPath))
+                {
+                    if (Directory.Exists(dialog.SelectedPath))
+                    {
+                        Settings.Default.TempDirectory = dialog.SelectedPath;
+                    }
+                }
+            }
+        }
+
         private void SaveLibrary_Click(object sender, RoutedEventArgs e)
         {
             string file = Settings.Default.MetadataFile;
             if (string.IsNullOrWhiteSpace(Path.GetExtension(file)))
                 file += ".xml";
             this.library.SaveMetadata(file);
+        }
+
+        private void ExportLibrary_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".json",
+                Filter = "Game Info JSON (*.json)|*.json|Library Metadata XML (*.xml)|*.xml",
+                InitialDirectory = Path.GetDirectoryName(Settings.Default.MetadataFile),
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string exportFile = Path.GetFullPath(dlg.FileName);
+                try
+                {
+                    library.ExportLibrary(exportFile);
+                }
+                catch (Exception ex)
+                {
+                    ShowError($"There was an unknown error while exporting the library data.\nFile: {exportFile}\nMessage: {ex.Message}");
+                }
+            }
         }
 
         #region NSP Menu

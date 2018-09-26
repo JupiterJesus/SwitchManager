@@ -15,9 +15,11 @@ namespace SwitchManager.nx.library
         public uint Version { get { return update.Version; } set { if (update != null) update.Version = value; } }
         
         public override bool ShouldSerializeHasDLC() { return false; }
+        public override bool ShouldSerializeIsDemo() { return false; }
         public override bool ShouldSerializeHasAmiibo() { return false; }
         public override bool ShouldSerializeReleaseDate() { return false; }
         public override bool ShouldSerializeLatestVersion() { return false; }
+        public override bool ShouldSerializeNumPlayers() { return false; }
 
         /// <summary>
         /// Default constructor. I don't like these but XmlSerializer requires it, even though I have NO NO NO

@@ -541,17 +541,23 @@ namespace SwitchManager.nx.cdn
 
                 task = StartDownload(fs, result, expectedSize, downloaded, jobName).ContinueWith(a =>
                 {
-                    string jn = jobName;
-                    bool done = a.Result;
-                    fs.Dispose();
-                    result.Dispose();
-                    
-                    if (done && expectedSize != 0 && FileUtils.GetFileSystemSize(fpath) != expectedSize)
+                    try
                     {
-                        throw new Exception($"Downloaded file doesn't match expected size after download completion.\nFile: {fpath}\nJob: {jn}");
+                        string jn = jobName;
+                        bool done = a.Result;
+                        if (done && expectedSize != 0 && FileUtils.GetFileSystemSize(fpath) != expectedSize)
+                        {
+                            throw new Exception($"Downloaded file doesn't match expected size after download completion.\nFile: {fpath}\nJob: {jn}");
+                        }
+                        return done;
                     }
-                    downloadTasks.Remove(fpath);
-                    return done;
+                    finally
+                    {
+                        fs.Dispose();
+                        result.Dispose();
+
+                        downloadTasks.Remove(fpath);
+                    }
                 });
                 downloadTasks.Add(fpath, task);
             }

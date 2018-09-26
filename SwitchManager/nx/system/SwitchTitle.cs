@@ -147,6 +147,20 @@ namespace SwitchManager.nx.system
             set { this.nsuId = value; NotifyPropertyChanged("NsuId"); }
         }
 
+        private string productId;
+        public string ProductId
+        {
+            get { return productId; }
+            set { this.productId = value; NotifyPropertyChanged("ProductId"); }
+        }
+
+        private string slug;
+        public string SLUG
+        {
+            get { return slug; }
+            set { this.slug = value; NotifyPropertyChanged("SLUG"); }
+        }
+
         private uint? numPlayers;
         public uint? NumPlayers
         {

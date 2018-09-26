@@ -49,25 +49,31 @@
         <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
         <MenuItem x:Name="MenuItem_LoadKeys" Header="_Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
         <MenuItem x:Name="MenuItem_PasteKeys" Header="_Paste Title Keys" ToolTip="Paste a bunch of title keys directly into the app." Click="MenuItemPasteKeys_Click"/>
-        <MenuItem x:Name="MenuItem_ImportGameInfo" Header="Import _Game Info" ToolTip="Imports Game_info.json file from CDNSP. This only needs to be done one time, though you can do it again with newer version of the file to update missing games." Click="ImportGameInfo_Click"/>
         <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials" ToolTip="Imports a PEM certificate (used by CDNSP) into SwitchManager by converting it to a PKCS12 (PFX) file." Click="MenuItemImportCreds_Click"/>
-        <MenuItem x:Name="MenuItem_PreloadImages" Header="Preload Game Icons" ToolTip="Loads and caches all title images directly from the CDN game files. If you have the boxart already displaying or have already loaded all images, this is not necessary." Click="MenuItemPreloadImages_Click"/>
+        <MenuItem x:Name="MenuItem_PreloadImages" Header="Preload Game Icons" ToolTip="Loads and caches all title images directly from the CDN game files. If you have the boxart already displaying or have already loaded all images, this is not necessary unless you disabled box art." Click="MenuItemPreloadImages_Click"/>
         <!--MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game _Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own, but only if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/-->
-        <MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/>
+        <!--<MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/-->
       </MenuItem>
       <MenuItem Header="_Library">
         <MenuItem Header="Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="ScanLibrary_Click"/>
-        <MenuItem Header="Select _Download Directory" ToolTip="Choose a directory to store newly downloaded titles." Click="SelectLibraryLocation_Click"/>
+        <MenuItem x:Name="MenuItem_ImportGameInfo" Header="Import _Game Info" ToolTip="Imports Game_info.json file from CDNSP. This only needs to be done one time, though you can do it again with newer version of the file to update missing games." Click="ImportGameInfo_Click"/>
+        <MenuItem x:Name="MenuItem_ExportLibrary" Header="Export _Library" ToolTip="Exports your library data into GameInfo json or XML, removing all personal information." Click="ExportLibrary_Click"/>
+        <MenuItem Header="Select _NSP Directory" ToolTip="Choose a directory to store newly repacked NSPs." Click="SelectLibraryLocation_Click"/>
+        <MenuItem Header="Select _Download/Temp Directory" ToolTip="Choose a directory to store unpacked title files." Click="SelectTempLocation_Click"/>
         <MenuItem Header="Save Library _Metadata" Click="SaveLibrary_Click"/>
       </MenuItem>
       <MenuItem Header="_NSP">
-        <MenuItem Header="Unpack NSP (and verify)" ToolTip="" Click="UnpackNSP_Click"/>
-        <MenuItem Header="Unpack NSP (and all NCAs within)" ToolTip="" Click="UnpackNSPFiles_Click"/>
-        <MenuItem Header="Unpack and Repack NSP (and verify)" ToolTip="" Click="RepackNSP_Click"/>
-        <MenuItem Header="Repack Directory" ToolTip="" Click="RepackDir_Click"/>
-        <MenuItem Header="Verify Directory" ToolTip="" Click="VerifyDir_Click"/>
+        <MenuItem Header="Unpack NSP (and verify)" ToolTip="Unpack an NSP into a directory full of its files." Click="UnpackNSP_Click"/>
+        <MenuItem Header="Unpack NSP (and all NCAs within)" ToolTip="Unpack and NSP and decrypt all of its NCA files." Click="UnpackNSPFiles_Click"/>
+        <MenuItem Header="Unpack and Repack NSP (and verify)" ToolTip="Unpacks and repacks an NSP, in case it is missing files or a title key (may work with NSX files?)." Click="RepackNSP_Click"/>
+        <MenuItem Header="Repack Directory" ToolTip="Repack a downloaded title full of files into an NSP" Click="RepackDir_Click"/>
+        <MenuItem Header="Verify Directory" ToolTip="Verifies the files in a title directory." Click="VerifyDir_Click"/>
       </MenuItem>
       <MenuItem Header="_Options">
+        <MenuItem Header="Use Switch Icon" ToolTip="Swap between using the internal switch icons (must be downloaded and unpacked) and the box art (linked from the game's eshop page)." />
+        <MenuItem Header="Repack NSPs" ToolTip="Always pack downloaded titles into NSP form, or leave them in the temp directory. Preloads are never repacked." />
+        <MenuItem Header="Delete Unpacked Titles" ToolTip="Always delete downloaded NCA files after repacking them into NSPs. This is not recommended unless you are desperate for space. Preloads are never deleted until they are unlocked and repacked." />
+        <MenuItem Header="Enable Simultaneous Downloads" ToolTip="Always pack downloaded titles into NSP form, or leave them in the temp directory. Preloads are never repacked." />
       </MenuItem>
     </Menu>
 

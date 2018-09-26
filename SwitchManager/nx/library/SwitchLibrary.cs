@@ -217,6 +217,8 @@ namespace SwitchManager.nx.library
                         if (!string.IsNullOrWhiteSpace(item.Rating)) ci.Rating = item.Rating;
                         if (!string.IsNullOrWhiteSpace(item.NsuId)) ci.NsuId = item.NsuId;
                         if (!string.IsNullOrWhiteSpace(item.ProductCode)) ci.ProductCode = item.ProductCode;
+                        if (!string.IsNullOrWhiteSpace(item.ProductId)) ci.ProductId = item.ProductId;
+                        if (!string.IsNullOrWhiteSpace(item.SLUG)) ci.SLUG = item.SLUG;
                         if (!string.IsNullOrWhiteSpace(item.RatingContent)) ci.RatingContent = item.RatingContent;
                         if (!string.IsNullOrWhiteSpace(item.Price)) ci.Price = item.Price;
                         if (!string.IsNullOrWhiteSpace(item.Region)) ci.Region = item.Region;
@@ -293,6 +295,46 @@ namespace SwitchManager.nx.library
             {
                 item.Icon = null;
                 item.BoxArtUrl = null;
+            }
+        }
+
+        public void ExportLibrary(string exportFile)
+        {
+            ExportLibrary(exportFile, this.Collection.ToArray());
+        }
+
+        public void ExportLibrary(string exportFile, params SwitchCollectionItem[] items)
+        {
+            if (items == null || items.Length == 0) return;
+
+            using (var stream = FileUtils.OpenWriteStream(exportFile))
+            {
+                if (exportFile.EndsWith("xml"))
+                {
+                    XmlAttributeOverrides overrides = new XmlAttributeOverrides();
+                    XmlAttributes attribs = new XmlAttributes
+                    {
+                        XmlIgnore = true
+                    };
+                    attribs.XmlElements.Add(new XmlElementAttribute("Icon"));
+                    attribs.XmlElements.Add(new XmlElementAttribute("State"));
+                    attribs.XmlElements.Add(new XmlElementAttribute("Favorite"));
+                    attribs.XmlElements.Add(new XmlElementAttribute("Added"));
+                    attribs.XmlElements.Add(new XmlElementAttribute("Path"));
+                    overrides.Add(typeof(SwitchCollectionItem), attribs);
+
+                    XmlSerializer ser = new XmlSerializer(typeof(SwitchCollectionItem), overrides);
+                    ser.Serialize(stream, items);
+                }
+                else if (exportFile.EndsWith("json"))
+                {
+                    JObject rootJson = new JObject();
+                    foreach (var ci in items)
+                    {
+                        string tid = ci.TitleId;
+                        JObject key = this.CreateGameInfoJson(ci);
+                    }
+                }
             }
         }
 
@@ -1110,13 +1152,16 @@ namespace SwitchManager.nx.library
                         if (pregion.Equals(region))
                         {
                             item = LoadTitle(id, key, name, version);
-                            if (item != null) newTitles.Add(item);
+                            if (item != null)
+                            {
+                                newTitles.Add(item);
 
-                            // If the key is missing, mark it as such, otherwise it is a properly working New title
-                            if (item.Title.IsTitleKeyValid)
-                                item.State = SwitchCollectionState.New;
-                            else
-                                item.State = SwitchCollectionState.NewNoKey;
+                                // If the key is missing, mark it as such, otherwise it is a properly working New title
+                                if (item.Title.IsTitleKeyValid)
+                                    item.State = SwitchCollectionState.New;
+                                else
+                                    item.State = SwitchCollectionState.NewNoKey;
+                            }
                         }
                     }
                     else
@@ -1357,7 +1402,49 @@ namespace SwitchManager.nx.library
             return titlesByID.TryGetValue(titleID, out SwitchCollectionItem returnValue) ? returnValue : null;
         }
 
-        internal LibraryMetadataItem ParseGameInfoJson(string tid, JToken jsonGame)
+        public JObject CreateGameInfoJson(SwitchCollectionItem title)
+        {
+            string link = title?.Title?.EshopLink;
+            if (link == null) return null;
+            var doc = Dcsoup.Parse(new Uri(link), 5000);
+
+            JObject json = new JObject();
+            json.Add("titleid", title.TitleId);
+            json.Add("title", title.TitleName);
+            json.Add("eshop_link", link);
+            if (title.Size.HasValue) json.Add("Game_size", title.Size.Value);
+            json.Add("description", title.Description);
+            json.Add("intro", title.Intro);
+            if (title.HasDLC.HasValue) json.Add("dlc", title.HasDLC.Value.ToString());
+            if (title.HasAmiibo.HasValue) json.Add("amiibo_compatibility", title.HasAmiibo.Value.ToString());
+            json.Add("front_box_art", title.BoxArtUrl);
+            json.Add("official_site", title.OfficialSite);
+            json.Add("date_added", DateTime.Now.ToString("yyyyMMdd"));
+            json.Add("content", title.RatingContent);
+            json.Add("release_date_string", title.ReleaseDate?.ToString("MMM dd, yyyy"));
+            json.Add("release_date_iso", title.ReleaseDate?.ToString("yyyyMMdd"));
+            json.Add("category", title.Category);
+            json.Add("publisher", title.Publisher);
+            json.Add("developer", title.Developer);
+            json.Add("nsuid", title.NsuId);
+            json.Add("product_id", title.ProductId);
+            json.Add("slug", title.Title.SLUG);
+            json.Add("game_code", title.ProductCode);
+            json.Add("price", title.Price);
+            json.Add(title.Region + "_price", title.Price);
+            json.Add("rating", title.Rating);
+
+            switch (title.NumPlayers)
+            {
+                case 1: json.Add("number_of_players", "1 player"); break;
+                case 2: json.Add("number_of_players", "2 players simultaneous"); break;
+                default: json.Add("number_of_players", $"up to {title.NumPlayers} players"); break;
+            }
+
+            return json;
+        }
+
+        public LibraryMetadataItem ParseGameInfoJson(string tid, JToken jsonGame)
         {
             if (SwitchTitle.IsBaseGameID(tid) && jsonGame.HasValues)
             {
@@ -1376,6 +1463,8 @@ namespace SwitchManager.nx.library
                 game.ProductCode = jsonGame?.Value<string>("game_code");
                 game.RatingContent = jsonGame?.Value<string>("content");
                 game.OfficialSite = jsonGame?.Value<string>("official_site");
+                game.ProductId = jsonGame?.Value<string>("product_id");
+                game.SLUG = jsonGame?.Value<string>("slug");
 
                 string price = jsonGame?.Value<string>("price");
                 if (price == null)

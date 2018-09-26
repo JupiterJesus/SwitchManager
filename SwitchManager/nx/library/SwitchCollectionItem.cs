@@ -46,6 +46,12 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "NsuId")]
         public string NsuId { get { return title?.NsuId; } set { if (title != null) title.NsuId = value; } }
 
+        [XmlElement(ElementName = "ProductId")]
+        public string ProductId { get { return title?.ProductId; } set { if (title != null) title.ProductId = value; } }
+
+        [XmlElement(ElementName = "SLUG")]
+        public string SLUG { get { return title?.SLUG; } set { if (title != null) title.SLUG = value; } }
+
         [XmlElement(ElementName = "NumPlayers")]
         public uint? NumPlayers { get { return title?.NumPlayers; } set { if (title != null) title.NumPlayers = value; } }
 
@@ -110,32 +116,6 @@ namespace SwitchManager.nx.library
             set { this.state = value; NotifyPropertyChanged("State"); }
         }
         private SwitchCollectionState state;
-
-        [XmlIgnore]
-        public string StateName
-        {
-            get
-            {
-                switch (this.State)
-                {
-                    case SwitchCollectionState.Owned: return "Owned";
-                    case SwitchCollectionState.OnSwitch: return "On Switch";
-                    case SwitchCollectionState.New: return "New";
-                    default: return "Not Owned";
-                }
-            }
-            set
-            {
-                switch (value)
-                {
-                    case "Owned": this.state = SwitchCollectionState.Owned; break;
-                    case "On Switch": this.state = SwitchCollectionState.OnSwitch; break;
-                    case "New": this.state = SwitchCollectionState.New; break;
-                    default: this.state = SwitchCollectionState.NotOwned; break;
-                }
-                NotifyPropertyChanged("StateName");
-            }
-        }
         
         [XmlElement(ElementName = "Favorite")]
         public bool IsFavorite
@@ -160,13 +140,7 @@ namespace SwitchManager.nx.library
         public string RomPath
         {
             get { return romPath; }
-            set
-            {
-                this.romPath = value;
-                NotifyPropertyChanged("RomPath");
-                NotifyPropertyChanged("PrettySize");
-                NotifyPropertyChanged("Size");
-            }
+            set { this.romPath = value; NotifyPropertyChanged("RomPath"); }
         }
         private string romPath;
 
@@ -225,9 +199,11 @@ namespace SwitchManager.nx.library
         #region XML
 
         public virtual bool ShouldSerializeHasDLC() { return true; }
+        public virtual bool ShouldSerializeIsDemo() { return true; }
         public virtual bool ShouldSerializeHasAmiibo() { return true; }
         public virtual bool ShouldSerializeReleaseDate() { return true; }
         public virtual bool ShouldSerializeLatestVersion() { return true; }
+        public virtual bool ShouldSerializeNumPlayers() { return true; }
 
         #endregion
 
