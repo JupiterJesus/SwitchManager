@@ -117,6 +117,7 @@
     <Compile Include="io\FileUtils.cs" />
     <Compile Include="nx\system\SwitchFirmware.cs" />
     <Compile Include="nx\system\RatingOrganisation.cs" />
+    <Compile Include="ui\TitleIconConverter.cs" />
     <Compile Include="util\HactoolFailedException.cs" />
     <Compile Include="io\JobFileStream.cs" />
     <Compile Include="nx\system\InvalidNspException.cs" />

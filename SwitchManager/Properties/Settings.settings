@@ -122,5 +122,8 @@
     <Setting Name="LoginCertPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">certs\login.pfx</Value>
     </Setting>
+    <Setting Name="XCIDirectory" Type="System.String" Scope="User">
+      <Value Profile="(Default)">D:\Emulation\nws\roms\xci</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

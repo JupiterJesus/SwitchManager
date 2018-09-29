@@ -66,11 +66,11 @@ namespace SwitchManager.nx.system
         [XmlElement(ElementName = "Digest")]
         public string Digest
         {
-            get { return Miscellaneous.BytesToHex(hash); }
+            get { return Miscellaneous.BytesToHex(Hash); }
             set
             {
                 if (value.Length != 64) throw new Exception("Coudn't read CNMT Digest from string");
-                this.hash = Miscellaneous.HexToBytes(value);
+                this.Hash = Miscellaneous.HexToBytes(value);
             }
         }
 
@@ -108,7 +108,7 @@ namespace SwitchManager.nx.system
         private ushort tableOffset;
         private ushort numContentEntries;
         private ushort numMetaEntries;
-        private byte[] hash;
+        public byte[] Hash { get; set; }
 
         /// <summary>
         /// Constructor for reading from XML or building up from scratch using data rather than files on disk
@@ -167,7 +167,7 @@ namespace SwitchManager.nx.system
             br.BaseStream.Seek(0x28, SeekOrigin.Begin); this.RequiredSystemVersion = br.ReadInt64();
 
             // Get the hash/digest from the last 0x20 bytes
-            br.BaseStream.Seek(-0x20, SeekOrigin.End); this.hash = br.ReadBytes(0x20);
+            br.BaseStream.Seek(-0x20, SeekOrigin.End); this.Hash = br.ReadBytes(0x20);
             
             br.Close();
 

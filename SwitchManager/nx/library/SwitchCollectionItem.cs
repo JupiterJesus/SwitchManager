@@ -1,4 +1,5 @@
-﻿using SwitchManager.nx.system;
+﻿using SwitchManager.io;
+using SwitchManager.nx.system;
 using SwitchManager.util;
 using System;
 using System.Collections.Generic;
@@ -283,6 +284,17 @@ namespace SwitchManager.nx.library
                 if (u.Version == version) return u;
             }
             return null;
+        }
+
+        internal void SetNspFile(string nspFile)
+        {
+            if (Title.IsTitleKeyValid)
+                State = SwitchCollectionState.Owned;
+            else
+                State = SwitchCollectionState.Downloaded;
+            Added = DateTime.Now;
+            this.RomPath = nspFile;
+            this.Size = FileUtils.GetFileSystemSize(nspFile);
         }
     }
 }

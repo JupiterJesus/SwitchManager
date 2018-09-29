@@ -146,7 +146,7 @@ namespace SwitchManager.nx.library
         /// Loads library metadata. This data is related directly to your collection, rather than titles or keys and whatnot.
         /// </summary>
         /// <param name="filename"></param>
-        internal async Task LoadMetadata(LibraryMetadataItem[] metadata, bool allowRepair)
+        public async Task LoadMetadata(IEnumerable<LibraryMetadataItem> metadata, bool allowRepair)
         {
             if (metadata != null)
             {
@@ -158,88 +158,92 @@ namespace SwitchManager.nx.library
                     foreach (var item in metadata)
                     {
                         if (allowRepair) RepairMetadata(item);
-                        SwitchCollectionItem ci = GetTitleByID(item.TitleID);
-                        if (ci == null)
-                        {
-                            ci = LoadTitle(item.TitleID, item.TitleKey, item.Name, 0 /*ignore,only for updates*/);
-                        }
-                        else
-                        {
-                            // UPDATE TITLE KEY JUST IN CASE IT IS MISSING
-                            if (item.TitleKey != null) ci.Title.TitleKey = item.TitleKey;
-
-                            // ONLY UPDATE NAME IF IT IS MISSING
-                            // I USED TO LET IT UPDATE NAMES FROM THE OFFICIAL SOURCE
-                            // BUT THE NAMES ARE OFTEN LOW QUALITY OR MISSING REGION SIGNIFIERS OR DEMO LABELS AND FILLED
-                            // WITH UNICODE SYMBOLS
-                            if (item.Name != null)
-                            {
-                                if (string.IsNullOrWhiteSpace(ci.TitleName))
-                                    ci.Title.Name = item.Name;
-                                //else if (ci.Title.IsDemo && !(item.Name.ToUpper().Contains("DEMO") || item.Name.ToUpper().Contains("SPECIAL TRIAL") || item.Name.ToUpper().Contains("TRIAL VER")))
-                                //    ci.Title.Name = item.Name + " Demo";
-                            }
-                        }
-
-                        // Collection State enum
-                        if (item.State.HasValue) ci.State = item.State.Value;
-
-                        // long?
-                        if (item.Size.HasValue) ci.Size = item.Size;
-                        if (item.RequiredSystemVersion.HasValue) ci.RequiredSystemVersion = item.RequiredSystemVersion;
-
-                        // uint?
-                        if (item.LatestVersion.HasValue) ci.LatestVersion = item.LatestVersion;
-                        if (item.NumPlayers.HasValue) ci.NumPlayers = item.NumPlayers;
-
-                        // byte?
-                        if (item.MasterKeyRevision.HasValue) ci.MasterKeyRevision = item.MasterKeyRevision;
-
-                        // bool?
-                        if (item.IsFavorite.HasValue) ci.IsFavorite = item.IsFavorite.Value;
-                        if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC;
-                        if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo;
-                        if (item.IsDemo.HasValue) ci.IsDemo = item.IsDemo.Value;
-                        
-                        // datetime
-                        if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
-                        if (item.Added.HasValue) ci.Added = item.Added;
-
-                        // string
-                        if (!string.IsNullOrWhiteSpace(item.Path)) ci.RomPath = item.Path;
-                        if (!string.IsNullOrWhiteSpace(item.Developer)) ci.Developer = item.Developer;
-                        if (!string.IsNullOrWhiteSpace(item.Publisher)) ci.Publisher = item.Publisher;
-                        if (!string.IsNullOrWhiteSpace(item.Description)) ci.Description = item.Description;
-                        if (!string.IsNullOrWhiteSpace(item.Intro)) ci.Intro = item.Intro;
-                        if (!string.IsNullOrWhiteSpace(item.Category)) ci.Category = item.Category;
-                        if (!string.IsNullOrWhiteSpace(item.BoxArtUrl)) ci.BoxArtUrl = item.BoxArtUrl;
-                        if (!string.IsNullOrWhiteSpace(item.Icon)) ci.Icon = item.Icon;
-                        if (!string.IsNullOrWhiteSpace(item.Rating)) ci.Rating = item.Rating;
-                        if (!string.IsNullOrWhiteSpace(item.NsuId)) ci.NsuId = item.NsuId;
-                        if (!string.IsNullOrWhiteSpace(item.ProductCode)) ci.ProductCode = item.ProductCode;
-                        if (!string.IsNullOrWhiteSpace(item.ProductId)) ci.ProductId = item.ProductId;
-                        if (!string.IsNullOrWhiteSpace(item.SLUG)) ci.SLUG = item.SLUG;
-                        if (!string.IsNullOrWhiteSpace(item.RatingContent)) ci.RatingContent = item.RatingContent;
-                        if (!string.IsNullOrWhiteSpace(item.Price)) ci.Price = item.Price;
-                        if (!string.IsNullOrWhiteSpace(item.Region)) ci.Region = item.Region;
-                        if (!string.IsNullOrWhiteSpace(item.DisplayVersion)) ci.DisplayVersion = item.DisplayVersion;
-                        if (!string.IsNullOrWhiteSpace(item.OfficialSite)) ci.OfficialSite = item.OfficialSite;
-
-                        if (item.Updates != null)
-                            foreach (var update in item.Updates)
-                            {
-                                if (update.Version > 0)
-                                {
-                                    if (allowRepair) RepairMetadata(update);
-                                    AddUpdateTitle(update, item.TitleID);
-                                }
-                            }
-
+                        LoadMetadata(item, allowRepair);
                         job.UpdateProgress(1);
                     }
                     job.Finish();
                 }).ConfigureAwait(false);
             }
+        }
+
+        public void LoadMetadata(LibraryMetadataItem item, bool allowRepair)
+        {
+            SwitchCollectionItem ci = GetTitleByID(item.TitleID);
+            if (ci == null)
+            {
+                ci = LoadTitle(item.TitleID, item.TitleKey, item.Name, 0 /*ignore,only for updates*/);
+            }
+            else
+            {
+                // UPDATE TITLE KEY JUST IN CASE IT IS MISSING
+                if (item.TitleKey != null) ci.Title.TitleKey = item.TitleKey;
+
+                // ONLY UPDATE NAME IF IT IS MISSING
+                // I USED TO LET IT UPDATE NAMES FROM THE OFFICIAL SOURCE
+                // BUT THE NAMES ARE OFTEN LOW QUALITY OR MISSING REGION SIGNIFIERS OR DEMO LABELS AND FILLED
+                // WITH UNICODE SYMBOLS
+                if (item.Name != null)
+                {
+                    if (string.IsNullOrWhiteSpace(ci.TitleName))
+                        ci.Title.Name = item.Name;
+                    //else if (ci.Title.IsDemo && !(item.Name.ToUpper().Contains("DEMO") || item.Name.ToUpper().Contains("SPECIAL TRIAL") || item.Name.ToUpper().Contains("TRIAL VER")))
+                    //    ci.Title.Name = item.Name + " Demo";
+                }
+            }
+
+            // Collection State enum
+            if (item.State.HasValue) ci.State = item.State.Value;
+
+            // long?
+            if (item.Size.HasValue) ci.Size = item.Size;
+            if (item.RequiredSystemVersion.HasValue) ci.RequiredSystemVersion = item.RequiredSystemVersion;
+
+            // uint?
+            if (item.LatestVersion.HasValue) ci.LatestVersion = item.LatestVersion;
+            if (item.NumPlayers.HasValue) ci.NumPlayers = item.NumPlayers;
+
+            // byte?
+            if (item.MasterKeyRevision.HasValue) ci.MasterKeyRevision = item.MasterKeyRevision;
+
+            // bool?
+            if (item.IsFavorite.HasValue) ci.IsFavorite = item.IsFavorite.Value;
+            if (item.HasDLC.HasValue) ci.HasDLC = item.HasDLC;
+            if (item.HasAmiibo.HasValue) ci.HasAmiibo = item.HasAmiibo;
+            if (item.IsDemo.HasValue) ci.IsDemo = item.IsDemo.Value;
+
+            // datetime
+            if (item.ReleaseDate.HasValue) ci.ReleaseDate = item.ReleaseDate;
+            if (item.Added.HasValue) ci.Added = item.Added;
+
+            // string
+            if (!string.IsNullOrWhiteSpace(item.Path)) ci.RomPath = item.Path;
+            if (!string.IsNullOrWhiteSpace(item.Developer)) ci.Developer = item.Developer;
+            if (!string.IsNullOrWhiteSpace(item.Publisher)) ci.Publisher = item.Publisher;
+            if (!string.IsNullOrWhiteSpace(item.Description)) ci.Description = item.Description;
+            if (!string.IsNullOrWhiteSpace(item.Intro)) ci.Intro = item.Intro;
+            if (!string.IsNullOrWhiteSpace(item.Category)) ci.Category = item.Category;
+            if (!string.IsNullOrWhiteSpace(item.BoxArtUrl)) ci.BoxArtUrl = item.BoxArtUrl;
+            if (!string.IsNullOrWhiteSpace(item.Icon)) ci.Icon = item.Icon;
+            if (!string.IsNullOrWhiteSpace(item.Rating)) ci.Rating = item.Rating;
+            if (!string.IsNullOrWhiteSpace(item.NsuId)) ci.NsuId = item.NsuId;
+            if (!string.IsNullOrWhiteSpace(item.ProductCode)) ci.ProductCode = item.ProductCode;
+            if (!string.IsNullOrWhiteSpace(item.ProductId)) ci.ProductId = item.ProductId;
+            if (!string.IsNullOrWhiteSpace(item.SLUG)) ci.SLUG = item.SLUG;
+            if (!string.IsNullOrWhiteSpace(item.RatingContent)) ci.RatingContent = item.RatingContent;
+            if (!string.IsNullOrWhiteSpace(item.Price)) ci.Price = item.Price;
+            if (!string.IsNullOrWhiteSpace(item.Region)) ci.Region = item.Region;
+            if (!string.IsNullOrWhiteSpace(item.DisplayVersion)) ci.DisplayVersion = item.DisplayVersion;
+            if (!string.IsNullOrWhiteSpace(item.OfficialSite)) ci.OfficialSite = item.OfficialSite;
+
+            if (item.Updates != null)
+                foreach (var update in item.Updates)
+                {
+                    if (update.Version > 0)
+                    {
+                        if (allowRepair) RepairMetadata(update);
+                        AddUpdateTitle(update, item.TitleID);
+                    }
+                }
         }
 
         private void RepairMetadata(LibraryMetadataItem item)
@@ -599,7 +603,7 @@ namespace SwitchManager.nx.library
                 {
                     if (title.IsGame || title.IsDemo || title.IsDLC)
                     {
-                        return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
+                        return await DoNspDownloadAndRepack(title, v, dinfo, repack).ConfigureAwait(false);
                     }
                     else
                         throw new Exception("Don't try to download an update with version 0!");
@@ -610,7 +614,7 @@ namespace SwitchManager.nx.library
                         throw new Exception("Don't try to download an update using base game's ID!");
                     else
                     {
-                        return await DoNspDownloadAndRepack(title, v, dinfo, repack, verify).ConfigureAwait(false);
+                        return await DoNspDownloadAndRepack(title, v, dinfo, repack).ConfigureAwait(false);
                     }
                 }
             }
@@ -621,9 +625,9 @@ namespace SwitchManager.nx.library
             }
         }
 
-        public async Task<string> DoNspDownloadAndRepack(SwitchTitle title, uint version, DirectoryInfo dir, bool repack, bool verify)
+        public async Task<string> DoNspDownloadAndRepack(SwitchTitle title, uint version, DirectoryInfo dir, bool repack)
         {
-            var nsp = await Loader.DownloadTitle(title, version, dir.FullName, repack, verify).ConfigureAwait(false);
+            var nsp = await Loader.DownloadTitle(title, version, dir.FullName, repack).ConfigureAwait(false);
 
             if (repack && nsp != null)
             {
@@ -684,13 +688,8 @@ namespace SwitchManager.nx.library
                     {
                         uint latestVersion = await Loader.GetLatestVersion(title).ConfigureAwait(false);
                         string dlcPath = await DownloadTitle(title, latestVersion, repack, verify);
-                        if (titleItem.Title.IsTitleKeyValid)
-                            titleItem.State = SwitchCollectionState.Owned;
-                        else
-                            titleItem.State = SwitchCollectionState.Downloaded;
-                        titleItem.RomPath = Path.GetFullPath(dlcPath);
-                        titleItem.Size = FileUtils.GetFileSystemSize(dlcPath);
-                        titleItem.Added = DateTime.Now;
+
+                        titleItem.SetNspFile(dlcPath);
                     }
                     else if (title.IsGame)
                     {
@@ -701,14 +700,8 @@ namespace SwitchManager.nx.library
                                 SwitchCollectionItem dlcTitle = GetTitleByID(t?.TitleID);
                                 uint latestVersion = await Loader.GetLatestVersion(dlcTitle.Title).ConfigureAwait(false);
                                 string dlcPath = await DownloadTitle(dlcTitle?.Title, latestVersion, repack, verify);
-                                if (dlcTitle.Title.IsTitleKeyValid)
-                                        dlcTitle.State = SwitchCollectionState.Owned;
-                                else
-                                        dlcTitle.State = SwitchCollectionState.Downloaded;
 
-                                dlcTitle.RomPath = Path.GetFullPath(dlcPath);
-                                dlcTitle.Size = FileUtils.GetFileSystemSize(dlcPath);
-                                dlcTitle.Added = DateTime.Now;
+                                dlcTitle.SetNspFile(dlcPath);
                             }
                     }
                     break;
@@ -739,11 +732,8 @@ namespace SwitchManager.nx.library
                         {
                             var updateItem = titleItem.GetUpdate(v);
                             string updatePath = await DownloadTitle(updateItem.Title, v, repack, verify);
-
-                            updateItem.RomPath = Path.GetFullPath(updatePath);
-                            updateItem.Size = FileUtils.GetFileSystemSize(updatePath);
-                            updateItem.Added = DateTime.Now;
-                            updateItem.State = SwitchCollectionState.Owned;
+                            
+                            updateItem.SetNspFile(updatePath);
                             v -= 0x10000;
                         }
                     }
@@ -761,14 +751,7 @@ namespace SwitchManager.nx.library
                     {
                         string romPath = await DownloadTitle(title, title.BaseVersion, repack, verify);
 
-                        if (titleItem.Title.IsTitleKeyValid)
-                            titleItem.State = SwitchCollectionState.Owned;
-                        else
-                            titleItem.State = SwitchCollectionState.Downloaded;
-
-                        titleItem.RomPath = Path.GetFullPath(romPath);
-                        titleItem.Size = FileUtils.GetFileSystemSize(romPath);
-                        titleItem.Added = DateTime.Now;
+                        titleItem.SetNspFile(romPath);
                     }
                     if (options == DownloadOptions.BaseGameAndUpdate || options == DownloadOptions.BaseGameAndUpdateAndDLC)
                         goto case DownloadOptions.UpdateOnly;
@@ -785,17 +768,19 @@ namespace SwitchManager.nx.library
         /// <param name="title">Title whose icon you wish to load</param>
         /// <param name="downloadRemote">If true, loads the image from nintendo if it isn't found in cache</param>
         /// <returns></returns>
-        public async Task LoadTitleIcon(SwitchTitle title, bool downloadRemote = false)
+        public async Task UpdateInternalMetadata(SwitchTitle title)
         {
             string img = GetLocalImage(title.TitleID);
-            if (img == null && downloadRemote && SwitchTitle.IsBaseGameID(title.TitleID))
+            //if (img == null && downloadRemote && SwitchTitle.IsBaseGameID(title.TitleID))
+
+            if (title.IsMissingMetadata)
             {
-                // Ask the image loader to get the image remotely and cache it
-                await Loader.DownloadRemoteImage(title).ConfigureAwait(false);
-                img = GetLocalImage(title.TitleID);
+                string titleDir = TempPath + Path.DirectorySeparatorChar + title.TitleID;
+                await Loader.DownloadAndUpdateTitleMetadata(title, titleDir).ConfigureAwait(false);
+                if (title.IsMissingIconData) img = GetLocalImage(title.TitleID);
             }
 
-            // Return cached image
+            // Set cached image
             title.Icon = img;
         }
 
@@ -993,7 +978,7 @@ namespace SwitchManager.nx.library
                 {
                     JObject data = ReadEShopPage(item, region);
                     var meta = ParseGameInfoJson(title?.TitleID, data);
-                    await LoadMetadata(new LibraryMetadataItem[] { meta }, false).ConfigureAwait(false);
+                    LoadMetadata(meta, false);
                 }
                 else
                 {
@@ -1325,7 +1310,7 @@ namespace SwitchManager.nx.library
             try
             {
                 // I figure it might be faster to get individual versions for a small number instead of all at once
-                if (titles.Count > 2) versions = await Loader.GetLatestVersions().ConfigureAwait(false);
+                if (titles.Count > 0) versions = await Loader.GetLatestVersions().ConfigureAwait(false);
                 
                 foreach (var i in titles)
                 {
@@ -1415,8 +1400,12 @@ namespace SwitchManager.nx.library
             if (title.Size.HasValue) json.Add("Game_size", title.Size.Value);
             json.Add("description", title.Description);
             json.Add("intro", title.Intro);
-            if (title.HasDLC.HasValue) json.Add("dlc", title.HasDLC.Value.ToString());
-            if (title.HasAmiibo.HasValue) json.Add("amiibo_compatibility", title.HasAmiibo.Value.ToString());
+            json.Add("dlc", title.HasDLC ?? false);
+            json.Add("amiibo_compatibility", title.HasAmiibo ?? false);
+            json.Add("demo", title.IsDemo);
+            if (title.RequiredSystemVersion.HasValue) json.Add("required_system_version", title.RequiredSystemVersion.Value);
+            if (title.MasterKeyRevision.HasValue) json.Add("master_key_revision", title.MasterKeyRevision.Value);
+            json.Add("region", title.Region);
             json.Add("front_box_art", title.BoxArtUrl);
             json.Add("official_site", title.OfficialSite);
             json.Add("date_added", DateTime.Now.ToString("yyyyMMdd"));
@@ -1465,7 +1454,8 @@ namespace SwitchManager.nx.library
                 game.OfficialSite = jsonGame?.Value<string>("official_site");
                 game.ProductId = jsonGame?.Value<string>("product_id");
                 game.SLUG = jsonGame?.Value<string>("slug");
-
+                game.Region = jsonGame?.Value<string>("region");
+                
                 string price = jsonGame?.Value<string>("price");
                 if (price == null)
                 {
@@ -1502,10 +1492,24 @@ namespace SwitchManager.nx.library
                 else
                     game.HasAmiibo = false;
 
+                s = jsonGame?.Value<string>("demo");
+                if (!string.IsNullOrWhiteSpace(s) && bool.TryParse(s, out bool demo))
+                    game.IsDemo = demo;
+                else
+                    game.IsDemo = false;
+
                 string sSize = jsonGame?.Value<string>("Game_size");
                 if (long.TryParse(sSize, out long size))
                     game.Size = size;
 
+                string sRequiredVersion = jsonGame?.Value<string>("required_system_version");
+                if (uint.TryParse(sRequiredVersion, out uint requiredVersion))
+                    game.RequiredSystemVersion = requiredVersion;
+
+                string sRevision = jsonGame?.Value<string>("master_key_revision");
+                if (byte.TryParse(sRevision, out byte revision))
+                    game.MasterKeyRevision = revision;
+                
                 if (DateTime.TryParseExact(jsonGame?.Value<string>("release_date_iso"), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime rDate))
                     game.ReleaseDate = rDate;
                 return game;

@@ -168,8 +168,8 @@ namespace SwitchManager
                         (!showFavoritesOnly || i.IsFavorite) &&
                         (!showUnlockableOnly || i.IsUnlockable) &&
                         (!showNewOnly || i.IsNew) &&
-                        ((showOwned && i.IsOwned) || i.IsAvailable) &&
-                        ((showNotOwned && i.IsAvailable) || i.IsOwned) &&
+                        ((showOwned && i.IsOwned) || i.IsAvailable || i.IsPreloaded) &&
+                        ((showNotOwned && !i.IsOwned) || i.IsOwned) &&
                         ((showPreloadable && i.IsPreloadable) || !i.IsPreloadable) &&
                         ((showPreloaded && i.IsPreloaded) || !i.IsPreloaded) &&
                         ((showHidden && i.IsHidden) || !i.IsHidden) &&
@@ -668,7 +668,7 @@ namespace SwitchManager
         {
             Task.Run(delegate
             {
-                this.library.Collection.Where(t => t.Title != null && !t.Title.HasIcon).ToList().ForEach(async t => await library.LoadTitleIcon(t.Title, true));
+                this.library.Collection.Where(t => t.Title != null && !t.Title.HasIcon).ToList().ForEach(async t => await library.UpdateInternalMetadata(t.Title));
 
             });
         }
@@ -1339,39 +1339,49 @@ namespace SwitchManager
 
         private async Task RepackDir(string dir)
         {
-            if (!string.IsNullOrWhiteSpace(dir))
+            if (FileUtils.DirectoryExists(dir))
             {
-                if (Directory.Exists(dir))
+                SwitchCollectionItem item = null;
+                try
                 {
-                    SwitchTitle title = null;
-                    try
+                    // First, unpack the NSP
+                    NSP nsp = NSP.FromDirectory(dir);
+                    CNMT cnmt = nsp.CNMT;
+
+                    string id = cnmt.Id;
+
+                    uint version = cnmt.Version;
+
+                    if (cnmt.Type == TitleType.Patch)
                     {
-                        // First, unpack the NSP
-                        NSP nsp = NSP.FromDirectory(dir);
-                        CNMT cnmt = nsp.CNMT;
+                        var parent = library.GetTitleByID(id);
+                        item = parent.GetUpdate(version);
+                    }
+                    else
+                    {
+                        item = library.GetTitleByID(id);
+                    }
 
-                        string id = cnmt.Id;
+                    SwitchTitle title = item?.Title;
+                    title.RequiredSystemVersion = cnmt.RequiredSystemVersion;
+                    title.MasterKeyRevision = cnmt.MasterKeyRevision;
+                    nsp.Title = title;
 
-                        uint version = cnmt.Version;
-
-                        if (cnmt.Type == TitleType.Patch)
-                        {
-                            var parent = library.GetTitleByID(id);
-                            title = parent.GetUpdate(version).Title;
-                        }
-                        else
-                        {
-                            title = library.GetTitleByID(id)?.Title;
-                        }
-                        title.RequiredSystemVersion = cnmt.RequiredSystemVersion;
-                        title.MasterKeyRevision = cnmt.MasterKeyRevision;
-
+                    if (title.IsTitleKeyValid)
+                    {
+                        await library.Loader.GenerateTitleTicket(title, cnmt, dir);
                         string nspFile = await library.DoNspRepack(title, version, nsp);
+
+                        item.SetNspFile(nspFile);
                     }
-                    catch (BadNcaException b)
-                    {
-                        ShowError($"NSP was unpacked but couldn't be verified.\nTitle: {title?.Name ?? "Unknown"}\nFile: {b.NcaFile}\nMessage: {b.Message}");
-                    }
+                }
+                catch (BadNcaException b)
+                {
+                    ShowError($"NSP was unpacked but couldn't be verified.\nTitle: {item?.TitleName ?? "Unknown"}\nFile: {b.NcaFile}\nMessage: {b.Message}");
+                }
+                catch (Exception b)
+                {
+                    ShowError($"There was an unknown error while repacking the directory. Title: {item?.TitleName ?? "Unknown"}\nMessage: {b.Message}");
                 }
             }
         }
@@ -1481,22 +1491,28 @@ namespace SwitchManager
                             DownloadOption = DownloadOptions.AllDLC;
                         }
 
-                        try
-                        {
-                            Task t = Task.Run(() => library.UpdateEShopData(item));
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.Error($"Exception getting eshop data.\nTitle: {title.Name}\nMessage: {ex.Message}");
-                        }
-
-                        // If anything is null, get a new image
-                        if (title.IsGame && !title.HasIcon)
+                        Task t = Task.Run(async delegate
                         {
                             try
                             {
-                                title.Icon = null;
-                                await library.LoadTitleIcon(title, true);
+                                await library.UpdateEShopData(item);
+                            }
+                            catch (AggregateException ex)
+                            {
+                                logger.Error($"Exception getting eshop data.\nTitle: {title.Name}\nMessage: {ex.InnerException.Message}");
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.Error($"Exception getting eshop data.\nTitle: {title.Name}\nMessage: {ex.Message}");
+                            }
+                        });
+
+                        // If anything is null, get a new image
+                        if (title.IsGame && title.IsMissingMetadata)
+                        {
+                            try
+                            {
+                                await library.UpdateInternalMetadata(title);
                             }
                             catch (HactoolFailedException ex)
                             {

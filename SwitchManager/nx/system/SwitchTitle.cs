@@ -83,7 +83,7 @@ namespace SwitchManager.nx.system
         public string icon;
         public string Icon
         {
-            get { return this.BoxArtUrl ?? this.icon; }
+            get { return this.icon; }
             set { this.icon = value; NotifyPropertyChanged("Icon"); }
         }
 
@@ -91,7 +91,7 @@ namespace SwitchManager.nx.system
         public string BoxArtUrl
         {
             get { return boxArtUrl; }
-            set { this.boxArtUrl = value; NotifyPropertyChanged("BoxArtUrl"); NotifyPropertyChanged("Icon"); }
+            set { this.boxArtUrl = value; NotifyPropertyChanged("BoxArtUrl"); }
         }
 
         private string officialSite;
@@ -258,6 +258,11 @@ namespace SwitchManager.nx.system
         public bool HasIcon { get { return FileUtils.FileExists(Icon) || !string.IsNullOrWhiteSpace(BoxArtUrl); } }
 
         public string EshopLink { get { return $"https://ec.nintendo.com/apps/{TitleID}/{Region ?? "US"}"; } }
+
+        public bool IsMissingMetadata { get { return IsMissingIconData || IsMissingControlData || IsMissingCnmtData; } }
+        public bool IsMissingIconData { get { return Icon == null; } }
+        public bool IsMissingControlData { get { return Name == null || Publisher == null || DisplayVersion == null; } }
+        public bool IsMissingCnmtData { get { return MasterKeyRevision == null || RequiredSystemVersion == null; } }
 
         internal SwitchTitle(string name, string titleid, string titlekey)
         {

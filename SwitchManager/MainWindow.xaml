@@ -20,6 +20,7 @@
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <ui:TextInputToVisibilityConverter x:Key="TextInputToVisibilityConverter" />
     <ui:FileSizeConverter x:Key="FileSizeConverter" />
+    <ui:TitleIconConverter x:Key="TitleIconConverter" />
 
     <ui:VersionsConverter x:Key="VersionsConverter" />
     
@@ -92,7 +93,7 @@
           <CheckBox x:Name="CheckBox_DLC" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">DLC</CheckBox>
           <CheckBox x:Name="CheckBox_Games" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Games</CheckBox>
           <CheckBox x:Name="CheckBox_Owned" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Owned</CheckBox>
-          <CheckBox x:Name="CheckBox_Preloaded" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">Preloaded</CheckBox>
+          <CheckBox x:Name="CheckBox_Preloaded" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Preloaded</CheckBox>
           <CheckBox x:Name="CheckBox_NotOwned" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Available</CheckBox>
           <CheckBox x:Name="CheckBox_Preloadable" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged" IsChecked="True">Preloadable</CheckBox>
           <CheckBox x:Name="CheckBox_Hidden" Margin="5,5,5,5" Checked="FilterChanged" Unchecked="FilterChanged">Hidden</CheckBox>
@@ -143,7 +144,7 @@
           <MenuItem Header="Visit eShop Link" ToolTip="Opens the default Web Browser to the Nintendo eShop link for this title." Click="IconButton_Click"/>
           <MenuItem Header="Toggle Favorite" ToolTip="Toggles the Favorite check for this title." Click="ToggleFavorite_Click"/>
           <Separator />
-          <MenuItem Header="Repack NSP from temp directory" ToolTip="Regenerates the NSP using the existing temp files. Totally offline." Click="RepackTitleDir_Click"/>
+          <MenuItem Header="Repack/Unlock downloaded NSP" ToolTip="Regenerates the NSP using the existing temp files. Totally offline." Click="RepackTitleDir_Click"/>
           <MenuItem Header="Repack existing NSP file" ToolTip="Unpacks this title's NSP file and repacks it. Totally offline." Click="RepackTitle_Click"/>
           <Separator />
           <MenuItem Header="Delete Title" ToolTip="Deletes the Switch title from your library forever." Click="DeleteTitle_Click"/>
@@ -156,7 +157,14 @@
 
             <StackPanel Orientation="Vertical">
               <Button x:Name="IconButton" Margin="5" Style="{StaticResource ImageButtonStyle}" Click="IconButton_Click"  MaxHeight="100" Width="100">
-                <Image MaxHeight="100" Width="100" Source="{Binding Path=Title.Icon,Mode=OneWay,UpdateSourceTrigger=PropertyChanged, TargetNullValue=blank.jpg}"/>
+                <Image MaxHeight="100" Width="100">
+                  <Image.Source>
+                    <MultiBinding Converter="{StaticResource TitleIconConverter}" UpdateSourceTrigger="PropertyChanged" TargetNullValue="blank.jpg">
+                      <Binding Path="Title.BoxArtUrl" Mode="OneWay" TargetNullValue="Unknown"  UpdateSourceTrigger="PropertyChanged"/>
+                      <Binding Path="Title.Icon" Mode="OneWay" TargetNullValue="Unspecified Reasons" UpdateSourceTrigger="PropertyChanged"/>
+                    </MultiBinding>
+                  </Image.Source>
+                </Image> 
               </Button>
               <StackPanel Margin="3" Orientation="Vertical">
                 <TextBlock FontSize="10" Text="{Binding Path=Title.TitleKey, Mode=OneWay}"/>
@@ -167,31 +175,52 @@
             <StackPanel Margin="20,10" Orientation="Vertical" Width="400">
               <TextBlock FontSize="14" FontWeight="DemiBold">
                 <TextBlock.Text>
-                  <MultiBinding StringFormat="{}{0} v{1}">
+                  <MultiBinding StringFormat="{}{0} ({1}), v{2}">
                     <Binding Path="Title.Name" Mode="OneWay" TargetNullValue="Unknown" />
+                    <Binding Path="Title.Region" Mode="OneWay" TargetNullValue="??" />
                     <Binding Path="Title.DisplayVersion" Mode="OneWay" TargetNullValue="1.0.0"/>
-                  </MultiBinding>
-                </TextBlock.Text>
-              </TextBlock>
-              <TextBlock Margin="5" FontSize="12" FontStyle="Italic">
-                <TextBlock.Text>
-                  <MultiBinding StringFormat="Developed by {0}, Published by {1} on {2:MM/dd/yyyy}">
-                    <Binding Path="Title.Developer" Mode="OneWay" TargetNullValue="Unknown" />
-                    <Binding Path="Title.Publisher" Mode="OneWay" TargetNullValue="Unknown"/>
-                    <Binding Path="Title.ReleaseDate" Mode="OneWay" TargetNullValue="Unknown Date"/>
                   </MultiBinding>
                 </TextBlock.Text>
               </TextBlock>
               <ScrollViewer Height="100" VerticalScrollBarVisibility="Auto">
                 <StackPanel HorizontalAlignment="Stretch" >
                   <TextBlock Margin="5" FontSize="12" FontWeight="Bold" Text="{Binding Path=Title.Intro, Mode=OneWay, TargetNullValue=''}" HorizontalAlignment="Stretch" TextWrapping="Wrap"  />
-                  <TextBlock Margin="5" FontSize="11" Text="{Binding Path=Title.Description, Mode=OneWay, TargetNullValue=No description available.}" HorizontalAlignment="Stretch" TextWrapping="Wrap"  />
-                  <TextBlock Margin="5" FontSize="11" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
+                  <TextBlock Margin="5" FontSize="11" Text="{Binding Path=Title.Description, Mode=OneWay, TargetNullValue='No description available, there may be an age gate blocking data retrieval.'}" HorizontalAlignment="Stretch" TextWrapping="Wrap"  />
+                  <TextBlock Margin="5 1" FontSize="10" FontStyle="Italic">
                     <TextBlock.Text>
-                      <MultiBinding StringFormat="Rating {0} for {1}" >
+                      <MultiBinding StringFormat="Developed by {0}, Published by {1} on {2:MM/dd/yyyy}">
+                        <Binding Path="Title.Developer" Mode="OneWay" TargetNullValue="Unknown" />
+                        <Binding Path="Title.Publisher" Mode="OneWay" TargetNullValue="Unknown"/>
+                        <Binding Path="Title.ReleaseDate" Mode="OneWay" TargetNullValue="Unknown Date"/>
+                      </MultiBinding>
+                    </TextBlock.Text>
+                  </TextBlock>
+                  <TextBlock Margin="5 1" FontSize="10" FontStyle="Italic" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
+                    <TextBlock.Text>
+                      <MultiBinding StringFormat="Rated {0} for {1}" >
                         <Binding Path="Title.Rating" Mode="OneWay" TargetNullValue="Unknown" />
                         <Binding Path="Title.RatingContent" Mode="OneWay" TargetNullValue="Unspecified Reasons"/>
                       </MultiBinding>
+                    </TextBlock.Text>
+                  </TextBlock>
+                  <TextBlock Margin="5 1" FontSize="10" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
+                    <TextBlock.Text>
+                      <Binding Path="Title.KeyGeneration" StringFormat="Master Key Generation is {0}" Mode="OneWay" TargetNullValue="??"/>
+                    </TextBlock.Text>
+                  </TextBlock>
+                  <TextBlock Margin="5 1" FontSize="10" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
+                    <TextBlock.Text>
+                      <Binding Path="Updates.Count" StringFormat="Number of Updates: {0}" Mode="OneWay" FallbackValue="0" TargetNullValue="0"/>
+                    </TextBlock.Text>
+                  </TextBlock>
+                  <TextBlock Margin="5 1" FontSize="10" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
+                    <TextBlock.Text>
+                      <Binding Path="Title.HasAmiibo" StringFormat="Supports Amiibo? {0}" Mode="OneWay" TargetNullValue="??"/>
+                    </TextBlock.Text>
+                  </TextBlock>
+                  <TextBlock Margin="5 1" FontSize="10" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
+                    <TextBlock.Text>
+                      <Binding Path="Title.HasAmiibo" StringFormat="Supports Amiibo? {0}" Mode="OneWay" TargetNullValue="??"/>
                     </TextBlock.Text>
                   </TextBlock>
                 </StackPanel>
@@ -213,13 +242,14 @@
       </DataGrid.RowDetailsTemplate>
       <DataGrid.Columns>
         <DataGridCheckBoxColumn 
-            Header="Favorite ?"  
-            Binding="{Binding Path=IsFavorite, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+          Header="Favorite ?"
+          SortMemberPath="favorite"  
+          Binding="{Binding Path=IsFavorite, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
         <DataGridTextColumn 
-          Header="Title Name" 
+          Header="Title Name"
+          Binding="{Binding Path=Title.Name, Mode=OneWay}" 
           MaxWidth="400"
-          Binding="{Binding Path=Title.Name, Mode=OneWay}"
-          FontSize="12" />
+          FontSize="12"/>
         <DataGridTextColumn 
           Header="Title Type" 
           Binding="{Binding Path=Title.Type, Mode=OneWay}" 
@@ -234,8 +264,12 @@
           Binding="{Binding Path=Size, Converter={StaticResource FileSizeConverter}, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
           FontSize="12" />
         <DataGridTextColumn 
+          Header="Firmware"
+          Binding="{Binding Path=Title.RequiredFirmware, Mode=OneWay, UpdateSourceTrigger=PropertyChanged, TargetNullValue='1.0.0'}" 
+          FontSize="12" />
+        <DataGridTextColumn 
           Header="Rom Path"
-          Binding="{Binding Path=RomPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+          Binding="{Binding Path=RomPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" 
           FontSize="12" />
       </DataGrid.Columns>
     </DataGrid>

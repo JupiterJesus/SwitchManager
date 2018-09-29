@@ -402,11 +402,11 @@ namespace SwitchManager.nx.system
                 foreach (var jpeg in directory.EnumerateFiles("*.jpg"))
                     nsp.AddImage(jpeg.FullName);
 
-                nsp.ControlXML = directory.EnumerateFiles("*.nacp.xml").SingleOrDefault().FullName;
-                nsp.LegalinfoXML = directory.EnumerateFiles("*.legalinfo.xml").SingleOrDefault().FullName;
-                nsp.PrograminfoXML = directory.EnumerateFiles("*.programinfo.xml").SingleOrDefault().FullName;
-                nsp.Certificate = directory.EnumerateFiles("*.cert").SingleOrDefault().FullName;
-                nsp.Ticket = directory.EnumerateFiles("*.tik").SingleOrDefault().FullName;
+                nsp.ControlXML = directory.EnumerateFiles("*.nacp.xml")?.SingleOrDefault()?.FullName;
+                nsp.LegalinfoXML = directory.EnumerateFiles("*.legalinfo.xml")?.SingleOrDefault()?.FullName;
+                nsp.PrograminfoXML = directory.EnumerateFiles("*.programinfo.xml")?.SingleOrDefault()?.FullName;
+                nsp.Certificate = directory.EnumerateFiles("*.cert").SingleOrDefault()?.FullName;
+                nsp.Ticket = directory.EnumerateFiles("*.tik")?.SingleOrDefault()?.FullName;
                 return nsp;
             }
 

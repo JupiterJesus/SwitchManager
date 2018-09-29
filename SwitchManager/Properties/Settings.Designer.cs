@@ -466,5 +466,17 @@ namespace SwitchManager.Properties {
                 return ((string)(this["LoginCertPath"]));
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("D:\\Emulation\\nws\\roms\\xci")]
+        public string XCIDirectory {
+            get {
+                return ((string)(this["XCIDirectory"]));
+            }
+            set {
+                this["XCIDirectory"] = value;
+            }
+        }
     }
 }
