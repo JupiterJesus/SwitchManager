@@ -6,7 +6,7 @@
       <Value Profile="(Default)">6265A5E4140FF804</Value>
     </Setting>
     <Setting Name="Firmware" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">5.1.0-3.0</Value>
+      <Value Profile="(Default)">6.0.0-5.0</Value>
     </Setting>
     <Setting Name="Environment" Type="System.String" Scope="Application">
       <Value Profile="(Default)">lp1</Value>

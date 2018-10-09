@@ -34,7 +34,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("5.1.0-3.0")]
+        [global::System.Configuration.DefaultSettingValueAttribute("6.0.0-5.0")]
         public string Firmware {
             get {
                 return ((string)(this["Firmware"]));
