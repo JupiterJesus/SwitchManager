@@ -579,6 +579,12 @@ namespace SwitchManager.nx.cdn
                     expectedSize = cLength;
                 }
 
+                if (!result.IsSuccessStatusCode)
+                {
+                    logger.Error($"Failed to download file {fpath}. Status Code: {result.StatusCode}, Reason: {result.ReasonPhrase}");
+                    return false;
+                }
+
                 task = StartDownload(fs, result, expectedSize, downloaded, jobName).ContinueWith(a =>
                 {
                     try
