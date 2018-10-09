@@ -401,14 +401,48 @@ namespace SwitchManager.util
             return HashValue;
         }
 
-        public static byte[] ComputeHash(FileStream fs)
+        public static byte[] ComputeHash(Stream stream)
         {
-            return new SHA256Managed().ComputeHash(fs);
+            // Init
+            SHA256Managed sha = new SHA256Managed();
+            long offset = 0;
+            byte[] block = new byte[1024 * 1024]; // 1 MB at a time, just for smoother progress
+
+            long len = stream.Length;
+            string name = stream is FileStream ? $"Calculating SHA256 of '{(stream as FileStream).Name}'" : $"Calculatig SHA256 of {len} byte data";
+            ProgressJob job = new ProgressJob(name, len, 0);
+
+            job.Start();
+            while (offset  < len)
+            {
+                // For each block:
+                int howMany = stream.Read(block, 0, block.Length);
+
+                if (howMany < block.Length)
+                {
+                    sha.TransformFinalBlock(block, 0, howMany);
+                    job.UpdateProgress(howMany);
+                    break;
+                }
+                else
+                {
+                    offset += sha.TransformBlock(block, 0, howMany, null, 0);
+                    job.UpdateProgress(howMany);
+                }
+            }
+
+            // Get the has code
+            byte[] hash = sha.Hash;
+
+            job.Finish();
+            sha.Dispose();
+            return hash;
         }
 
         public static byte[] ComputeHash(byte[] buf)
         {
-            return new SHA256Managed().ComputeHash(buf);
+            using (Stream s = new MemoryStream(buf))
+                return ComputeHash(s);
         }
 
         public static bool VerifySha256Hash(string path, byte[] expectedHash)
