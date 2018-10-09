@@ -53,7 +53,7 @@ namespace SwitchManager.nx.cdn
            this(File.ReadAllBytes(titleCertPath), File.ReadAllBytes(titleTicketPath), deviceId, firmware, environment, region, imagesPath)
         {
         }
-        
+
         public EshopDownloader(byte[] titleCertTemplateData, byte[] titleTicketTemplateData, string deviceId, string firmware, string environment, string region, string imagesPath)
         {
             this.titleCertTemplateData = titleCertTemplateData;
@@ -99,7 +99,7 @@ namespace SwitchManager.nx.cdn
                 DirectoryInfo dirInfo = new DirectoryInfo(titleDir);
                 if (!dirInfo.Exists)
                     dirInfo.Create();
-                
+
                 try
                 {
                     using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false))
@@ -188,7 +188,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="verify">true to verify the SHA256 of each file with the expected hash and fail if the hashes don't match</param>
         /// <param name="titleDir">Directory to download everything to.</param>
         /// <returns></returns>
-        public async Task<NSP> DownloadTitle(SwitchTitle title, uint version, string titleDir, bool nspRepack = false )
+        public async Task<NSP> DownloadTitle(SwitchTitle title, uint version, string titleDir, bool nspRepack = false)
         {
             logger.Info($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
 
@@ -252,12 +252,12 @@ namespace SwitchManager.nx.cdn
                             return null;
                         }
                     }
+                    Hactool hactool = new Hactool(hactoolPath, keysPath);
 
-                    if (cnmt.Type == TitleType.Application)
+                    string controlID = cnmt.ParseNCAs(NCAType.Control).SingleOrDefault(); // There's only one control.nca
+                    if (controlID != null)
                     {
-                        Hactool hactool = new Hactool(hactoolPath, keysPath);
 
-                        string controlID = cnmt.ParseNCAs(NCAType.Control).First(); // There's only one control.nca
                         string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
 
                         var ncaDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
@@ -283,11 +283,14 @@ namespace SwitchManager.nx.cdn
                             }
                             ncaDir.Delete(true);
                         }
+                    }
 
-                        string legalID = cnmt.ParseNCAs(NCAType.LegalInformation).First(); // There's only one legal.nca
+                    string legalID = cnmt.ParseNCAs(NCAType.LegalInformation).SingleOrDefault(); // There's only one legal.nca
+                    if (legalID != null)
+                    {
                         string legalPath = titleDir + Path.DirectorySeparatorChar + legalID + ".nca";
 
-                        ncaDir = await hactool.DecryptNCA(legalPath).ConfigureAwait(false);
+                        var ncaDir = await hactool.DecryptNCA(legalPath).ConfigureAwait(false);
                         if (ncaDir != null)
                         {
                             DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
@@ -300,9 +303,24 @@ namespace SwitchManager.nx.cdn
                             }
                             ncaDir.Delete(true);
                         }
+                    }
 
-                        // TODO unpack and parse program nca, generate *.programinfo.xml
-
+                    // TODO unpack and parse program nca, generate *.programinfo.xml
+                    // Where does this shit come from?
+                    // There's an exefs folder that looks promising, has not only the exe but some files that
+                    // look like they contain metadata or perhaps linkable code
+                    // exefs/sdk could be it, but I don't know the format. it is an NSO file, magic number NSO0
+                    string programID = cnmt.ParseNCAs(NCAType.Program).SingleOrDefault(); // There's only one program nca
+                    if (programID != null)
+                    {
+                        /*
+                        string programPath = titleDir + Path.DirectorySeparatorChar + programID + ".nca";
+                        var ncaDir = await hactool.DecryptNCA(programPath).ConfigureAwait(false);
+                        if (ncaDir != null)
+                        {
+                            ncaDir.Delete(true);
+                        }
+                        */
                     }
 
                     // Repack to NSP if requested AND if the title has a key
@@ -329,7 +347,7 @@ namespace SwitchManager.nx.cdn
         /// <param name="cnmt"></param>
         /// <param name="titleDir"></param>
         /// <returns></returns>
-        public async Task<Tuple<string,string>> GenerateTitleTicket(SwitchTitle title, CNMT cnmt, string titleDir)
+        public async Task<Tuple<string, string>> GenerateTitleTicket(SwitchTitle title, CNMT cnmt, string titleDir)
         {
             string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
             string ticketPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".tik";
@@ -745,7 +763,7 @@ namespace SwitchManager.nx.cdn
         {
             var client = GetPostClient(LoginCert);
             if (args != null) args.ToList().ForEach(x => client.DefaultRequestHeaders.Add(x.Key, x.Value));
-            
+
             return await client.PostAsync(url, payload).ConfigureAwait(false);
         }
 
@@ -865,7 +883,7 @@ namespace SwitchManager.nx.cdn
             var head = await CDNHead(url).ConfigureAwait(false);
 
             string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
-            
+
             return cnmtid;
         }
 
@@ -885,33 +903,46 @@ namespace SwitchManager.nx.cdn
         private async Task<CNMT> DownloadAndDecryptCnmt(SwitchTitle title, uint version, string titleDir)
         {
             // First, look for any existing cnmt files
-            string ncaPath = Directory.EnumerateFiles(titleDir, "*.cnmt.nca").SingleOrDefault();
+            CNMT cnmt = null;
+            var cnmts = Directory.EnumerateFiles(titleDir, "*.cnmt.nca");
+            if (cnmts != null)
+                foreach (var c in cnmts)
+                {
+                    Hactool hactool = new Hactool(hactoolPath, keysPath);
+                    DirectoryInfo cnmtDir = await hactool.DecryptNCA(c).ConfigureAwait(false);
+
+                    CNMT checkcnmt = GetDownloadedCnmt(cnmtDir, c);
+
+                    if (checkcnmt.Id.Equals(title.TitleID, StringComparison.CurrentCultureIgnoreCase) && checkcnmt.Version == version)
+                    {
+                        logger.Info($"CNMT file {c} already exists, decrypting existing file");
+                        cnmt = checkcnmt;
+                        break;
+                    }
+                }
 
             // If it doesn't exist, look it up
-            if (string.IsNullOrWhiteSpace(ncaPath))
+            if (cnmt == null)
             {
-
                 // Get the CNMT ID for the title
                 string cnmtid = await GetCnmtID(title, version).ConfigureAwait(false);
                 if (cnmtid == null)
                     throw new CnmtMissingException($"No or invalid CNMT ID found for {title.Name} {title.TitleID}");
 
                 // Path to the NCA
-                ncaPath = titleDir + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
+                string ncaPath = titleDir + Path.DirectorySeparatorChar + cnmtid + ".cnmt.nca";
 
                 // Download the CNMT NCA file
                 bool completed = await DownloadCnmt(cnmtid, ncaPath).ConfigureAwait(false);
                 if (!completed) return null;
+
+                // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
+                // Hactool does the job for us
+                Hactool hactool = new Hactool(hactoolPath, keysPath);
+                DirectoryInfo cnmtDir = await hactool.DecryptNCA(ncaPath).ConfigureAwait(false);
+
+                cnmt = GetDownloadedCnmt(cnmtDir, ncaPath);
             }
-            else
-                logger.Info($"CNMT file {ncaPath} already exists, decrypting existing file");
-
-            // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
-            // Hactool does the job for us
-            Hactool hactool = new Hactool(hactoolPath, keysPath);
-            DirectoryInfo cnmtDir = await hactool.DecryptNCA(ncaPath).ConfigureAwait(false);
-
-            CNMT cnmt = GetDownloadedCnmt(cnmtDir, ncaPath);
             if (cnmt != null)
             {
                 title.RequiredSystemVersion = cnmt.RequiredSystemVersion;
@@ -988,7 +1019,7 @@ namespace SwitchManager.nx.cdn
                             nsuid = title.NsuId = first.Value<string>("id");
                         }
                     }
-                    
+
                     if (string.IsNullOrWhiteSpace(nsuid)) return null;
                 }
                 else if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -1031,7 +1062,7 @@ namespace SwitchManager.nx.cdn
         public async Task<EshopLogin> LogInToEshop()
         {
             if (LoginCert == null) return null;
-            
+
             string clientId = "93af0acb26258de9"; // whats this? device id or different?
             //string clientId2 = "81333c548b2e876d";
 
@@ -1207,4 +1238,3 @@ namespace SwitchManager.nx.cdn
         }
     }
 }
-                
