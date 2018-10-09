@@ -55,10 +55,10 @@ namespace SwitchManager.util
         public unsafe static string DecodeUTF32NullTerminated(this byte[] buffer, int index = 0)
         {
             int count = 0;
-            while (buffer[count] != 0) count++;
 
             fixed (byte* bytes = &buffer[index])
             {
+                while (bytes[count] != 0 && count <= buffer.Length) count++;
                 return Encoding.UTF32.GetString(bytes, count);
             }
         }
@@ -69,7 +69,7 @@ namespace SwitchManager.util
 
             fixed (byte* bytes = &buffer[index])
             {
-                while (bytes[count] != 0) count++;
+                while (bytes[count] != 0 && count <= buffer.Length) count++;
                 return Encoding.UTF8.GetString(bytes, count);
             }
         }
