@@ -74,7 +74,7 @@ namespace SwitchManager.nx.library
         {
             if (item != null)
             {
-                 Collection.Add(item);
+                Collection.Add(item);
                 titlesByID[item.Title.TitleID] = item;
             }
             return item;
@@ -154,7 +154,7 @@ namespace SwitchManager.nx.library
                 await Task.Run(delegate
                 {
                     job.Start();
-                    
+
                     foreach (var item in metadata)
                     {
                         if (allowRepair) RepairMetadata(item);
@@ -414,7 +414,7 @@ namespace SwitchManager.nx.library
                 if (meta.StartsWith("[") && meta.EndsWith("]"))
                 {
                     string[] metaParts = meta.Split(new string[] { "][" }, StringSplitOptions.RemoveEmptyEntries);
-                    
+
                     if (metaParts.Length > 1)
                     {
                         string verPart = metaParts[1];
@@ -595,7 +595,7 @@ namespace SwitchManager.nx.library
             DirectoryInfo dinfo = new DirectoryInfo(dir);
             if (!dinfo.Exists)
                 dinfo.Create();
-            
+
             try
             {
                 // Download a base version with a game ID
@@ -713,7 +713,7 @@ namespace SwitchManager.nx.library
 
                 case DownloadOptions.BaseGameAndUpdate:
                     goto case DownloadOptions.BaseGameOnly;
-                    
+
                 case DownloadOptions.UpdateOnly:
                     if (v == 0) return;
 
@@ -732,7 +732,7 @@ namespace SwitchManager.nx.library
                         {
                             var updateItem = titleItem.GetUpdate(v);
                             string updatePath = await DownloadTitle(updateItem.Title, v, repack, verify);
-                            
+
                             updateItem.SetNspFile(updatePath);
                             v -= 0x10000;
                         }
@@ -806,9 +806,9 @@ namespace SwitchManager.nx.library
 
             return null;
         }
-        
+
         public static string BlankImage { get { return "blank.jpg"; } }
-        
+
         public async Task<JObject> ReadEShopAPI(SwitchTitle title, string region, string lang)
         {
             var response = await Loader.GetEshopData(title, region, lang).ConfigureAwait(false);
@@ -830,7 +830,7 @@ namespace SwitchManager.nx.library
             JObject json = new JObject();
             json.Add("titleid", title.TitleId);
             json.Add("eshop_link", link);
-            
+
             // irritating, what comes up when you look up a demo is the page for the main game
             if (title.IsDemo)
             {
@@ -845,7 +845,7 @@ namespace SwitchManager.nx.library
 
             string intro = doc.Select("section#overview h1 p").Text;
             json.Add("intro", intro);
-            
+
             var hasDLC = doc.Select("span.dlc-info");
             if (hasDLC != null && hasDLC.Count > 0 && !title.IsDemo)
                 json.Add("dlc", "true");
@@ -1010,7 +1010,7 @@ namespace SwitchManager.nx.library
                     if (long.TryParse(sSize, out long size))
                         item.Size = size;
                 }
-                
+
                 if (DateTime.TryParseExact(json?.Value<string>("release_date_on_eshop"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime rDate))
                     title.ReleaseDate = rDate;
 
@@ -1088,34 +1088,38 @@ namespace SwitchManager.nx.library
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
                 var entry = line.Trim();
+
                 if (entry.StartsWith("#")) continue;
 
                 string[] split = entry.Split('|');
 
-                string id = split[0]?.Trim();
+                string id = split.Length > 0 ? split[0]?.Trim() : null;
                 if (id?.Length != 16)
                     continue;
                 else
                     id = id?.Substring(0, 16);
 
-                string rightsId = split[1]?.Trim()?.Substring(0, 32);
-                string key = split[2]?.Trim()?.Substring(0, 32);
+                string rightsId = split.Length > 1 ? split[1]?.Trim()?.Substring(0, 32) : null;
+                string key = split.Length > 2 ? split[2]?.Trim()?.Substring(0, 32) : null;
 
-                bool isUpdate = "1".Equals(split[3]?.Trim()) || SwitchTitle.IsUpdateTitleID(id);
-                bool isDLC = "1".Equals(split[4]?.Trim()) || SwitchTitle.IsDLCID(id);
-                bool isDemo = "1".Equals(split[5]?.Trim());
+                bool isUpdate = (split.Length > 3 && "1".Equals(split[3]?.Trim())) || SwitchTitle.IsUpdateTitleID(id);
+                bool isDLC = (split.Length > 4 && "1".Equals(split[4]?.Trim())) || SwitchTitle.IsDLCID(id);
+                bool isDemo = split.Length > 5 && "1".Equals(split[5]?.Trim());
 
-                string name = split[6]?.Trim();
-                uint.TryParse(split[7]?.Trim(), out uint version);
-                string region = split[8]?.Trim();
-                bool retailOnly = "1".Equals(split[9]?.Trim());
-                string englishName = split[10]?.Trim();
+                string name = split.Length > 6 ? split[6]?.Trim() : null;
+                uint version = 0;
+                if (split.Length > 7)
+                    uint.TryParse(split[7]?.Trim(), out version);
+
+                string region = split.Length > 8 ? split[8]?.Trim() : null;
+                bool retailOnly = split.Length > 9 && "1".Equals(split[9]?.Trim());
+                string englishName = split.Length > 10 ? split[10]?.Trim() : null;
 
                 // Skip retail only (not on eshop)
                 if (retailOnly) continue;
 
                 SwitchCollectionItem item = null;
-                
+
                 if (isUpdate)
                 {
                     if (version == 0) continue;
@@ -1187,7 +1191,7 @@ namespace SwitchManager.nx.library
             foreach (var line in lines)
             {
                 string[] split = line.Split('|');
-                string tid = string.IsNullOrWhiteSpace(split[0]) ? null : split[0];
+                string tid = split?.Length > 0 && string.IsNullOrWhiteSpace(split[0]) ? null : split[0];
                 if (tid == null || tid.Length < 16)
                     continue;
                 else
@@ -1198,8 +1202,8 @@ namespace SwitchManager.nx.library
                 // We only care about new titles, and ignore messed up entries that are missing a title ID for some reason
                 if (tid != null)
                 {
-                    string tkey = string.IsNullOrWhiteSpace(split[1]) ? null : split[1]?.Trim()?.Substring(0, 32).ToLower();
-                    string name = string.IsNullOrWhiteSpace(split[2]) ? null : split[2]?.Trim();
+                    string tkey = split?.Length > 1 && string.IsNullOrWhiteSpace(split[1]) ? null : split[1]?.Trim()?.Substring(0, 32).ToLower();
+                    string name = split?.Length > 2 && string.IsNullOrWhiteSpace(split[2]) ? null : split[2]?.Trim();
                     if (item == null)
                     {
                         // New title!!
@@ -1212,7 +1216,7 @@ namespace SwitchManager.nx.library
                             item.State = SwitchCollectionState.New;
                         else
                             item.State = SwitchCollectionState.NewNoKey;
-                        
+
                         newTitles.Add(item);
                     }
                     else
@@ -1311,7 +1315,7 @@ namespace SwitchManager.nx.library
             {
                 // I figure it might be faster to get individual versions for a small number instead of all at once
                 if (titles.Count > 0) versions = await Loader.GetLatestVersions().ConfigureAwait(false);
-                
+
                 foreach (var i in titles)
                 {
                     var t = i.Title;
@@ -1455,7 +1459,7 @@ namespace SwitchManager.nx.library
                 game.ProductId = jsonGame?.Value<string>("product_id");
                 game.SLUG = jsonGame?.Value<string>("slug");
                 game.Region = jsonGame?.Value<string>("region");
-                
+
                 string price = jsonGame?.Value<string>("price");
                 if (price == null)
                 {
@@ -1509,7 +1513,7 @@ namespace SwitchManager.nx.library
                 string sRevision = jsonGame?.Value<string>("master_key_revision");
                 if (byte.TryParse(sRevision, out byte revision))
                     game.MasterKeyRevision = revision;
-                
+
                 if (DateTime.TryParseExact(jsonGame?.Value<string>("release_date_iso"), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime rDate))
                     game.ReleaseDate = rDate;
                 return game;
