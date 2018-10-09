@@ -30,7 +30,7 @@ namespace SwitchManager.nx.system
             {
                 string id = value.StartsWith("0x") ? value.Substring(2) : value;
                 if (id?.Length < 16) throw new Exception("Couldn't read CNMT XmlId from string");
-                this.Id = id.Substring(0, 16);
+                this.Id = id?.Substring(0, 16)?.ToLower();
             }
         }
 
@@ -85,11 +85,24 @@ namespace SwitchManager.nx.system
         {
             get
             {
-                return "0x" + (SwitchTitle.IsUpdateTitleID(Id) ? SwitchTitle.GetBaseGameIDFromUpdate(Id) : SwitchTitle.GetUpdateIDFromBaseGame(Id)).ToLower();
+                return SwitchTitle.IsUpdateTitleID(Id) ? null : "0x" + SwitchTitle.GetUpdateIDFromBaseGame(Id);
             }
             set
             {
-                
+
+            }
+        }
+
+        [XmlElement(ElementName = "OriginalId")]
+        public string OriginalId
+        {
+            get
+            {
+                return SwitchTitle.IsUpdateTitleID(Id) ? "0x" + SwitchTitle.GetBaseGameIDFromUpdate(Id)?.ToLower() : null;
+            }
+            set
+            {
+
             }
         }
 
@@ -137,7 +150,7 @@ namespace SwitchManager.nx.system
             // See http://switchbrew.org/index.php?title=NCA#Metadata_file
 
             // Title ID is at offset 0 and is 8 bytes long
-            this.Id = $"{br.ReadUInt64():X16}";
+            this.Id = $"{br.ReadUInt64():x16}";
 
             // Title Version is immediately after at offset 8 and is 4 bytes long
             this.Version = br.ReadUInt32();
