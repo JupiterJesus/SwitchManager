@@ -1,5 +1,6 @@
 ﻿using SwitchManager.io;
 using SwitchManager.nx.library;
+using SwitchManager.util;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -376,8 +377,7 @@ namespace SwitchManager.nx.system
             string zerokey = "00000000000000000000000000000000";
             if (string.IsNullOrWhiteSpace(tkey) || tkey.Length != 32) return false;
             if (zerokey.Equals(tkey)) return false;
-
-            return true;
+            return Miscellaneous.IsHexString(tkey);
         }
 
         public static bool CheckValidTitleID(string tid)

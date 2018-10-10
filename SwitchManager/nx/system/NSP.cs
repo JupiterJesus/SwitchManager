@@ -246,23 +246,23 @@ namespace SwitchManager.nx.system
 
         /// <summary>
         /// </summary>
-        /// <param name="path"></param>
-        public static async Task<NSP> ParseNSP(string path)
+        /// <param name="nspPath"></param>
+        public static async Task<NSP> ParseNSP(string nspPath, string outputDirectory = null)
         {
-            if (string.IsNullOrWhiteSpace(path))
+            if (string.IsNullOrWhiteSpace(nspPath))
             {
                 logger.Error("Empty path passed to NSP.Unpack.");
                 return null;
             }
 
-            FileInfo finfo = new FileInfo(path);
+            FileInfo finfo = new FileInfo(nspPath);
             if (!finfo.Exists)
             {
-                logger.Error($"Non-existent file passed to NSP.Unpack: {path}");
+                logger.Error($"Non-existent file passed to NSP.Unpack: {nspPath}");
                 return null;
             }
             
-            using (JobFileStream nspReadStream = new JobFileStream(path, "NSP unpack of " + path, finfo.Length, 0))
+            using (JobFileStream nspReadStream = new JobFileStream(nspPath, "NSP unpack of " + nspPath, finfo.Length, 0))
             {
                 using (BinaryReader br = new BinaryReader(nspReadStream))
                 {
@@ -322,11 +322,16 @@ namespace SwitchManager.nx.system
                     // It is padded with 0s until the header size is a multiple of 0x10.
                     // However, these 0s are INCLUDED as part of the string table. Thus, they've already been
                     // read (and skipped)
+                    
+                    if (!FileUtils.DirectoryExists(outputDirectory))
+                    { 
+                        // Create a directory right next to the NSP, using the NSP's file name (no extension)
+                        DirectoryInfo parentDir = finfo.Directory;
+                        DirectoryInfo nspDir = parentDir.CreateSubdirectory(Path.GetFileNameWithoutExtension(finfo.Name));
+                        outputDirectory = nspDir.FullName;
+                    }
 
-                    // Create a directory right next to the NSP, using the NSP's file name (no extension)
-                    DirectoryInfo parentDir = finfo.Directory;
-                    DirectoryInfo nspDir = parentDir.CreateSubdirectory(Path.GetFileNameWithoutExtension(finfo.Name));
-                    NSP nsp = new NSP(nspDir.FullName);
+                    NSP nsp = new NSP(outputDirectory);
                     List<string> ncas = new List<string>();
 
                     // Copy each file in the NSP to a new file.
@@ -334,7 +339,7 @@ namespace SwitchManager.nx.system
                     {
                         // NSPs are just groups of files, but switch titles have very specific files in them
                         // So we allow quick reference to these files
-                        string filePath = nspDir.FullName + Path.DirectorySeparatorChar + files[i];
+                        string filePath = outputDirectory + Path.DirectorySeparatorChar + files[i];
                         if (filePath.ToLower().EndsWith(".cnmt.xml"))
                             nsp.CnmtXML = filePath;
                         else if (filePath.ToLower().EndsWith(".programinfo.xml"))
@@ -363,7 +368,7 @@ namespace SwitchManager.nx.system
                         
                         using (FileStream fs = FileUtils.OpenWriteStream(filePath))
                         {
-                            logger.Info($"Unpacking NSP from file {path}.");
+                            logger.Info($"Unpacking NSP from file {nspPath}.");
                             await nspReadStream.CopyToAsync(fs, fileSizes[i]).ConfigureAwait(false);
                             logger.Info($"Copied NSP contents to file {filePath}");
                         }
@@ -380,6 +385,7 @@ namespace SwitchManager.nx.system
                 }
             }
         }
+
         public static NSP FromDirectory(string path)
         {
             DirectoryInfo directory = new DirectoryInfo(path);
@@ -432,9 +438,9 @@ namespace SwitchManager.nx.system
             }
         }
 
-        public async static Task<NSP> Unpack(string nspFile)
+        public async static Task<NSP> Unpack(string nspFile, string outputDirectory = null)
         {
-            return await ParseNSP(nspFile).ConfigureAwait(false);
+            return await ParseNSP(nspFile, outputDirectory).ConfigureAwait(false);
         }
 
         public void AddFile(string filePath)

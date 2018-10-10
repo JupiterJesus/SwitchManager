@@ -135,5 +135,28 @@ namespace SwitchManager.io
         {
             return !string.IsNullOrEmpty(path) && Directory.Exists(path);
         }
+
+        internal static void MoveDirectory(string from, string to, bool replace = false)
+        {
+            DirectoryInfo fromDir = new DirectoryInfo(from);
+            DirectoryInfo toDir = new DirectoryInfo(to);
+            if (toDir.Exists)
+            {
+                if (replace)
+                {
+                    foreach (var c in fromDir.EnumerateFiles())
+                    {
+                        string destFile = toDir.FullName + Path.DirectorySeparatorChar + c.Name;
+                        if (FileUtils.FileExists(destFile))
+                            FileUtils.DeleteFile(destFile);
+                        c.MoveTo(destFile);
+                    }
+                }
+                else
+                    return;
+            }
+            else
+                fromDir.MoveTo(to);
+        }
     }
 }

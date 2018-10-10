@@ -173,5 +173,19 @@ namespace SwitchManager.util
                 bytes[offset + n] = HexToByte(byteValue);
             }
         }
+
+        internal static bool IsHexString(string tkey)
+        {
+            if (tkey == null) return false;
+            tkey = tkey.Trim().ToLower();
+
+            foreach (char c in tkey)
+            {
+                if (('0' <= c && c <= '9') || ('a' <= c && c <= 'f')) continue;
+
+                return false;
+            }
+            return true;
+        }
     }
 }

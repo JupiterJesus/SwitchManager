@@ -1307,15 +1307,24 @@ namespace SwitchManager
             }
         }
 
-        private async Task RepackNSP(string nspFile)
+        private async Task RepackNSP(string nspFile, bool import)
         {
             try
             {
                 // First, unpack the NSP
-                NSP nsp = await NSP.Unpack(nspFile);
-
-                File.Move(nspFile, nspFile + ".old");
-                await nsp.Repack(nspFile);
+                NSP nsp = await NSP.Unpack(nspFile); nsp.Verify();
+                CNMT cnmt = nsp.CNMT;
+                var item = library.GetTitleByID(cnmt.Id);
+                if (import)
+                {
+                    string outDir = Settings.Default.TempDirectory + Path.DirectorySeparatorChar + item.TitleId;
+                    FileUtils.MoveDirectory(nsp.Directory, outDir, true);
+                    await DoDownload(item, 0, DownloadOptions.BaseGameOnly);
+                }
+                else
+                {
+                    await nsp.Repack(nspFile);
+                }
             }
             catch (BadNcaException b)
             {
