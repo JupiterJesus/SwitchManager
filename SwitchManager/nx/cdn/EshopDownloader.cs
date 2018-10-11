@@ -352,12 +352,24 @@ namespace SwitchManager.nx.cdn
             string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
             string ticketPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".tik";
             string certPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".cert";
+
             if (cnmt.Type == TitleType.Application || cnmt.Type == TitleType.AddOnContent)
             {
-                File.WriteAllBytes(certPath, this.titleCertTemplateData);
-                logger.Info($"Generated title certificate {certPath}.");
+                if (FileUtils.FileExists(ticketPath))
+                {
+                    if (title.IsTitleKeyValid)
+                    {
+                        logger.Info($"Title ticket exists at {ticketPath}");
+                    }
+                    else
+                    {
+                        logger.Info($"Title ticket exists at {ticketPath} but title key is unknown or invalid, extracting title key from existing ticket");
 
-                if (title.IsTitleKeyValid)
+                        title.TitleKey = GetKeyFromTicketFile(ticketPath);
+                        
+                    }
+                }
+                else if (title.IsTitleKeyValid)
                 {
                     // The ticket file starts with the bytes 4 0 1 0, reversed for endianness that gives
                     // 0x00010004, which indicates a RSA_2048 SHA256 signature method.
@@ -386,6 +398,16 @@ namespace SwitchManager.nx.cdn
 
                     logger.Info($"Generated ticket {ticketPath}.");
                 }
+
+                if (FileUtils.FileExists(certPath))
+                {
+                    logger.Info($"Title certificate already exists at {certPath}.");
+                }
+                else
+                {
+                    File.WriteAllBytes(certPath, this.titleCertTemplateData);
+                    logger.Info($"Generated title certificate {certPath}.");
+                }
             }
             else if (cnmt.Type == TitleType.Patch)
             {
@@ -397,11 +419,6 @@ namespace SwitchManager.nx.cdn
                 {
                     using (var cetkStream = File.OpenRead(cetkPath))
                     {
-                        cetkStream.Seek(0x180, SeekOrigin.Begin);
-                        byte[] tkeyBytes = new byte[0x10];
-                        cetkStream.Read(tkeyBytes, 0, 0x10);
-                        title.TitleKey = Miscellaneous.BytesToHex(tkeyBytes);
-
                         using (var tikStream = FileUtils.OpenWriteStream(ticketPath))
                         {
                             cetkStream.Seek(0, SeekOrigin.Begin);
@@ -417,11 +434,25 @@ namespace SwitchManager.nx.cdn
                             cetkStream.Read(certBytes, 0, 0x700);
                             certStream.Write(certBytes, 0, 0x700);
                         }
+                        title.TitleKey = GetKeyFromTicketFile(ticketPath);
+
                     }
                 }
             }
 
             return new Tuple<string, string>(ticketPath, certPath);
+        }
+
+        public string GetKeyFromTicketFile(string ticketPath)
+        {
+            using (var stream = File.OpenRead(ticketPath))
+            {
+                // The title key is at offset 0x180 in the ticket file
+                stream.Seek(0x180, SeekOrigin.Begin);
+                byte[] keyBytes = new byte[0x10];
+                stream.Read(keyBytes, 0, keyBytes.Length);
+                return Miscellaneous.BytesToHex(keyBytes);
+            }
         }
 
         /// <summary>
