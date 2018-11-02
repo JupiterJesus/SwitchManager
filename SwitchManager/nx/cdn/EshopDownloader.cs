@@ -70,28 +70,10 @@ namespace SwitchManager.nx.cdn
             this.EShopLoginToken = LogInToEshop().Result; // Force waiting because constructor, but it is fast anyway
         }
 
-        /// <summary>
-        /// Loads a remote image from nintendo.
-        /// 
-        /// This is way more complicated and I know I'm gonna need more arguments passed in.
-        /// Not implemented for now.
-        /// </summary>
-        /// <param name="titleID"></param>
-        /// <returns></returns>
-        public async Task DownloadAndUpdateTitleMetadata(SwitchTitle title, string titleDir)
+        public async Task DownloadAndUpdateTitleMetadata(SwitchTitle title, string titleDir, CNMT cnmt)
         {
-            // Base version or latest version? I'm pretty sure I'm requesting based on a base game title,
-            // so the version MUST be BaseVersion. However, some updates can update the icon. That would require
-            // going through every possible update, downloading the CNMT, checking if it contains a CONTROL NCA,
-            // until you either get a CONTROL NCA or get to the base version.
-            // Seems easier to just suck it up and download the base version icon, even if the owlboy icon
-            // for version 0 sure looks stupid as hell.
-            //uint version = title.LatestVersion ?? await GetLatestVersion(title).ConfigureAwait(false);
-            uint version = title.BaseVersion;
-            string target = imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg";
-
             // Locking on a specific title - in the images directory -  which should ensure that none of the same files are accessed
-            var @lock = await AquireLock(titleDir, title, version).ConfigureAwait(false);
+            var @lock = await AquireLock(titleDir, title, cnmt.Version).ConfigureAwait(false);
             try
             {
                 // Temporary download folder within the images folder for this title
@@ -100,42 +82,85 @@ namespace SwitchManager.nx.cdn
                 if (!dirInfo.Exists)
                     dirInfo.Create();
 
-                try
+                // Parse "control" type content entries inside the NCA (just one...)
+                // If it exists (might not, if it is a DLC or update), get the image and controldata
+
+                string targetImageFile = imagesPath + Path.DirectorySeparatorChar + title.TitleID + ".jpg";
+                string ncaID = cnmt.ParseNCAs(NCAType.Control).SingleOrDefault(); // There's only one control.nca
+                if (ncaID != null && (!FileUtils.FileExists(targetImageFile) || title.IsMissingControlData || title.IsMissingIconData))
                 {
-                    using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false))
+                    string fpath = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
+                    if (await DownloadNCA(ncaID, fpath).ConfigureAwait(false))
                     {
-                        // Parse "control" type content entries inside the NCA (just one...)
-                        // If it exists (might not, if it is a DLC or update), get the image and controldata
+                        Hactool hactool = new Hactool(hactoolPath, keysPath);
+                        var controlDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
 
-                        string ncaID = cnmt.ParseNCAs(NCAType.Control).SingleOrDefault(); // There's only one control.nca
-                        if (ncaID != null && (!FileUtils.FileExists(target) || title.IsMissingControlData || title.IsMissingIconData))
+                        try
                         {
-                            string fpath = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
-                            if (await DownloadNCA(ncaID, fpath).ConfigureAwait(false))
+                            DirectoryInfo romfs = controlDir.EnumerateDirectories("romfs").First();
+
+                            if (!FileUtils.FileExists(targetImageFile))
                             {
-                                Hactool hactool = new Hactool(hactoolPath, keysPath);
-                                var controlDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
-
-                                DirectoryInfo romfs = controlDir.EnumerateDirectories("romfs").First();
-
-                                if (!FileUtils.FileExists(target))
-                                {
-                                    var iconFile = romfs.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
-                                    iconFile.MoveTo(target);
-                                }
-                                if (title.IsMissingControlData)
-                                    GetControlFile(title, romfs.FullName); // this is just to update the name and publisher
+                                var iconFile = romfs.EnumerateFiles("icon_*.dat").First(); // Get all icon files in section0, should just be one
+                                iconFile.MoveTo(targetImageFile);
                             }
+                            if (title.IsMissingControlData)
+                                await GetControlFile(title, romfs.FullName).ConfigureAwait(false); // this is just to update the name and publisher
+                        }
+                        finally
+                        {
+                            FileUtils.DeleteDirectory(controlDir);
                         }
                     }
                 }
-                finally
+                string legalID = cnmt.ParseNCAs(NCAType.LegalInformation).SingleOrDefault(); // There's only one legal nca
+                if (legalID != null && title.IsMissingLegalData)
                 {
+                    string fpath = titleDir + Path.DirectorySeparatorChar + legalID + ".nca";
+                    if (await DownloadNCA(legalID, fpath).ConfigureAwait(false))
+                    {
+                        Hactool hactool = new Hactool(hactoolPath, keysPath);
+                        var ncaDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
+                        try
+                        {
+                            if (ncaDir != null)
+                            {
+                                DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
+                                string legalxml = romfs.FullName + Path.DirectorySeparatorChar + "legalinfo.xml";
+                                LegalData ldata = LegalData.FromXml(legalxml);
+                                if (ldata.SupportsUsa())
+                                    title.Region = "US";
+                                else if (ldata.SupportsEurope())
+                                    title.Region = "EU";
+                                else if (ldata.SupportsJapan())
+                                    title.Region = "JP";
+                            }
+                        }
+                        finally
+                        {
+                            FileUtils.DeleteDirectory(ncaDir);
+                        }
+                    }
                 }
             }
             finally
             {
                 ReleaseLock(@lock);
+            }
+        }
+
+        public async Task DownloadAndUpdateTitleMetadata(SwitchTitle title, string titleDir, uint version)
+        {
+
+            try
+            {
+                using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false))
+                {
+                    if (!title.IsUpdate) await DownloadAndUpdateTitleMetadata(title, titleDir, cnmt).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
             }
         }
 
@@ -274,7 +299,7 @@ namespace SwitchManager.nx.cdn
                                 nsp.AddImage(destFile);
                             }
 
-                            ControlData cdata = GetControlFile(title, romfs.FullName);
+                            ControlData cdata = await GetControlFile(title, romfs.FullName).ConfigureAwait(false);
                             if (cdata != null)
                             {
                                 string controlXmlFile = titleDir + Path.DirectorySeparatorChar + controlID + ".nacp.xml";
@@ -412,30 +437,57 @@ namespace SwitchManager.nx.cdn
             else if (cnmt.Type == TitleType.Patch)
             {
                 // We have to download the CETK file and get the ticket and the certificate from it
+                // Unless of course the ticket and cert already exist
 
-                string cetkPath = $"{titleDir}{Path.DirectorySeparatorChar}{rightsID}.cetk";
-                bool completed = await DownloadCETK(rightsID, cetkPath);
-                if (completed)
+                if (FileUtils.FileExists(ticketPath))
                 {
-                    using (var cetkStream = File.OpenRead(cetkPath))
+                    if (title.IsTitleKeyValid)
                     {
-                        using (var tikStream = FileUtils.OpenWriteStream(ticketPath))
-                        {
-                            cetkStream.Seek(0, SeekOrigin.Begin);
-                            byte[] tikBytes = new byte[0x2C0];
-                            cetkStream.Read(tikBytes, 0, 0x2C0);
-                            tikStream.Write(tikBytes, 0, 0x2C0);
-                        }
+                        logger.Info($"Title ticket exists at {ticketPath}");
+                    }
+                    else
+                    {
+                        logger.Info($"Title ticket exists at {ticketPath} but title key is unknown or invalid, extracting title key from existing ticket");
 
-                        using (var certStream = FileUtils.OpenWriteStream(certPath))
-                        {
-                            cetkStream.Seek(0x2C0, SeekOrigin.Begin);
-                            byte[] certBytes = new byte[0x700];
-                            cetkStream.Read(certBytes, 0, 0x700);
-                            certStream.Write(certBytes, 0, 0x700);
-                        }
                         title.TitleKey = GetKeyFromTicketFile(ticketPath);
+                    }
+                }
 
+                // If either cert or tik is missing, get the cetk
+                if (!FileUtils.FileExists(ticketPath) || !FileUtils.FileExists(certPath))
+                {
+                    string cetkPath = $"{titleDir}{Path.DirectorySeparatorChar}{rightsID}.cetk";
+                    bool fileExists = FileUtils.FileExists(cetkPath) && FileUtils.GetFileSystemSize(cetkPath) == (0x2C0 + 0x700);
+                    if (!fileExists)
+                        fileExists = await DownloadCETK(rightsID, cetkPath);
+
+                    if (fileExists)
+                    {
+                        using (var cetkStream = File.OpenRead(cetkPath))
+                        {
+                            if (!FileUtils.FileExists(ticketPath))
+                            {
+                                using (var tikStream = FileUtils.OpenWriteStream(ticketPath))
+                                {
+                                    cetkStream.Seek(0, SeekOrigin.Begin);
+                                    byte[] tikBytes = new byte[0x2C0];
+                                    cetkStream.Read(tikBytes, 0, 0x2C0);
+                                    tikStream.Write(tikBytes, 0, 0x2C0);
+                                }
+                            }
+
+                            if (!FileUtils.FileExists(certPath))
+                            {
+                                using (var certStream = FileUtils.OpenWriteStream(certPath))
+                                {
+                                    cetkStream.Seek(0x2C0, SeekOrigin.Begin);
+                                    byte[] certBytes = new byte[0x700];
+                                    cetkStream.Read(certBytes, 0, 0x700);
+                                    certStream.Write(certBytes, 0, 0x700);
+                                }
+                            }
+                            title.TitleKey = GetKeyFromTicketFile(ticketPath);
+                        }
                     }
                 }
             }
@@ -462,12 +514,12 @@ namespace SwitchManager.nx.cdn
         /// <param name="title"></param>
         /// <param name="romfsDirectory"></param>
         /// <returns></returns>
-        private ControlData GetControlFile(SwitchTitle title, string romfsDirectory)
+        private async Task<ControlData> GetControlFile(SwitchTitle title, string romfsDirectory)
         {
             string controlFile = romfsDirectory + Path.DirectorySeparatorChar + "control.nacp";
             if (File.Exists(controlFile))
             {
-                ControlData cdata = ControlData.Parse(controlFile);
+                ControlData cdata = await ControlData.Parse(controlFile).ConfigureAwait(false);
                 if (cdata == null) return null;
                 if (title.DisplayVersion == null) title.DisplayVersion = cdata.DisplayVersion;
 
@@ -492,7 +544,8 @@ namespace SwitchManager.nx.cdn
             if (FileUtils.FileExists(path))
             {
                 logger.Info($"Found existing NCA file {path}, verifying integrity;");
-                if (Crypto.VerifySha256Hash(path, expectedHash))
+                bool verified = await Crypto.VerifySha256Hash(path, expectedHash).ConfigureAwait(false);
+                if (verified)
                     return true;
                 else
                     logger.Warn("NCA file {path} exists but failed sha verification.");
@@ -502,7 +555,7 @@ namespace SwitchManager.nx.cdn
             bool completed = await DownloadNCA(ncaID, path, title).ConfigureAwait(false);
 
             // A null hash means no verification necessary, just return true
-            return completed && Crypto.VerifySha256Hash(path, expectedHash);
+            return completed && await Crypto.VerifySha256Hash(path, expectedHash).ConfigureAwait(false);
         }
 
         private async Task<bool> DownloadNCA(string ncaID, string path, SwitchTitle title = null)
@@ -697,6 +750,7 @@ namespace SwitchManager.nx.cdn
             var head = await CDNHead(url).ConfigureAwait(false);
 
             string cnmtid = GetHeader(head, "X-Nintendo-Content-ID");
+            if (cnmtid == null) return false;
 
             url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/t/{cnmtid}?device_id={deviceId}";
             return await DownloadFile(url, fpath).ConfigureAwait(false);
@@ -708,7 +762,7 @@ namespace SwitchManager.nx.cdn
         /// </summary>
         /// <param name="game"></param>
         /// <returns></returns>
-        public async Task<uint> GetLatestVersion(SwitchTitle game)
+        public async Task<uint?> GetLatestVersion(SwitchTitle game)
         {
             //string url = string.Format("https://tagaya.hac.{0}.eshop.nintendo.net/tagaya/hac_versionlist", env);
             string url = string.Format("https://superfly.hac.{0}.d4c.nintendo.net/v1/t/{1}/dv", environment, game.TitleID);
@@ -717,10 +771,10 @@ namespace SwitchManager.nx.cdn
             {
                 string r = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 JObject json = JObject.Parse(r);
-                uint latestVersion = json?.Value<uint>("version") ?? 0;
+                uint? latestVersion = json?.Value<uint>("version");
                 return latestVersion;
             }
-            return 0;
+            return null;
         }
 
         /// <summary>
@@ -941,14 +995,19 @@ namespace SwitchManager.nx.cdn
         {
             // First, look for any existing cnmt files
             CNMT cnmt = null;
-            var cnmts = Directory.EnumerateFiles(titleDir, "*.cnmt.nca");
-            if (cnmts != null)
-                foreach (var c in cnmts)
+            if (FileUtils.DirectoryExists(titleDir))
+                foreach (var c in Directory.EnumerateFiles(titleDir, "*.cnmt.nca"))
                 {
-                    Hactool hactool = new Hactool(hactoolPath, keysPath);
-                    DirectoryInfo cnmtDir = await hactool.DecryptNCA(c).ConfigureAwait(false);
-
-                    CNMT checkcnmt = GetDownloadedCnmt(cnmtDir, c);
+                    string xml = c.Replace("nca", "xml");
+                    CNMT checkcnmt = null;
+                    if (FileUtils.FileExists(xml))
+                        checkcnmt = CNMT.FromXml(xml);
+                    else
+                    {
+                        Hactool hactool = new Hactool(hactoolPath, keysPath);
+                        DirectoryInfo cnmtDir = await hactool.DecryptNCA(c).ConfigureAwait(false);
+                        checkcnmt = GetDownloadedCnmt(cnmtDir, c);
+                    }
 
                     if (checkcnmt.Id.Equals(title.TitleID, StringComparison.CurrentCultureIgnoreCase) && checkcnmt.Version == version)
                     {
@@ -984,6 +1043,7 @@ namespace SwitchManager.nx.cdn
             {
                 title.RequiredSystemVersion = cnmt.RequiredSystemVersion;
                 title.MasterKeyRevision = cnmt.MasterKeyRevision;
+                title.Version = cnmt.Version;
             }
 
             return cnmt;
@@ -1193,7 +1253,7 @@ namespace SwitchManager.nx.cdn
                     var ticketSize = this.titleTicketTemplateData?.Length ?? 0;
                     var certSize = this.titleCertTemplateData?.Length ?? 0;
 
-                    string cnmtXml = Path.GetFullPath(cnmt.CnmtNcaFilePath).Replace(".nca", ".xml");
+                    string cnmtXml = cnmt.CnmtXmlFilePath ?? Path.GetFullPath(cnmt.CnmtNcaFilePath).Replace(".nca", ".xml");
                     cnmt.GenerateXml(cnmtXml);
                     var cnmtXmlSize = FileUtils.GetFileSystemSize(cnmtXml) ?? 0;
 
@@ -1254,7 +1314,7 @@ namespace SwitchManager.nx.cdn
                                     files.Add(destFile);
                                     sizes.Add(FileUtils.GetFileSystemSize(destFile) ?? 0);
                                 }
-                                GetControlFile(title, romfs.FullName);
+                                await GetControlFile(title, romfs.FullName).ConfigureAwait(false);
                             }
                         }
                         finally

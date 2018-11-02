@@ -23,6 +23,7 @@ using Newtonsoft.Json.Linq;
 using log4net;
 using SwitchManager.io;
 using System.Threading;
+using System.Text;
 
 namespace SwitchManager
 {
@@ -94,14 +95,13 @@ namespace SwitchManager
             //library.LoadTitleKeysFile(Settings.Default.TitleKeysFile).Wait();
 
             // WHY? WHY DO I HAVE TO DO THIS TO MAKE IT WORK? DATAGRID REFUSED TO SHOW ANY DATA UNTIL I PUT THIS THING IN
-            CollectionViewSource itemCollectionViewSource;
-            itemCollectionViewSource = (CollectionViewSource)(FindResource("ItemCollectionViewSource"));
+            CollectionViewSource itemCollectionViewSource = (CollectionViewSource)(FindResource("ItemCollectionViewSource"));
             itemCollectionViewSource.Source = library.Collection;
             //
-
-
+            
+            var ulc = (UpdateListConverter)(FindResource("UpdatesConverter"));
+            ulc.Library = library;
             //downloadWindow.Closing += this.Downloads_Closing;
-
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -120,9 +120,9 @@ namespace SwitchManager
             catch (AggregateException ex)
             {
                 if (ex.InnerException is CertificateDeniedException)
-                    ShowError("The current certificate was denied. You can view your library but you can't make any CDN requests.");
+                    ShowError("The current certificate was denied. You can view your library but you can't make any CDN requests.", ex.InnerException);
                 else
-                    ShowError("Error reading library metadata file, it will be recreated on exit or when you force save it.\nIf your library is empty, make sure to update title keys and scan your library to get a fresh start.");
+                    ShowError("Error reading library metadata file, it will be recreated on exit or when you force save it.\nIf your library is empty, make sure to update title keys and scan your library to get a fresh start.", ex.InnerException);
             }
 
             TextBox_Search.Text = Settings.Default.FilterText;
@@ -320,31 +320,80 @@ namespace SwitchManager
             get { return dloption; }
             set { dloption = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("DownloadOption")); }
         }
-        
+
+        private async void DownloadButton_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
+
+            if (item.IsOwned)
+            {
+                await CopyOwnedGame(item, Settings.Default.SwitchDrivePath);
+            }
+            else
+            {
+                Download_Click(sender, e);
+            }
+        }
+
+        private async Task CopyOwnedGame(SwitchCollectionItem item, string switchDrivePath)
+        {
+            string driveRoot = Path.GetPathRoot(switchDrivePath);
+            DriveInfo drive = new DriveInfo(driveRoot);
+
+            if (!drive.IsReady)
+            {
+                ShowError($"Can't copy switch game: Drive {driveRoot} isn't ready.");
+                return;
+            }
+
+            if (drive.AvailableFreeSpace < item.Size)
+            {
+                ShowError($"Can't copy switch game: Drive {driveRoot} doesn't have enough free space. {Miscellaneous.ToFileSize(item.Size.Value)} is needed but only {Miscellaneous.ToFileSize(drive.AvailableFreeSpace)} is available.");
+                return;
+            }
+
+            var from = new FileInfo(item.RomPath);
+            var to = new DirectoryInfo(switchDrivePath);
+
+            if (FileUtils.DirectoryHasFile(to, from.Name))
+            {
+                ShowError($"Can't copy switch game: Game already exists on switch drive. ");
+                return;
+            }
+
+            if (string.Equals(drive.DriveFormat, "FAT32"))
+            {
+                long maxSize = 1024L * 1024L * 1024L * 4; // 4 gig max file size
+                if (item.Size > maxSize)
+                {
+                    ShowError($"Can't copy switch game: Drive {driveRoot} is FAT32, but the game to copy is greater than the 4 GB size limit for the file system.");
+                    return;
+                }
+                else
+                    await FileUtils.CopyFileAsync(from, to, false).ConfigureAwait(false);
+            }
+            else if (string.Equals(drive.DriveFormat, "EXFAT"))
+            {
+                await FileUtils.CopyFileAsync(from, to, false).ConfigureAwait(false); 
+            }
+            else
+            {
+                ShowError($"Can't copy switch game: Drive {driveRoot} must be either must be either FAT32 or EXFAT to use in a Switch system.");
+                return;
+            }
+        }
+
         private async void Download_Click(object sender, RoutedEventArgs e)
         {
             SwitchCollectionItem item = (SwitchCollectionItem)DataGrid_Collection.SelectedValue;
             
             var title = item?.Title;
-            uint version = title.BaseVersion;
+            uint version = await library.GetDownloadVersion(title).ConfigureAwait(false);
             DownloadOptions o = default(DownloadOptions);
 
-            if (title.IsUpdate)
-            {
-                var update = title as SwitchUpdate;
-                version = update.Version;
-                o = DownloadOptions.UpdateOnly;
-            }
-            else if (title.IsGame)
-            {
-                version = SelectedVersion ?? title.LatestVersion ?? title.BaseVersion;
-                o = DownloadOption ?? DownloadOptions.BaseGameOnly;
-            }
-            else if (title.IsDLC)
-            {
-                version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
-                o = DownloadOptions.AllDLC;
-            }
+            if (title.IsUpdate) o = DownloadOptions.UpdateOnly;
+            else if (title.IsGame) o = DownloadOption ?? DownloadOptions.BaseGameOnly;
+            else if (title.IsDLC) o = DownloadOptions.AllDLC;
 
             DoThreadedDownload(item, version, o);
         }
@@ -397,7 +446,149 @@ namespace SwitchManager
 
             if (FileUtils.FileExists(item.RomPath))
             {
-                await RepackNSP(item.RomPath);
+                await RepackNSP(item.RomPath, true, item);
+            }
+        }
+
+        private async Task ImportNSP(string nspFile, SwitchCollectionItem item = null)
+        {
+            try
+            {
+                // First, unpack the NSP
+                NSP nsp = await NSP.Unpack(nspFile);
+                //nsp.Verify(); // don't verify now, that'll happen in the download call
+                CNMT cnmt = nsp.CNMT;
+
+                string outDir = Settings.Default.TempDirectory + Path.DirectorySeparatorChar + cnmt.Id;
+                await FileUtils.MoveDirectory(nsp.Directory, outDir, true);
+
+                // If no item is supplied, try to look it up
+                 if (item == null)
+                {
+                    item = library.GetTitleByID(cnmt.Id, cnmt.Version);
+
+                    // If no item is supplied and can't find it, this is an import of an entirely new title
+                    if (item == null)
+                    {
+                        string baseFile = Path.GetFileName(nspFile);
+                        int idx = baseFile.LastIndexOf(' ');
+                        string name = idx > 0 ? baseFile.Substring(0, idx) : "";
+                        
+                        // The name and tkey are null, but they'll be set automatically during the DownloadTitle call
+                        item = library.LoadTitle(cnmt.Id, null, name, cnmt.Version);
+                    }
+                }
+
+                await library.UpdateInternalMetadata(item?.Title, cnmt);
+                if (item.LatestVersion < cnmt.Version) item.LatestVersion = cnmt.Version;
+                item.Version = cnmt.Version;
+
+                if (item.Title.IsDLC)
+                {
+                    DoThreadedDownload(item, cnmt.Version, DownloadOptions.AllDLC);
+                }
+                else if (item.Title.IsUpdate)
+                {
+                    DoThreadedDownload(item, cnmt.Version, DownloadOptions.UpdateOnly);
+                }
+                else
+                {
+                    DoThreadedDownload(item, cnmt.Version, DownloadOptions.BaseGameOnly);
+                }
+            }
+            catch (BadNcaException b)
+            {
+                ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}", b);
+            }
+            catch (InvalidNspException n)
+            {
+                ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}", n);
+            }
+        }
+
+        private async void Import_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".nsp",
+                Filter = "Nintendo NSP Titles (*.nsp,*.nsx)|*.nsp;*.nsx",
+                Multiselect = true,
+                CheckPathExists = true,
+                DereferenceLinks = true,
+                Title = "Select one or more NSPs to import"
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                foreach (var nspFile in dlg.FileNames)
+                {
+                    try
+                    {
+                        if (!(DataGrid_Collection.SelectedItem is SwitchCollectionItem item)) return;
+
+                        if (FileUtils.FileExists(nspFile))
+                        {
+                            await ImportNSP(nspFile, item);
+                        }
+                    }
+                    catch (BadNcaException b)
+                    {
+                        ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}", b);
+                    }
+                    catch (InvalidNspException n)
+                    {
+                        ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}", n);
+                    }
+                    catch (HactoolFailedException h)
+                    {
+                        ShowError($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nMessage: {h.Message}", h);
+                    }
+                }
+            }
+        }
+
+        private async void ImportNew_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".nsp",
+                Filter = "Nintendo NSP Titles (*.nsp,*.nsx)|*.nsp;*.nsx",
+                Multiselect = true,
+                CheckPathExists = true,
+                DereferenceLinks = true,
+                Title = "Select one or more NSPs to import"
+            };
+
+            bool? result = dlg.ShowDialog();
+            if (result == true)
+            {
+                foreach (var nspFile in dlg.FileNames)
+                {
+                    try
+                    {
+                        if (FileUtils.FileExists(nspFile))
+                        {
+                            await ImportNSP(nspFile);
+                        }
+                    }
+                    catch (BadNcaException b)
+                    {
+                        ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}", b);
+                    }
+                    catch (InvalidNspException n)
+                    {
+                        ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}", n);
+                    }
+                    catch (HactoolFailedException h)
+                    {
+                        ShowError($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nMessage: {h.Message}", h);
+                    }
+                    catch (Exception h)
+                    {
+                        ShowError($"Failed to import NSP.\nFile: {nspFile}\nMessage: {h.Message}", h);
+                    }
+                }
             }
         }
 
@@ -464,18 +655,19 @@ namespace SwitchManager
                 }
                 catch (CertificateDeniedException ex)
                 {
-                    ShowError($"Can't download because the certificate was denied.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}");
+                    ShowError($"Can't download because the certificate was denied.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}", ex);
                 }
                 catch (CnmtMissingException ex)
                 {
-                    ShowError($"Can't download because we couldn't find the CNMT ID for the title.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}");
+                    ShowError($"Can't download because we couldn't find the CNMT ID for the title.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}", ex);
                 }
                 catch (DownloadFailedException ex)
                 {
-                    ShowError($"Can't download because the download failed.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}");
+                    ShowError($"Can't download because the download failed.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}", ex);
                 }
                 catch (Exception ex)
                 {
+                    Exception e = ex;
                     string msg = $"Can't download because of an unknown error.\nTitle: {item?.TitleName ?? "Unknown"}\nMessage: {ex.Message}";
 
                     ex = ex.InnerException;
@@ -484,7 +676,7 @@ namespace SwitchManager
                         msg = msg + "\n" + ex.Message;
                         ex = ex.InnerException;
                     }
-                    ShowError(msg);
+                    ShowError(msg, e);
                 }
             }
         }
@@ -598,9 +790,19 @@ namespace SwitchManager
                 await client.DownloadFileTaskAsync(new Uri(Settings.Default.NutURL), nutFile);
             }
 
-            await LoadTitleKeys(tempTkeysFile, nutFile);
-            FileUtils.DeleteFile(nutFile);
-            FileUtils.DeleteFile(tempTkeysFile);
+            try
+            {
+                await LoadTitleKeys(tempTkeysFile, nutFile);
+            }
+            catch
+            {
+                ShowError("Error loading title keys.");
+            }
+            finally
+            {
+                FileUtils.DeleteFile(nutFile);
+                FileUtils.DeleteFile(tempTkeysFile);
+            }
         }
 
         private async void MenuItemLoadKeys_Click(object sender, RoutedEventArgs e)
@@ -633,6 +835,22 @@ namespace SwitchManager
                 await LoadTitleKeys(temp);
                 FileUtils.DeleteFile(temp);
             }
+        }
+
+        private void MenuItemListUpdates_Click(object sender, RoutedEventArgs e)
+        {
+            var str = new StringBuilder();
+            foreach (var item in library.Collection.OrderBy(i => i.TitleName))
+            {
+                if (item.IsOwned || item.IsPreloaded)
+                    foreach (var upd in item.Updates)
+                    {
+                        if (!upd.IsOwned)
+                            str.Append($"{item.TitleName} [{upd.TitleId}][{upd.Version}]\n");
+                    }
+            }
+
+            ShowMessage(str.ToString(), "Missing Updates");
         }
 
         /// <summary>
@@ -843,12 +1061,7 @@ namespace SwitchManager
                     break;
 
                 var title = item?.Title;
-                uint version = title.BaseVersion;
-
-                if (title.IsUpdate)
-                    version = ((SwitchUpdate)title).Version;
-                else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                uint version = await library.GetDownloadVersion(title).ConfigureAwait(false);
 
                 switch (type)
                 {
@@ -888,12 +1101,7 @@ namespace SwitchManager
                     break;
 
                 var title = item?.Title;
-                uint version = title.BaseVersion;
-
-                if (title.IsUpdate)
-                    version = ((SwitchUpdate)title).Version;
-                else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                uint version = await library.GetDownloadVersion(title).ConfigureAwait(false);
 
                 switch (type)
                 {
@@ -936,12 +1144,7 @@ namespace SwitchManager
                     break;
 
                 var title = item?.Title;
-                uint version = title.BaseVersion;
-
-                if (title.IsUpdate)
-                    version = ((SwitchUpdate)title).Version;
-                else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                uint version = await library.GetDownloadVersion(title).ConfigureAwait(false);
 
                 switch (type)
                 {
@@ -1206,7 +1409,7 @@ namespace SwitchManager
                 }
                 catch (Exception ex)
                 {
-                    ShowError($"There was an unknown error while exporting the library data.\nFile: {exportFile}\nMessage: {ex.Message}");
+                    ShowError($"There was an unknown error while exporting the library data.\nFile: {exportFile}\nMessage: {ex.Message}", ex);
                 }
             }
         }
@@ -1229,15 +1432,15 @@ namespace SwitchManager
                 try
                 {
                     NSP nsp = await NSP.Unpack(nspFile);
-                    nsp.Verify();
+                    await nsp.Verify();
                 }
                 catch (InvalidNspException n)
                 {
-                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}");
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}", n);
                 }
                 catch (BadNcaException b)
                 {
-                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}");
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}", b);
                 }
             }
         }
@@ -1259,7 +1462,7 @@ namespace SwitchManager
                 {
                     // First, unpack the NSP
                     NSP nsp = await NSP.Unpack(nspFile);
-                    nsp.Verify();
+                    await nsp.Verify().ConfigureAwait(false);
                     CNMT cnmt = nsp.CNMT;
                     var item = library.GetTitleByID(cnmt.Id);
                     string titlekey = item?.TitleKey;
@@ -1276,15 +1479,15 @@ namespace SwitchManager
                 }
                 catch (BadNcaException b)
                 {
-                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}");
+                    ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}", b);
                 }
                 catch (InvalidNspException n)
                 {
-                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}");
+                    ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}", n);
                 }
                 catch (HactoolFailedException h)
                 {
-                    ShowError($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nMessage: {h.Message}");
+                    ShowError($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nMessage: {h.Message}", h);
                 }
             }
         }
@@ -1303,22 +1506,27 @@ namespace SwitchManager
             {
                 string nspFile = dlg.FileName;
 
-                await RepackNSP(nspFile);
+                await RepackNSP(nspFile, false);
             }
         }
 
-        private async Task RepackNSP(string nspFile, bool import)
+        private async Task RepackNSP(string nspFile, bool import, SwitchCollectionItem item = null)
         {
             try
             {
+                if (import)
+                    logger.Info($"Unpacking, repacking, and importing NSP '{nspFile}' into library.");
+                else
+                    logger.Info($"Unpacking and repacking NSP '{nspFile}'");
+
                 // First, unpack the NSP
-                NSP nsp = await NSP.Unpack(nspFile); nsp.Verify();
+                NSP nsp = await NSP.Unpack(nspFile);
                 CNMT cnmt = nsp.CNMT;
-                var item = library.GetTitleByID(cnmt.Id);
+                if (item == null) item = library.GetTitleByID(cnmt.Id);
                 if (import)
                 {
                     string outDir = Settings.Default.TempDirectory + Path.DirectorySeparatorChar + item.TitleId;
-                    FileUtils.MoveDirectory(nsp.Directory, outDir, true);
+                    await FileUtils.MoveDirectory(nsp.Directory, outDir, true);
                     await DoDownload(item, 0, DownloadOptions.BaseGameOnly);
                 }
                 else
@@ -1328,11 +1536,11 @@ namespace SwitchManager
             }
             catch (BadNcaException b)
             {
-                ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}");
+                ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}", b);
             }
             catch (InvalidNspException n)
             {
-                ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}");
+                ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}", n);
             }
         }
 
@@ -1386,16 +1594,16 @@ namespace SwitchManager
                 }
                 catch (BadNcaException b)
                 {
-                    ShowError($"NSP was unpacked but couldn't be verified.\nTitle: {item?.TitleName ?? "Unknown"}\nFile: {b.NcaFile}\nMessage: {b.Message}");
+                    ShowError($"NSP was unpacked but couldn't be verified.\nTitle: {item?.TitleName ?? "Unknown"}\nFile: {b.NcaFile}\nMessage: {b.Message}", b);
                 }
                 catch (Exception b)
                 {
-                    ShowError($"There was an unknown error while repacking the directory. Title: {item?.TitleName ?? "Unknown"}\nMessage: {b.Message}");
+                    ShowError($"There was an unknown error while repacking the directory. Title: {item?.TitleName ?? "Unknown"}\nMessage: {b.Message}", b);
                 }
             }
         }
 
-        private void VerifyDir_Click(object sender, RoutedEventArgs e)
+        private async void VerifyDir_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog { SelectedPath = Settings.Default.NSPDirectory, Description = "Choose a directory to scan for titles" };
             bool? result = dialog.ShowDialog();
@@ -1409,11 +1617,11 @@ namespace SwitchManager
                         {
                             // First, unpack the NSP
                             NSP nsp = NSP.FromDirectory(dialog.SelectedPath);
-                            nsp.Verify();
+                            await nsp.Verify();
                         }
                         catch (BadNcaException b)
                         {
-                            ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}");
+                            ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}", b);
                         }
                     }
                 }
@@ -1500,6 +1708,27 @@ namespace SwitchManager
                             DownloadOption = DownloadOptions.AllDLC;
                         }
 
+                        var button = e?.DetailsElement?.FindName("Button_Download") as Button;
+                        if (item.IsOwned)
+                        {
+                            button.Content = $"Copy to Switch Storage ({Settings.Default.SwitchDrivePath})";
+                            if (item.State == SwitchCollectionState.Owned)
+                                button.IsEnabled = true;
+                            else
+                                button.IsEnabled = false;
+                        }
+                        else if (item.IsUnlockable)
+                        {
+                            button.Content = "Unlock Title";
+                        }
+                        else if (item.IsPreloadable)
+                        {
+                            button.Content = "Preload Title";
+                        }
+                        else
+                        {
+                            button.Content = "Download Title";
+                        }
                         Task t = Task.Run(async delegate
                         {
                             try
@@ -1517,11 +1746,13 @@ namespace SwitchManager
                         });
 
                         // If anything is null, get a new image
-                        if (title.IsGame && title.IsMissingMetadata)
+                        if ((title.IsGame || title.IsDLC))
                         {
                             try
                             {
                                 await library.UpdateInternalMetadata(title);
+                                foreach (var up in item.Updates)
+                                    await library.UpdateInternalMetadata(up.Title);
                             }
                             catch (HactoolFailedException ex)
                             {
@@ -1569,12 +1800,7 @@ namespace SwitchManager
                     Directory.CreateDirectory(titledir);
 
                 var title = item?.Title;
-                uint version = title.BaseVersion;
-
-                if (title.IsUpdate)
-                    version = ((SwitchUpdate)title).Version;
-                else if (title.IsDLC)
-                    version = title.LatestVersion ?? (title.LatestVersion = await library.Loader.GetLatestVersion(title)) ?? title.BaseVersion;
+                uint version = await library.GetDownloadVersion(title).ConfigureAwait(false);
 
                 var result = await library.Loader.GetTitleSize(item?.Title, version, titledir);
                 item.Size = result;
@@ -1599,9 +1825,9 @@ namespace SwitchManager
 
         #region MessageBox
 
-        private void ShowError(string text)
+        private void ShowError(string text, Exception e = null)
         {
-            logger.Error(text);
+            logger.Error(text, e);
             Dispatcher?.InvokeOrExecute(()=>MaterialMessageBox.ShowError(text));
         }
 

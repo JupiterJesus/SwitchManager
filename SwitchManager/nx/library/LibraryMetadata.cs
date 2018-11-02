@@ -26,6 +26,9 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Name")]
         public string Name { get; set; }
 
+        [XmlElement(ElementName = "Version")]
+        public uint? Version { get; set; }
+
         [XmlElement(ElementName = "LatestVersion")]
         public uint? LatestVersion { get; set; }
 
@@ -114,13 +117,6 @@ namespace SwitchManager.nx.library
         public byte? MasterKeyRevision { get; set; }
 
         [XmlElement(ElementName = "Update")]
-        public List<UpdateMetadataItem> Updates { get; set; }
-    }
-
-    [XmlRoot(ElementName = "UpdateItem")]
-    public class UpdateMetadataItem : LibraryMetadataItem
-    {
-        [XmlElement(ElementName = "Version")]
-        public uint Version { get; set; }
+        public List<LibraryMetadataItem> Updates { get; set; }
     }
 }

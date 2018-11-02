@@ -478,5 +478,17 @@ namespace SwitchManager.Properties {
                 this["XCIDirectory"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("I:\\")]
+        public string SwitchDrivePath {
+            get {
+                return ((string)(this["SwitchDrivePath"]));
+            }
+            set {
+                this["SwitchDrivePath"] = value;
+            }
+        }
     }
 }

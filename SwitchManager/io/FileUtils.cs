@@ -1,13 +1,24 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using SwitchManager.util;
 
 namespace SwitchManager.io
 {
     public class FileUtils
     {
-        internal static FileStream OpenWriteStream(string path, bool append = false, int timeoutMs = 500)
+        public static FileStream OpenReadStream(string path)
+        {
+            return File.OpenRead(path);
+        }
+
+        public static FileStream OpenReadStream(FileInfo file)
+        {
+            return file.OpenRead();
+        }
+
+        public static FileStream OpenWriteStream(string path, bool append = false, int timeoutMs = 500)
         {
             var time = Stopwatch.StartNew();
             while (time.ElapsedMilliseconds < timeoutMs)
@@ -116,9 +127,7 @@ namespace SwitchManager.io
 
         internal static void DeleteFile(string file)
         {
-            if (string.IsNullOrWhiteSpace(file)) return;
-
-            if (File.Exists(file))
+            if (FileUtils.FileExists(file))
             {
                 File.Delete(file);
                 //GC.Collect();
@@ -126,9 +135,24 @@ namespace SwitchManager.io
             }
         }
 
-        internal static bool FileExists(string path)
+        public static void DeleteFile(FileInfo file)
         {
-            return !string.IsNullOrEmpty(path) && File.Exists(path);
+            if (FileUtils.FileExists(file))
+            {
+                file.Delete();
+                //GC.Collect();
+                //GC.WaitForPendingFinalizers();
+            }
+        }
+
+        public static bool FileExists(string file)
+        {
+            return !string.IsNullOrEmpty(file) && File.Exists(file);
+        }
+
+        public static bool FileExists(FileInfo file)
+        {
+            return file != null && file.Exists;
         }
 
         internal static bool DirectoryExists(string path)
@@ -136,27 +160,78 @@ namespace SwitchManager.io
             return !string.IsNullOrEmpty(path) && Directory.Exists(path);
         }
 
-        internal static void MoveDirectory(string from, string to, bool replace = false)
+        internal static bool DirectoryExists(DirectoryInfo dir)
+        {
+            return dir != null && dir.Exists;
+        }
+
+        public static async Task MoveDirectory(string from, string to, bool replace = false)
         {
             DirectoryInfo fromDir = new DirectoryInfo(from);
             DirectoryInfo toDir = new DirectoryInfo(to);
-            if (toDir.Exists)
+            if (!DirectoryExists(toDir)) toDir.Create();
+
+            foreach (var fromFile in fromDir.EnumerateFiles())
             {
-                if (replace)
+                string destFile = toDir.FullName + Path.DirectorySeparatorChar + fromFile.Name;
+                var toFile = new FileInfo(destFile);
+                await MoveFile(fromFile, toFile, replace).ConfigureAwait(false);                
+            }
+            DeleteDirectory(fromDir);
+        }
+
+        public static async Task MoveFile(FileInfo from, FileInfo to, bool replace)
+        {
+            string fromRoot = Path.GetPathRoot(from.FullName);
+            string toRoot = Path.GetPathRoot(to.FullName);
+
+            if (object.Equals(fromRoot, toRoot))
+            {
+                // If file exists, replace if asked to, skip otherwise
+                if (FileUtils.FileExists(to))
                 {
-                    foreach (var c in fromDir.EnumerateFiles())
-                    {
-                        string destFile = toDir.FullName + Path.DirectorySeparatorChar + c.Name;
-                        if (FileUtils.FileExists(destFile))
-                            FileUtils.DeleteFile(destFile);
-                        c.MoveTo(destFile);
-                    }
+                    if (replace)
+                        FileUtils.DeleteFile(to);
+                    else
+                        return;
                 }
-                else
-                    return;
+                from.MoveTo(to.FullName);
             }
             else
-                fromDir.MoveTo(to);
+            {
+                await CopyFileAsync(from, to, replace).ConfigureAwait(false);
+                DeleteFile(from);
+            }
+        }
+
+        public static async Task CopyFileAsync(FileInfo from, FileInfo to, bool replace)
+        {
+            if (FileUtils.FileExists(to))
+                if (replace)
+                    FileUtils.DeleteFile(to);
+                else
+                    return;
+
+            using (var fromStream = new JobFileStream(from.FullName, $"Copying file {from.Name} to directory {to.DirectoryName}.", from.Length, 0))
+            {
+
+                using (var toStream = OpenWriteStream(to.FullName))
+                    await fromStream.CopyToAsync(toStream).ConfigureAwait(false);
+            }
+        }
+
+        public static async Task CopyFileAsync(FileInfo from, DirectoryInfo to, bool replace)
+        {
+            string toPath = Path.Combine(to.FullName, from.Name);
+            await CopyFileAsync(from, new FileInfo(toPath), replace).ConfigureAwait(false);
+        }
+
+        internal static bool DirectoryHasFile(DirectoryInfo to, string name)
+        {
+            var files = to.GetFiles(name);
+            if (files != null && files.Length > 0) return true;
+
+            return false;
         }
     }
 }

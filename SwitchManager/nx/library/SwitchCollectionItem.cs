@@ -35,6 +35,9 @@ namespace SwitchManager.nx.library
         [XmlElement(ElementName = "Name")]
         public string TitleName { get { return title?.Name; } set { if (title != null) title.Name = value; } }
 
+        [XmlElement(ElementName = "Version")]
+        public uint? Version { get { return title?.Version; } set { if (title != null) title.Version = value; } }
+
         [XmlElement(ElementName = "Icon")]
         public string Icon { get { return title?.Icon; } set { if (title != null) title.Icon = value; } }
 
@@ -152,7 +155,7 @@ namespace SwitchManager.nx.library
         [XmlIgnore]
         public bool IsOwned
         {
-            get { return State == SwitchCollectionState.Owned || State == SwitchCollectionState.OnSwitch; }
+            get { return State == SwitchCollectionState.Owned; }
         }
 
         [XmlIgnore]

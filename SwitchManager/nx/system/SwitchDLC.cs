@@ -22,9 +22,10 @@ namespace SwitchManager.nx.system
         public override bool IsDLC => true;
         public override bool IsUpdate => false;
 
-        internal SwitchDLC(string name, string titleid, string gameid, string titlekey) : base(name, titleid, titlekey)
+        internal SwitchDLC(string name, string titleid, string gameid, string titlekey, uint version) : base(name, titleid, titlekey)
         {
             this.GameID = gameid;
+            this.Version = version;
         }
     }
 }

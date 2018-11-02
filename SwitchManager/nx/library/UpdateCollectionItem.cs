@@ -10,9 +10,6 @@ namespace SwitchManager.nx.library
     public class UpdateCollectionItem : SwitchCollectionItem
     {
         private SwitchUpdate update;
-
-        [XmlElement(ElementName = "Version")]
-        public uint Version { get { return update.Version; } set { if (update != null) update.Version = value; } }
         
         public override bool ShouldSerializeHasDLC() { return false; }
         public override bool ShouldSerializeIsDemo() { return false; }

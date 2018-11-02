@@ -125,5 +125,8 @@
     <Setting Name="XCIDirectory" Type="System.String" Scope="User">
       <Value Profile="(Default)">D:\Emulation\nws\roms\xci</Value>
     </Setting>
+    <Setting Name="SwitchDrivePath" Type="System.String" Scope="User">
+      <Value Profile="(Default)">I:\</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

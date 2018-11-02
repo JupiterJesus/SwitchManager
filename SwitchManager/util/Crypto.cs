@@ -13,6 +13,7 @@ using Org.BouncyCastle.Crypto.Engines;
 using System.Security.Cryptography.X509Certificates;
 using log4net;
 using SwitchManager.io;
+using System.Threading.Tasks;
 
 namespace SwitchManager.util
 {
@@ -401,10 +402,10 @@ namespace SwitchManager.util
             return HashValue;
         }
 
-        public static byte[] ComputeHash(Stream stream)
+        public async static Task<byte[]> ComputeHash<T>(Stream stream) where T : HashAlgorithm, new()
         {
             // Init
-            SHA256Managed sha = new SHA256Managed();
+            var alg = new T();
             long offset = 0;
             byte[] block = new byte[1024 * 1024]; // 1 MB at a time, just for smoother progress
 
@@ -416,40 +417,40 @@ namespace SwitchManager.util
             while (offset  < len)
             {
                 // For each block:
-                int howMany = stream.Read(block, 0, block.Length);
+                int howMany = await stream.ReadAsync(block, 0, block.Length).ConfigureAwait(false);
 
                 if (howMany < block.Length)
                 {
-                    sha.TransformFinalBlock(block, 0, howMany);
+                    alg.TransformFinalBlock(block, 0, howMany);
                     job.UpdateProgress(howMany);
                     break;
                 }
                 else
                 {
-                    offset += sha.TransformBlock(block, 0, howMany, null, 0);
+                    offset += alg.TransformBlock(block, 0, howMany, null, 0);
                     job.UpdateProgress(howMany);
                 }
             }
 
             // Get the has code
-            byte[] hash = sha.Hash;
+            byte[] hash = alg.Hash;
 
             job.Finish();
-            sha.Dispose();
+            alg.Dispose();
             return hash;
         }
 
-        public static byte[] ComputeHash(byte[] buf)
+        public static byte[] ComputeHash<T>(byte[] buf) where T : HashAlgorithm, new()
         {
-            using (Stream s = new MemoryStream(buf))
-                return ComputeHash(s);
+            var alg = new T();
+            return alg.ComputeHash(buf);
         }
 
-        public static bool VerifySha256Hash(string path, byte[] expectedHash)
+        public static async Task<bool> VerifySha256Hash(string path, byte[] expectedHash)
         {
             using (FileStream fs = File.OpenRead(path))
             {
-                byte[] hash = ComputeHash(fs);
+                byte[] hash = await ComputeHash<SHA256Managed>(fs).ConfigureAwait(false);
                 if (expectedHash.Length != hash.Length) // hash has to be 32 bytes = 256 bit
                 {
                     logger.Error($"Bad parsed hash file for {path}, not the right length");

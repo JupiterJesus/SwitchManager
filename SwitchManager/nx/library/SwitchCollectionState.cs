@@ -12,9 +12,6 @@ namespace SwitchManager.nx.library
         [Description("Owned")]
         Owned,
 
-        [Description("On Switch")]
-        OnSwitch,
-
         [Description("New Title")]
         New,
 

@@ -21,7 +21,7 @@
     <ui:TextInputToVisibilityConverter x:Key="TextInputToVisibilityConverter" />
     <ui:FileSizeConverter x:Key="FileSizeConverter" />
     <ui:TitleIconConverter x:Key="TitleIconConverter" />
-
+    <ui:UpdateListConverter x:Key="UpdatesConverter" />
     <ui:VersionsConverter x:Key="VersionsConverter" />
     
     <!-- This style is for displaying an title icon on a button for clicking to go to the eShop url -->
@@ -50,15 +50,17 @@
         <MenuItem x:Name="MenuItem_Update" Header="_Update Title Keys" ToolTip="Updates title keys from the web" Click="MenuItemUpdate_Click"/>
         <MenuItem x:Name="MenuItem_LoadKeys" Header="_Load Title Keys" ToolTip="Loads title keys from a local file" Click="MenuItemLoadKeys_Click"/>
         <MenuItem x:Name="MenuItem_PasteKeys" Header="_Paste Title Keys" ToolTip="Paste a bunch of title keys directly into the app." Click="MenuItemPasteKeys_Click"/>
+        <MenuItem x:Name="MenuItem_ListUpdates" Header="List _Missing Updates" ToolTip="Lists all missing updates (does not download them)." Click="MenuItemListUpdates_Click"/>
         <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials" ToolTip="Imports a PEM certificate (used by CDNSP) into SwitchManager by converting it to a PKCS12 (PFX) file." Click="MenuItemImportCreds_Click"/>
-        <MenuItem x:Name="MenuItem_PreloadImages" Header="Preload Game Icons" ToolTip="Loads and caches all title images directly from the CDN game files. If you have the boxart already displaying or have already loaded all images, this is not necessary unless you disabled box art." Click="MenuItemPreloadImages_Click"/>
+        <MenuItem x:Name="MenuItem_PreloadImages" Header="Preload Game _Icons" ToolTip="Loads and caches all title images directly from the CDN game files. If you have the boxart already displaying or have already loaded all images, this is not necessary unless you disabled box art." Click="MenuItemPreloadImages_Click"/>
         <!--MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game _Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own, but only if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/-->
         <!--<MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/-->
       </MenuItem>
       <MenuItem Header="_Library">
-        <MenuItem Header="Scan For _Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="ScanLibrary_Click"/>
-        <MenuItem x:Name="MenuItem_ImportGameInfo" Header="Import _Game Info" ToolTip="Imports Game_info.json file from CDNSP. This only needs to be done one time, though you can do it again with newer version of the file to update missing games." Click="ImportGameInfo_Click"/>
-        <MenuItem x:Name="MenuItem_ExportLibrary" Header="Export _Library" ToolTip="Exports your library data into GameInfo json or XML, removing all personal information." Click="ExportLibrary_Click"/>
+        <MenuItem Header="_Scan For Games" ToolTip="Scan a specific directory for existing titles. Currently ONLY works for repacked NSPs." Click="ScanLibrary_Click"/>
+        <MenuItem Header="Import _Game NSP" ToolTip="Imports an NSP into the library. If the title doesn't exist, it is added. Otherwise, it is just unpacked, repacked, set to owned and metadata is downloaded." Click="ImportNew_Click"/>
+        <MenuItem Header="Import Game _Info" ToolTip="Imports Game_info.json file from CDNSP. This only needs to be done one time, though you can do it again with newer version of the file to update missing games." Click="ImportGameInfo_Click"/>
+        <MenuItem Header="Export _Library" ToolTip="Exports your library data into GameInfo json or XML, removing all personal information." Click="ExportLibrary_Click"/>
         <MenuItem Header="Select _NSP Directory" ToolTip="Choose a directory to store newly repacked NSPs." Click="SelectLibraryLocation_Click"/>
         <MenuItem Header="Select _Download/Temp Directory" ToolTip="Choose a directory to store unpacked title files." Click="SelectTempLocation_Click"/>
         <MenuItem Header="Save Library _Metadata" Click="SaveLibrary_Click"/>
@@ -160,8 +162,8 @@
                 <Image MaxHeight="100" Width="100">
                   <Image.Source>
                     <MultiBinding Converter="{StaticResource TitleIconConverter}" UpdateSourceTrigger="PropertyChanged" TargetNullValue="blank.jpg">
-                      <Binding Path="Title.BoxArtUrl" Mode="OneWay" TargetNullValue="Unknown"  UpdateSourceTrigger="PropertyChanged"/>
-                      <Binding Path="Title.Icon" Mode="OneWay" TargetNullValue="Unspecified Reasons" UpdateSourceTrigger="PropertyChanged"/>
+                      <Binding Path="Title.BoxArtUrl" Mode="OneWay" UpdateSourceTrigger="PropertyChanged"/>
+                      <Binding Path="Title.Icon" Mode="OneWay" UpdateSourceTrigger="PropertyChanged"/>
                     </MultiBinding>
                   </Image.Source>
                 </Image> 
@@ -208,14 +210,15 @@
                       <Binding Path="Title.KeyGeneration" StringFormat="Master Key Generation is {0}" Mode="OneWay" TargetNullValue="??"/>
                     </TextBlock.Text>
                   </TextBlock>
+                  <TextBlock Margin="5 1" FontSize="12" FontWeight="Bold" Text="Updates"/>
                   <TextBlock Margin="5 1" FontSize="10" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
                     <TextBlock.Text>
-                      <Binding Path="Updates.Count" StringFormat="Number of Updates: {0}" Mode="OneWay" FallbackValue="0" TargetNullValue="0"/>
+                      <Binding Path="Updates" Converter="{StaticResource UpdatesConverter}" Mode="OneWay" TargetNullValue="No Updates"/>
                     </TextBlock.Text>
                   </TextBlock>
                   <TextBlock Margin="5 1" FontSize="10" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
                     <TextBlock.Text>
-                      <Binding Path="Title.HasAmiibo" StringFormat="Supports Amiibo? {0}" Mode="OneWay" TargetNullValue="??"/>
+                      <Binding Path="Title.HasDLC" StringFormat="Has DLC? {0}" Mode="OneWay" TargetNullValue="??"/>
                     </TextBlock.Text>
                   </TextBlock>
                   <TextBlock Margin="5 1" FontSize="10" HorizontalAlignment="Stretch" TextWrapping="Wrap" >
@@ -234,7 +237,8 @@
 
               <TextBlock Margin="5">What do you want to download?</TextBlock>
               <ComboBox Margin="5" ItemsSource="{Binding Source={ui:EnumBindingSource {x:Type coll:DownloadOptions}}}" DataContext="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type Window}}}" SelectedItem="{Binding DownloadOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsSynchronizedWithCurrentItem="True"/>
-              <Button Margin="5" x:Name="Button_Download" Click="Download_Click">Download Title</Button>
+              <Button Margin="5" x:Name="Button_Download" Click="DownloadButton_Click">Download Title</Button>
+              <Button Margin="5" x:Name="Button_Import" Click="Import_Click">Import NSP</Button>
 
             </StackPanel>
           </StackPanel>

@@ -30,7 +30,14 @@ namespace SwitchManager.ui
             {
                 filename = icon ?? boxart;
             }
-            return filename == null ? null : new BitmapImage(new Uri(filename));
+            try
+            {
+                return filename == null ? null : new BitmapImage(new Uri(filename));
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         public object[] ConvertBack(object value, Type[] targetType, object parameter, CultureInfo culture)

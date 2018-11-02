@@ -204,6 +204,13 @@ namespace SwitchManager.nx.system
             set { this.hasDLC = value; NotifyPropertyChanged("HasDLC"); }
         }
 
+        private uint? version;
+        public uint? Version
+        {
+            get { return version; }
+            set { this.version = value; NotifyPropertyChanged("Version"); }
+        }
+
         private string intro;
         public string Intro
         {
@@ -260,10 +267,11 @@ namespace SwitchManager.nx.system
 
         public string EshopLink { get { return $"https://ec.nintendo.com/apps/{TitleID}/{Region ?? "US"}"; } }
 
-        public bool IsMissingMetadata { get { return IsMissingIconData || IsMissingControlData || IsMissingCnmtData; } }
-        public bool IsMissingIconData { get { return Icon == null; } }
+        public bool IsMissingMetadata { get { return IsMissingIconData || IsMissingControlData || IsMissingCnmtData || IsMissingLegalData; } }
+        public bool IsMissingIconData { get { return !IsDLC && Icon == null; } }
         public bool IsMissingControlData { get { return Name == null || Publisher == null || DisplayVersion == null; } }
-        public bool IsMissingCnmtData { get { return MasterKeyRevision == null || RequiredSystemVersion == null; } }
+        public bool IsMissingCnmtData { get { return MasterKeyRevision == null || RequiredSystemVersion == null || Version == null; } }
+        public bool IsMissingLegalData { get { return Region == null; } }
 
         internal SwitchTitle(string name, string titleid, string titlekey)
         {

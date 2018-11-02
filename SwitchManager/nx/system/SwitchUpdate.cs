@@ -17,12 +17,6 @@ namespace SwitchManager.nx.system
             get { return gameid; }
             set { this.gameid = value; NotifyPropertyChanged("GameID"); }
         }
-        private uint version;
-        public uint Version
-        {
-            get { return version; }
-            set { this.version = value; NotifyPropertyChanged("Version"); }
-        }
 
         public override bool IsGame => false;
         public override bool IsDLC => false;
@@ -36,7 +30,7 @@ namespace SwitchManager.nx.system
         internal SwitchUpdate(string name, string titleid, string gameid, uint version, string titlekey) : base(name, titleid, titlekey)
         {
             this.gameid = gameid;
-            this.version = version;
+            this.Version = version;
         }
 
         internal override SwitchUpdate GetUpdateTitle(uint v, string titlekey = null)

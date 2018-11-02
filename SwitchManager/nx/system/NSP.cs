@@ -419,7 +419,7 @@ namespace SwitchManager.nx.system
             return null;
         }
 
-        public void Verify()
+        public async Task Verify()
         {
             if (CnmtXML == null || NcaFiles == null)
                 return;
@@ -432,7 +432,7 @@ namespace SwitchManager.nx.system
                 var entry = cnmtNcas[ncaid];
 
                 logger.Info($"Verifying NSP from file {ncafile}.");
-                bool good = Crypto.VerifySha256Hash(ncafile, entry.HashData);
+                bool good = await Crypto.VerifySha256Hash(ncafile, entry.HashData).ConfigureAwait(false);
                 if (!good) throw new BadNcaException(ncafile, "Hash of NCA file didn't match expected hash from CNMT");
                 else logger.Info($"Verification succeeded.");
             }

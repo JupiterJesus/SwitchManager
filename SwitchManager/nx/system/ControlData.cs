@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -62,7 +63,7 @@ namespace SwitchManager.nx.system
 
         [XmlIgnore]
         public int SupportedLanguagesFlag { get; private set; }
-        
+
         [XmlElement(ElementName = "ParentalControl")]
         public ParentalControlOption ParentalControl { get; set; }
 
@@ -193,7 +194,7 @@ namespace SwitchManager.nx.system
         {
         }
 
-        public static ControlData Parse(string file)
+        public static async Task<ControlData> Parse(string file)
         {
             using (var fs = File.OpenRead(file))
             {
@@ -222,7 +223,8 @@ namespace SwitchManager.nx.system
                         string icon = parent + Path.DirectorySeparatorChar + "icon_" + title.Language + ".bin";
                         if (File.Exists(icon))
                         {
-                            string hash = Crypto.ComputeHash(File.OpenRead(icon)).ToHex();
+                            var hashBytes = await Crypto.ComputeHash<SHA256Managed>(File.OpenRead(icon)).ConfigureAwait(false);
+                            string hash = hashBytes.ToHex();
                             data.Icons.Add(new ControlIcon { Language = title.Language, NxIconHash = hash });
                         }
                     }
@@ -297,7 +299,7 @@ namespace SwitchManager.nx.system
                     if (string.IsNullOrWhiteSpace(data.ApplicationErrorCodeCategory)) data.ApplicationErrorCodeCategory = null;
 
                     // 0x30b0 + (0x8) * 0x8 LocalCommunicationId (array of 8) - just the title ID 8 times?
-                     data.LocalCommunicationIds = new string[0x8];
+                    data.LocalCommunicationIds = new string[0x8];
                     for (int i = 0; i < 0x8; i++)
                         data.LocalCommunicationIds[i] = "0x" + br.ReadHex64();
 
@@ -350,7 +352,7 @@ namespace SwitchManager.nx.system
                     data.PlayLogQueryCapability = (PlayLogQueryCapabilityOption)br.ReadUInt32();
 
                     data.ProgramIndex = br.ReadUInt32();
-                    
+
                     // 0x31A0 + 0xE60 Normally all-zero?
                     data.Reserved = br.ReadBytes(0xE60);
 

@@ -35,7 +35,8 @@ namespace SwitchManager.nx.system
         }
 
         [XmlElement(ElementName = "Version")]
-        public uint Version { get; set; }
+        private uint version;
+        public uint Version { get { return version; } set { this.version = value & 0xFFFF0000; } }
 
         [XmlElement(ElementName = "RequiredDownloadSystemVersion")]
         public string RequiredDownloadSystemVersion { get; set; }
@@ -85,7 +86,7 @@ namespace SwitchManager.nx.system
         {
             get
             {
-                return SwitchTitle.IsUpdateTitleID(Id) ? null : "0x" + SwitchTitle.GetUpdateIDFromBaseGame(Id);
+                return SwitchTitle.IsBaseGameID(Id) ? "0x" + SwitchTitle.GetUpdateIDFromBaseGame(Id) : null;
             }
             set
             {
@@ -106,6 +107,19 @@ namespace SwitchManager.nx.system
             }
         }
 
+        [XmlElement(ElementName = "ApplicationId")]
+        public string ApplicationId
+        {
+            get
+            {
+                return SwitchTitle.IsDLCID(Id) ? "0x" + SwitchTitle.GetBaseGameIDFromDLC(Id)?.ToLower() : null;
+            }
+            set
+            {
+
+            }
+        }
+
         [XmlIgnore]
         public string Id { get; set; }
         [XmlIgnore]
@@ -113,9 +127,9 @@ namespace SwitchManager.nx.system
         [XmlIgnore]
         public string CnmtDirectory { get; set; }
         [XmlIgnore]
-        public FileInfo CnmtNcaFile { get; set; }
+        public string CnmtNcaFilePath { get; set; }
         [XmlIgnore]
-        public string CnmtNcaFilePath { get { return CnmtNcaFile?.FullName; } }
+        public string CnmtXmlFilePath { get; set; }
 
 
         private ushort tableOffset;
@@ -141,7 +155,7 @@ namespace SwitchManager.nx.system
         {
             this.CnmtFilePath = filePath;
             this.CnmtDirectory = cnmtDir;
-            this.CnmtNcaFile = new FileInfo(ncaPath);
+            this.CnmtNcaFilePath = ncaPath;
 
             FileStream fs = File.OpenRead(filePath);
             BinaryReader br = new BinaryReader(fs);
@@ -291,8 +305,8 @@ namespace SwitchManager.nx.system
                 var meta = new CnmtContentEntry
                 {
                     Type = NCAType.Meta,
-                    Id = this.CnmtNcaFile.Name.Replace(".cnmt.nca", string.Empty),
-                    Size = this.CnmtNcaFile.Length,
+                    Id = this.CnmtNcaFilePath.Replace(".cnmt.nca", string.Empty),
+                    Size = FileUtils.GetFileSystemSize(this.CnmtNcaFilePath) ?? 0,
                     MasterKeyRevision = MasterKeyRevision
                 };
                 using (FileStream stream = File.OpenRead(this.CnmtNcaFilePath))
@@ -350,7 +364,7 @@ namespace SwitchManager.nx.system
         public string GenerateXml(string outFile = null)
         {
             if (outFile == null)
-                outFile = Path.GetFullPath(CnmtNcaFilePath).Replace(".nca", ".xml");
+                outFile = CnmtXmlFilePath ?? Path.GetFullPath(CnmtNcaFilePath).Replace(".nca", ".xml");
 
             // Create a new file stream to write the serialized object to a file
             using (FileStream str = FileUtils.OpenWriteStream(outFile))
@@ -376,6 +390,11 @@ namespace SwitchManager.nx.system
             {
                 XmlSerializer xmls = new XmlSerializer(typeof(CNMT));
                 CNMT cnmt = xmls.Deserialize(reader) as CNMT;
+                cnmt.CnmtXmlFilePath = inFile;
+
+                string nca = inFile.Replace("xml", "nca");
+                if (FileUtils.FileExists(nca))
+                    cnmt.CnmtNcaFilePath = nca;
                 return cnmt;
             }
         }

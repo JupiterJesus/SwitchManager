@@ -19,7 +19,7 @@ namespace SwitchManager.nx.system
 
         internal SwitchGame(string name, string titleid, string titlekey) : base(name, titleid, titlekey)
         {
-
+            this.Version = this.BaseVersion;
         }
     }
 }
