@@ -52,7 +52,7 @@
         <MenuItem x:Name="MenuItem_PasteKeys" Header="_Paste Title Keys" ToolTip="Paste a bunch of title keys directly into the app." Click="MenuItemPasteKeys_Click"/>
         <MenuItem x:Name="MenuItem_ListUpdates" Header="List _Missing Updates" ToolTip="Lists all missing updates (does not download them)." Click="MenuItemListUpdates_Click"/>
         <MenuItem x:Name="MenuItem_ImportCreds" Header="_Import New Credentials" ToolTip="Imports a PEM certificate (used by CDNSP) into SwitchManager by converting it to a PKCS12 (PFX) file." Click="MenuItemImportCreds_Click"/>
-        <MenuItem x:Name="MenuItem_PreloadImages" Header="Preload Game _Icons" ToolTip="Loads and caches all title images directly from the CDN game files. If you have the boxart already displaying or have already loaded all images, this is not necessary unless you disabled box art." Click="MenuItemPreloadImages_Click"/>
+        <MenuItem x:Name="MenuItem_PreloadImages" Header="Preload Game Meta_data" ToolTip="Loads and caches all title metadata and eshop data." Click="MenuItemPreloadMetadata_Click"/>
         <!--MenuItem x:Name="MenuItem_EstimateSizes" Header="Estimate Game _Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own, but only if it doesn't have a size already. Ignores DLC, Demos and Updates." Click="MenuItemEstimateSizes_Click"/-->
         <!--<MenuItem x:Name="MenuItem_ForceEstimateSizes" Header="_Force Update Game Sizes" ToolTip="Attempts to estimate the file size of every game that you don't own. Ignores DLC, Demos and Updates." Click="MenuItemForceEstimateSizes_Click"/-->
       </MenuItem>
@@ -63,7 +63,7 @@
         <MenuItem Header="Export _Library" ToolTip="Exports your library data into GameInfo json or XML, removing all personal information." Click="ExportLibrary_Click"/>
         <MenuItem Header="Select _NSP Directory" ToolTip="Choose a directory to store newly repacked NSPs." Click="SelectLibraryLocation_Click"/>
         <MenuItem Header="Select _Download/Temp Directory" ToolTip="Choose a directory to store unpacked title files." Click="SelectTempLocation_Click"/>
-        <MenuItem Header="Save Library _Metadata" Click="SaveLibrary_Click"/>
+        <MenuItem Header="Save Library _Metadata" Click="SaveLibrary"/>
       </MenuItem>
       <MenuItem Header="_NSP">
         <MenuItem Header="Unpack NSP (and verify)" ToolTip="Unpack an NSP into a directory full of its files." Click="UnpackNSP_Click"/>

@@ -155,7 +155,7 @@ namespace SwitchManager
                 bool showNewOnly = CheckBox_New.IsChecked ?? false;
                 bool showUnlockableOnly = CheckBox_Unlockable.IsChecked ?? false;
                 bool showOwned = CheckBox_Owned.IsChecked ?? true;
-                bool showNotOwned = CheckBox_NotOwned.IsChecked ?? true;
+                bool showAvailable = CheckBox_NotOwned.IsChecked ?? true;
                 bool showPreloaded = CheckBox_Preloaded.IsChecked ?? true;
                 bool showPreloadable = CheckBox_Preloadable.IsChecked ?? true;
                 bool showHidden = CheckBox_Hidden.IsChecked ?? false;
@@ -168,8 +168,8 @@ namespace SwitchManager
                         (!showFavoritesOnly || i.IsFavorite) &&
                         (!showUnlockableOnly || i.IsUnlockable) &&
                         (!showNewOnly || i.IsNew) &&
-                        ((showOwned && i.IsOwned) || i.IsAvailable || i.IsPreloaded) &&
-                        ((showNotOwned && !i.IsOwned) || i.IsOwned) &&
+                        ((showOwned && i.IsOwned) || !i.IsOwned) &&
+                        ((showAvailable && i.IsAvailable) || !i.IsAvailable) &&
                         ((showPreloadable && i.IsPreloadable) || !i.IsPreloadable) &&
                         ((showPreloaded && i.IsPreloaded) || !i.IsPreloaded) &&
                         ((showHidden && i.IsHidden) || !i.IsHidden) &&
@@ -470,16 +470,36 @@ namespace SwitchManager
                     // If no item is supplied and can't find it, this is an import of an entirely new title
                     if (item == null)
                     {
+                        // no way to get name but from file
                         string baseFile = Path.GetFileName(nspFile);
                         int idx = baseFile.LastIndexOf(' ');
                         string name = idx > 0 ? baseFile.Substring(0, idx) : "";
+
+                        // patch or dlc
+                        if (cnmt.OriginalId != null || cnmt.ApplicationId != null)
+                        {
+                            var parent = library.GetTitleByID(cnmt.OriginalId ?? cnmt.ApplicationId);
+                            if (parent == null)
+                            {
+                                // no base game
+                                parent = library.LoadTitle(cnmt.OriginalId ?? cnmt.ApplicationId, null, null, 0);
+                                parent.State = SwitchCollectionState.NewNoKey;
+                                parent.LatestVersion = cnmt.Version;
+                                await library.UpdateEShopData(parent);
+                            }
+                        }
+                        else if (cnmt.PatchId != null) // game
+                        {
+                            name = null; // auto load from data
+                        }
                         
                         // The name and tkey are null, but they'll be set automatically during the DownloadTitle call
                         item = library.LoadTitle(cnmt.Id, null, name, cnmt.Version);
                     }
                 }
 
-                await library.UpdateInternalMetadata(item?.Title, cnmt);
+                await library.UpdateInternalMetadata(item.Title, cnmt);
+                if (item.Title.IsGame) await library.UpdateEShopData(item);
                 if (item.LatestVersion < cnmt.Version) item.LatestVersion = cnmt.Version;
                 item.Version = cnmt.Version;
 
@@ -652,6 +672,7 @@ namespace SwitchManager
                 try
                 {
                     await library.DownloadTitle(item, v, o, Settings.Default.NSPRepack, Settings.Default.VerifyDownloads);
+                    SaveLibrary();
                 }
                 catch (CertificateDeniedException ex)
                 {
@@ -882,12 +903,15 @@ namespace SwitchManager
             });
         }
 
-        private void MenuItemPreloadImages_Click(object sender, RoutedEventArgs e)
+        private void MenuItemPreloadMetadata_Click(object sender, RoutedEventArgs e)
         {
             Task.Run(delegate
             {
-                this.library.Collection.Where(t => t.Title != null && !t.Title.HasIcon).ToList().ForEach(async t => await library.UpdateInternalMetadata(t.Title));
-
+                this.library.Collection.ToList().ForEach(async t =>
+                {
+                    await library.UpdateInternalMetadata(t.Title);
+                    await library.UpdateEShopData(t);
+                });
             });
         }
 
@@ -1382,7 +1406,7 @@ namespace SwitchManager
             }
         }
 
-        private void SaveLibrary_Click(object sender, RoutedEventArgs e)
+        private void SaveLibrary(object sender = null, RoutedEventArgs e = null)
         {
             string file = Settings.Default.MetadataFile;
             if (string.IsNullOrWhiteSpace(Path.GetExtension(file)))
