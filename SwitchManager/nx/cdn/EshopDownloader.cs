@@ -129,11 +129,23 @@ namespace SwitchManager.nx.cdn
                                 string legalxml = romfs.FullName + Path.DirectorySeparatorChar + "legalinfo.xml";
                                 LegalData ldata = LegalData.FromXml(legalxml);
                                 if (ldata.SupportsUsa())
-                                    title.Region = "US";
+                                {
+                                    if (ldata.SupportsEurope())
+                                    {
+                                        if (ldata.SupportsJapan())
+                                            title.Region = "World";
+                                        else
+                                            title.Region = "US/EU";
+                                    }
+                                    else
+                                        title.Region = "US";
+                                }
                                 else if (ldata.SupportsEurope())
                                     title.Region = "EU";
                                 else if (ldata.SupportsJapan())
                                     title.Region = "JP";
+                                else
+                                    title.Region = "Other";
                             }
                         }
                         finally
