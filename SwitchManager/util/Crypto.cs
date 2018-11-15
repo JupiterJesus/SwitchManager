@@ -406,7 +406,7 @@ namespace SwitchManager.util
         {
             // Init
             var alg = new T();
-            long offset = 0;
+            long total = 0;
             byte[] block = new byte[1024 * 1024]; // 1 MB at a time, just for smoother progress
 
             long len = stream.Length;
@@ -414,12 +414,13 @@ namespace SwitchManager.util
             ProgressJob job = new ProgressJob(name, len, 0);
 
             job.Start();
-            while (offset  < len)
+            while (total  < len)
             {
                 // For each block:
                 int howMany = await stream.ReadAsync(block, 0, block.Length).ConfigureAwait(false);
 
-                if (howMany < block.Length)
+                total += howMany;
+                if (total >= len)
                 {
                     alg.TransformFinalBlock(block, 0, howMany);
                     job.UpdateProgress(howMany);
@@ -427,7 +428,7 @@ namespace SwitchManager.util
                 }
                 else
                 {
-                    offset += alg.TransformBlock(block, 0, howMany, null, 0);
+                    alg.TransformBlock(block, 0, howMany, null, 0);
                     job.UpdateProgress(howMany);
                 }
             }
