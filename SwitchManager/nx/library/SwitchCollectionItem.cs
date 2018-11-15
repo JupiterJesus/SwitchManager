@@ -173,7 +173,7 @@ namespace SwitchManager.nx.library
         [XmlIgnore]
         public bool IsAvailable
         {
-            get { return IsNew || State == SwitchCollectionState.NotOwned || State == SwitchCollectionState.NoKey; }
+            get { return State == SwitchCollectionState.New || State == SwitchCollectionState.NotOwned; }
         }
 
         [XmlIgnore]
