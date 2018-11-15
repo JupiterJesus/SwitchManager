@@ -243,7 +243,7 @@ namespace SwitchManager.nx.system
         public long? RequiredSystemVersion
         {
             get { return requiredSystemVersion; }
-            set { this.requiredSystemVersion = value; NotifyPropertyChanged("RequiredSystemVersion"); }
+            set { this.requiredSystemVersion = value; NotifyPropertyChanged("RequiredSystemVersion"); NotifyPropertyChanged("RequiredFirmware"); }
         }
 
         private byte? masterKeyRevision;
