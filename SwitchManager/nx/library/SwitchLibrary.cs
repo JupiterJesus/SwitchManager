@@ -1312,6 +1312,8 @@ namespace SwitchManager.nx.library
         /// <returns></returns>
         public SwitchCollectionItem LoadTitle(string tid, string tkey, string name, uint version)
         {
+            if (tid == null) return null;
+            if (tid.StartsWith("0x")) tid = tid.Substring(2);
             if (!SwitchTitle.CheckValidTitleID(tid)) return null;
             else tid = tid.ToLower();
 
