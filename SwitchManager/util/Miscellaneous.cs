@@ -15,9 +15,14 @@ namespace SwitchManager.util
         {
             StringBuilder sb = new StringBuilder();
             // Remove bullshit characters before creating path
+            
+            var invalid = Path.GetInvalidFileNameChars().ToList();
+            invalid.Add('™');
+            invalid.Add('®');
+
             foreach (char c in str)
             {
-                if (!Path.GetInvalidFileNameChars().Contains(c))
+                if (!invalid.Contains(c))
                     sb.Append(c);
             }
             return sb.ToString();
