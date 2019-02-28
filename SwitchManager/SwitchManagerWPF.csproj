@@ -121,6 +121,7 @@
     <Compile Include="nx\system\RatingOrganisation.cs" />
     <Compile Include="ui\UpdateListConverter.cs" />
     <Compile Include="ui\TitleIconConverter.cs" />
+    <Compile Include="ui\FirmwareRequiredConverter.cs" />
     <Compile Include="util\HactoolFailedException.cs" />
     <Compile Include="io\JobFileStream.cs" />
     <Compile Include="nx\system\InvalidNspException.cs" />

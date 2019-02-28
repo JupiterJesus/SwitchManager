@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="clr-namespace:SwitchManager.ui"
         mc:Ignorable="d"
-        Title="Downloads"
+        Title="Progress"
         ResizeMode="NoResize"
         ui:WindowBehavior.HideCloseButton="True"> 
 

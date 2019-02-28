@@ -12,7 +12,7 @@
       <Value Profile="(Default)">lp1</Value>
     </Setting>
     <Setting Name="TitleKeysURL" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">http://snip.li/newkeydb</Value>
+      <Value Profile="(Default)">https://snip.li/newkeydb</Value>
     </Setting>
     <Setting Name="HactoolPath" Type="System.String" Scope="Application">
       <Value Profile="(Default)">hactool\hactool.exe</Value>
@@ -30,7 +30,7 @@
       <Value Profile="(Default)">Images</Value>
     </Setting>
     <Setting Name="NSPDirectory" Type="System.String" Scope="User">
-      <Value Profile="(Default)">D:\Emulation\nws\roms\nsp</Value>
+      <Value Profile="(Default)">D:\Emulation\nsw\roms\nsp</Value>
     </Setting>
     <Setting Name="NSPRepack" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
@@ -60,7 +60,7 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="TempDirectory" Type="System.String" Scope="User">
-      <Value Profile="(Default)">D:\Emulation\nws\roms\nsp\tmp</Value>
+      <Value Profile="(Default)">D:\Emulation\nsw\roms\nsp\tmp</Value>
     </Setting>
     <Setting Name="FilterText" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
@@ -99,7 +99,7 @@
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="NutURL" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">http://snip.li/nutdb</Value>
+      <Value Profile="(Default)">https://snip.li/nutdb</Value>
     </Setting>
     <Setting Name="ShowUnlockable" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
@@ -123,7 +123,7 @@
       <Value Profile="(Default)">certs\login.pfx</Value>
     </Setting>
     <Setting Name="XCIDirectory" Type="System.String" Scope="User">
-      <Value Profile="(Default)">D:\Emulation\nws\roms\xci</Value>
+      <Value Profile="(Default)">D:\Emulation\nsw\roms\xci</Value>
     </Setting>
     <Setting Name="SwitchDrivePath" Type="System.String" Scope="User">
       <Value Profile="(Default)">I:\</Value>

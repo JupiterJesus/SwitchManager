@@ -195,6 +195,15 @@ namespace SwitchManager.nx.library
         }
 
         [XmlIgnore]
+        public UpdateCollectionItem LatestUpdate
+        {
+            get
+            {
+                return Title.IsGame && LatestVersion > 0 ? this.updates.OrderByDescending(u => u.Version).FirstOrDefault() : null;
+            }
+        }
+
+        [XmlIgnore]
         public bool IsPreloaded
         {
             get { return State == SwitchCollectionState.Downloaded; }

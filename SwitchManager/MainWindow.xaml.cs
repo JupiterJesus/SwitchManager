@@ -82,7 +82,7 @@ namespace SwitchManager
             downloader.UpdateClientCert(Settings.Default.ClientCertPath);
             downloader.UpdateLoginCert(Settings.Default.LoginCertPath);
             downloader.UpdateEShopCert(Settings.Default.EShopCertPath);
-            downloader.ConfigureHacTool(Settings.Default.HactoolPath, Settings.Default.KeysPath);
+            Hactool.Initialize(Settings.Default.HactoolPath, Settings.Default.KeysPath);
             
             downloader.DownloadBuffer = Settings.Default.DownloadBufferSize;
             
@@ -98,9 +98,9 @@ namespace SwitchManager
             CollectionViewSource itemCollectionViewSource = (CollectionViewSource)(FindResource("ItemCollectionViewSource"));
             itemCollectionViewSource.Source = library.Collection;
             //
-            
-            var ulc = (UpdateListConverter)(FindResource("UpdatesConverter"));
-            ulc.Library = library;
+
+            ((UpdateListConverter)(FindResource("UpdatesConverter"))).Library = library;
+            ((FirmwareRequiredConverter)(FindResource("FirmwareRequiredConverter"))).Library = library;
             //downloadWindow.Closing += this.Downloads_Closing;
         }
 
@@ -147,6 +147,10 @@ namespace SwitchManager
             ICollectionView cv = CollectionViewSource.GetDefaultView(DataGrid_Collection.ItemsSource);
             Predicate<object> datagridFilter = (o =>
             {
+                if (!(o is SwitchCollectionItem i)) return false;
+                if (i.Title == null) return false;
+                if (i.Title.TitleID == null) return false;
+
                 string filterText = TextBox_Search.Text;
                 bool showDemos = CheckBox_Demos.IsChecked ?? false;
                 bool showDLC = CheckBox_DLC.IsChecked ?? false;
@@ -159,7 +163,6 @@ namespace SwitchManager
                 bool showPreloaded = CheckBox_Preloaded.IsChecked ?? true;
                 bool showPreloadable = CheckBox_Preloadable.IsChecked ?? true;
                 bool showHidden = CheckBox_Hidden.IsChecked ?? false;
-                SwitchCollectionItem i = o as SwitchCollectionItem;
 
                 return  //(library.PreferredRegion.Equals(i.Region)) &&
                         ((showDemos && i.Title.IsDemo) || !i.Title.IsDemo) &&
@@ -173,7 +176,7 @@ namespace SwitchManager
                         ((showPreloadable && i.IsPreloadable) || !i.IsPreloadable) &&
                         ((showPreloaded && i.IsPreloaded) || !i.IsPreloaded) &&
                         ((showHidden && i.IsHidden) || !i.IsHidden) &&
-                        (string.IsNullOrWhiteSpace(filterText) || i.Title.Name.ToUpper().Contains(filterText.ToUpper()) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
+                        (string.IsNullOrWhiteSpace(filterText) || (i.Title?.Name?.ToUpper().Contains(filterText.ToUpper()) ?? false) || i.Title.TitleID.ToUpper().Contains(filterText.ToUpper()));
             });
             cv.Filter = datagridFilter;
 
@@ -459,6 +462,7 @@ namespace SwitchManager
                 //nsp.Verify(); // don't verify now, that'll happen in the download call
                 CNMT cnmt = nsp.CNMT;
 
+                cnmt.DeleteDirectory();
                 string outDir = Settings.Default.TempDirectory + Path.DirectorySeparatorChar + cnmt.Id;
                 await FileUtils.MoveDirectory(nsp.Directory, outDir, true);
 
@@ -805,19 +809,19 @@ namespace SwitchManager
             string tempTkeysFile = "titlekeys.txt.tmp";
             string nutFile = Path.GetFullPath("nut.tmp");
 
-            using (var client = new WebClient())
-            {
-                await client.DownloadFileTaskAsync(new Uri(Settings.Default.TitleKeysURL), tempTkeysFile);
-                await client.DownloadFileTaskAsync(new Uri(Settings.Default.NutURL), nutFile);
-            }
-
             try
             {
+
+                using (var client = new WebClient())
+                {
+                    await client.DownloadFileTaskAsync(new Uri(Settings.Default.TitleKeysURL), tempTkeysFile);
+                    await client.DownloadFileTaskAsync(new Uri(Settings.Default.NutURL), nutFile);
+                }
                 await LoadTitleKeys(tempTkeysFile, nutFile);
             }
-            catch
+            catch (Exception ex)
             {
-                ShowError("Error loading title keys.");
+                ShowError("Error loading title keys.", ex);
             }
             finally
             {
@@ -1497,8 +1501,7 @@ namespace SwitchManager
                     // NSP directory. The directory names are the NCA ID / file name without extension.
                     foreach (var nca in nsp.NcaFiles)
                     {
-                        Hactool hactool = new Hactool(Settings.Default.HactoolPath, Settings.Default.KeysPath);
-                        await hactool.DecryptNCA(nca, titlekey).ConfigureAwait(false);
+                        await Hactool.DecryptNCA(nca, titlekey).ConfigureAwait(false);
                     }
                 }
                 catch (BadNcaException b)

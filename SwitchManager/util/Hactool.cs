@@ -10,23 +10,23 @@ using System.Threading.Tasks;
 
 namespace SwitchManager.util
 {
-    public class Hactool
+    public static class Hactool
     {
         private static readonly ILog logger = LogManager.GetLogger(typeof(Hactool));
 
-        private readonly string hactoolPath;
-        private readonly string keysPath;
+        private static string hactoolPath;
+        private static string keysPath;
 
-        public Hactool(string hactoolPath, string keysPath)
+        public static void Initialize(string hactoolPath, string keysPath)
         {
-            this.hactoolPath = hactoolPath;
-            this.keysPath = keysPath;
+            Hactool.hactoolPath = hactoolPath;
+            Hactool.keysPath = keysPath;
         }
 
-        public async Task<bool> VerifyNCA(string ncaPath, SwitchTitle title)
+        public static async Task<bool> VerifyNCA(string ncaPath, SwitchTitle title)
         {
-            string hactoolExe = (this.hactoolPath);
-            string keysFile = (this.keysPath);
+            string hactoolExe = (hactoolPath);
+            string keysFile = (keysPath);
             string tkey = title.TitleKey;
 
             // NOTE: Using single quotes here instead of single quotes fucks up windows, it CANNOT handle single quotes
@@ -75,7 +75,7 @@ namespace SwitchManager.util
         /// </summary>
         /// <param name="fpath"></param>
         /// <returns></returns>
-        public async Task<DirectoryInfo> DecryptNCA(string ncaPath, string titlekey = null, string outDir = null)
+        public static async Task<DirectoryInfo> DecryptNCA(string ncaPath, string titlekey = null, string outDir = null)
         {
             string fName = Path.GetFileNameWithoutExtension(ncaPath); // fName = os.path.basename(fPath).split()[0]
             if (outDir == null)
@@ -83,8 +83,8 @@ namespace SwitchManager.util
             DirectoryInfo outDirInfo = new DirectoryInfo(outDir);
             outDirInfo.Create();
 
-            string hactoolExe = (this.hactoolPath);
-            string keysFile = (this.keysPath);
+            string hactoolExe = (hactoolPath);
+            string keysFile = (keysPath);
             string exefsPath = (outDir + Path.DirectorySeparatorChar + "exefs");
             string romfsPath = (outDir + Path.DirectorySeparatorChar + "romfs");
             string section0Path = (outDir + Path.DirectorySeparatorChar + "section0");

@@ -52,7 +52,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("http://snip.li/newkeydb")]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://snip.li/newkeydb")]
         public string TitleKeysURL {
             get {
                 return ((string)(this["TitleKeysURL"]));
@@ -112,7 +112,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("D:\\Emulation\\nws\\roms\\nsp")]
+        [global::System.Configuration.DefaultSettingValueAttribute("D:\\Emulation\\nsw\\roms\\nsp")]
         public string NSPDirectory {
             get {
                 return ((string)(this["NSPDirectory"]));
@@ -229,7 +229,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("D:\\Emulation\\nws\\roms\\nsp\\tmp")]
+        [global::System.Configuration.DefaultSettingValueAttribute("D:\\Emulation\\nsw\\roms\\nsp\\tmp")]
         public string TempDirectory {
             get {
                 return ((string)(this["TempDirectory"]));
@@ -385,7 +385,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("http://snip.li/nutdb")]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://snip.li/nutdb")]
         public string NutURL {
             get {
                 return ((string)(this["NutURL"]));
@@ -469,7 +469,7 @@ namespace SwitchManager.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("D:\\Emulation\\nws\\roms\\xci")]
+        [global::System.Configuration.DefaultSettingValueAttribute("D:\\Emulation\\nsw\\roms\\xci")]
         public string XCIDirectory {
             get {
                 return ((string)(this["XCIDirectory"]));

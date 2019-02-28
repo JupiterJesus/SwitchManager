@@ -23,6 +23,7 @@
     <ui:TitleIconConverter x:Key="TitleIconConverter" />
     <ui:UpdateListConverter x:Key="UpdatesConverter" />
     <ui:VersionsConverter x:Key="VersionsConverter" />
+    <ui:FirmwareRequiredConverter x:Key="FirmwareRequiredConverter" />
     
     <!-- This style is for displaying an title icon on a button for clicking to go to the eShop url -->
     <Style TargetType="{x:Type Button}" x:Key="ImageButtonStyle">
@@ -251,7 +252,7 @@
           Binding="{Binding Path=IsFavorite, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
         <DataGridTextColumn 
           Header="Title Name"
-          Binding="{Binding Path=Title.Name, Mode=OneWay}" 
+          Binding="{Binding Path=Title.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
           MaxWidth="400"
           FontSize="12"/>
         <DataGridTextColumn 
@@ -269,12 +270,16 @@
           FontSize="12" />
         <DataGridTextColumn 
           Header="Firmware"
-          Binding="{Binding Path=Title.RequiredFirmware, Mode=OneWay, UpdateSourceTrigger=PropertyChanged, TargetNullValue='1.0.0'}" 
+          Binding="{Binding Converter={StaticResource FirmwareRequiredConverter}, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
+          FontSize="12" />
+          <DataGridTextColumn
+          Header="Date Added"
+          Binding="{Binding Path=Added, StringFormat=yyyy/MM/dd, Mode=OneWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" 
           FontSize="12" />
         <DataGridTextColumn 
           Header="Rom Path"
           Binding="{Binding Path=RomPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" 
-          FontSize="12" />
+          FontSize="10" />
       </DataGrid.Columns>
     </DataGrid>
   </DockPanel>

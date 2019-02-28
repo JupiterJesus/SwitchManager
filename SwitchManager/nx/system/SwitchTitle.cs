@@ -252,7 +252,6 @@ namespace SwitchManager.nx.system
             get { return masterKeyRevision; }
             set { this.masterKeyRevision = value; NotifyPropertyChanged("MasterKeyRevision"); }
         }
-
         public string RequiredFirmware
         {
             get { return SwitchFirmware.VersionToString(requiredSystemVersion); }
@@ -265,7 +264,21 @@ namespace SwitchManager.nx.system
 
         public bool HasIcon { get { return FileUtils.FileExists(Icon) || !string.IsNullOrWhiteSpace(BoxArtUrl); } }
 
-        public string EshopLink { get { return $"https://ec.nintendo.com/apps/{TitleID}/{Region ?? "US"}"; } }
+        public string EshopLink
+        {
+            get
+            {
+                string r = null;
+                if ("World".Equals(Region))
+                    r = "US";
+                else if ("US/EU".Equals(Region))
+                    r = "US";
+                else if (Region != null)
+                    r = Region;
+
+                return $"https://ec.nintendo.com/apps/{TitleID}/{r ?? "US"}";
+            }
+        }
 
         public bool IsMissingMetadata { get { return IsMissingIconData || IsMissingControlData || IsMissingCnmtData || IsMissingLegalData; } }
         public bool IsMissingIconData { get { return !IsDLC && Icon == null; } }

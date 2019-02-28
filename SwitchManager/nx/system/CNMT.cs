@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using System.Xml.Serialization;
 
 namespace SwitchManager.nx.system
@@ -305,7 +306,7 @@ namespace SwitchManager.nx.system
                 var meta = new CnmtContentEntry
                 {
                     Type = NCAType.Meta,
-                    Id = this.CnmtNcaFilePath.Replace(".cnmt.nca", string.Empty),
+                    Id = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(this.CnmtNcaFilePath)),
                     Size = FileUtils.GetFileSystemSize(this.CnmtNcaFilePath) ?? 0,
                     MasterKeyRevision = MasterKeyRevision
                 };
@@ -377,6 +378,18 @@ namespace SwitchManager.nx.system
 
             logger.Info($"Generated XML file {Path.GetFileName(outFile)}!");
             return outFile;
+        }
+
+        public static async Task<CNMT> FromNca(string cnmtNCA)
+        {
+            DirectoryInfo cnmtDir = await Hactool.DecryptNCA(cnmtNCA).ConfigureAwait(false);
+
+            // For CNMTs, there is a section0 containing a single cnmt file, plus a Header.bin right next to section0
+            var sectionDirInfo = cnmtDir.EnumerateDirectories("section0").First();
+            var extractedCnmt = sectionDirInfo.EnumerateFiles().First();
+            var headerFile = cnmtDir.EnumerateFiles("Header.bin").First();
+
+            return new CNMT(extractedCnmt.FullName, headerFile.FullName, cnmtDir.FullName, cnmtNCA);
         }
 
         /// <summary>

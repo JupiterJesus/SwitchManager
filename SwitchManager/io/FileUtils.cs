@@ -233,5 +233,12 @@ namespace SwitchManager.io
 
             return false;
         }
+
+        internal static DateTime? GetCreationDate(string path)
+        {
+            if (!FileExists(path)) return null;
+            var f = new FileInfo(path);
+            return f?.CreationTime;
+        }
     }
 }

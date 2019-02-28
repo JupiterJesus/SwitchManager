@@ -258,9 +258,13 @@ namespace SwitchManager.nx.library
                     if (item.State != SwitchCollectionState.Hidden)
                     {
                         item.State = SwitchCollectionState.Owned;
-                        item.Added = DateTime.Now;
                     }
                     item.Size = FileUtils.GetFileSystemSize(item.Path);
+                }
+
+                if (item.Added == null)
+                {
+                    item.Added = FileUtils.GetCreationDate(item.Path);
                 }
             }
             else if (FileUtils.DirectoryExists(item.Path))

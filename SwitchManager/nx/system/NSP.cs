@@ -373,10 +373,11 @@ namespace SwitchManager.nx.system
                             logger.Info($"Copied NSP contents to file {filePath}");
                         }
                     }
-                    CNMT cnmt = nsp.CNMT = CNMT.FromXml(nsp.CnmtXML);
+                    CNMT cnmt = nsp.CNMT = await nsp.ReadCNMT().ConfigureAwait(false);
                     var cnmtNcas = cnmt.ParseContent();
                     foreach (var ncafile in ncas)
                     {
+                        // Intentionally two calls, .cnmt.nca is two extensions
                         string ncaid = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(ncafile));
                         var entry = cnmtNcas[ncaid];
                         nsp.AddNCAByID(entry.Type, ncaid);
@@ -384,6 +385,16 @@ namespace SwitchManager.nx.system
                     return nsp;
                 }
             }
+        }
+
+        private async Task<CNMT> ReadCNMT()
+        {
+            if (FileUtils.FileExists(this.CnmtXML))
+                return CNMT.FromXml(this.CnmtXML);
+            else if (FileUtils.FileExists(this.CnmtNCA))
+                return await CNMT.FromNca(this.CnmtNCA).ConfigureAwait(false);
+            else
+                return null;
         }
 
         public static NSP FromDirectory(string path)

@@ -30,9 +30,6 @@ namespace SwitchManager.nx.cdn
 
         private readonly string imagesPath;
 
-        private string hactoolPath;
-        private string keysPath;
-
         private string clientCertPath;
         private string loginCertPath;
         private string eShopCertPath;
@@ -92,8 +89,7 @@ namespace SwitchManager.nx.cdn
                     string fpath = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
                     if (await DownloadNCA(ncaID, fpath).ConfigureAwait(false))
                     {
-                        Hactool hactool = new Hactool(hactoolPath, keysPath);
-                        var controlDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
+                        var controlDir = await Hactool.DecryptNCA(fpath).ConfigureAwait(false);
 
                         try
                         {
@@ -109,7 +105,7 @@ namespace SwitchManager.nx.cdn
                         }
                         finally
                         {
-                            FileUtils.DeleteDirectory(controlDir);
+                            FileUtils.DeleteDirectory(controlDir, true);
                         }
                     }
                 }
@@ -119,8 +115,7 @@ namespace SwitchManager.nx.cdn
                     string fpath = titleDir + Path.DirectorySeparatorChar + legalID + ".nca";
                     if (await DownloadNCA(legalID, fpath).ConfigureAwait(false))
                     {
-                        Hactool hactool = new Hactool(hactoolPath, keysPath);
-                        var ncaDir = await hactool.DecryptNCA(fpath).ConfigureAwait(false);
+                        var ncaDir = await Hactool.DecryptNCA(fpath).ConfigureAwait(false);
                         try
                         {
                             if (ncaDir != null)
@@ -174,12 +169,6 @@ namespace SwitchManager.nx.cdn
             finally
             {
             }
-        }
-
-        public void ConfigureHacTool(string hactoolPath, string keysPath)
-        {
-            this.hactoolPath = Path.GetFullPath(hactoolPath);
-            this.keysPath = Path.GetFullPath(keysPath);
         }
 
         private static Dictionary<string, SemaphoreSlim> locks = new Dictionary<string, SemaphoreSlim>();
@@ -289,15 +278,13 @@ namespace SwitchManager.nx.cdn
                             return null;
                         }
                     }
-                    Hactool hactool = new Hactool(hactoolPath, keysPath);
-
                     string controlID = cnmt.ParseNCAs(NCAType.Control).SingleOrDefault(); // There's only one control.nca
                     if (controlID != null)
                     {
 
                         string controlPath = titleDir + Path.DirectorySeparatorChar + controlID + ".nca";
 
-                        var ncaDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
+                        var ncaDir = await Hactool.DecryptNCA(controlPath).ConfigureAwait(false);
                         if (ncaDir != null)
                         {
                             DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
@@ -327,7 +314,7 @@ namespace SwitchManager.nx.cdn
                     {
                         string legalPath = titleDir + Path.DirectorySeparatorChar + legalID + ".nca";
 
-                        var ncaDir = await hactool.DecryptNCA(legalPath).ConfigureAwait(false);
+                        var ncaDir = await Hactool.DecryptNCA(legalPath).ConfigureAwait(false);
                         if (ncaDir != null)
                         {
                             DirectoryInfo romfs = ncaDir.EnumerateDirectories("romfs").First();
@@ -1015,11 +1002,7 @@ namespace SwitchManager.nx.cdn
                     if (FileUtils.FileExists(xml))
                         checkcnmt = CNMT.FromXml(xml);
                     else
-                    {
-                        Hactool hactool = new Hactool(hactoolPath, keysPath);
-                        DirectoryInfo cnmtDir = await hactool.DecryptNCA(c).ConfigureAwait(false);
-                        checkcnmt = GetDownloadedCnmt(cnmtDir, c);
-                    }
+                        checkcnmt = await CNMT.FromNca(c).ConfigureAwait(false);
 
                     if (checkcnmt.Id.Equals(title.TitleID, StringComparison.CurrentCultureIgnoreCase) && checkcnmt.Version == version)
                     {
@@ -1043,13 +1026,7 @@ namespace SwitchManager.nx.cdn
                 // Download the CNMT NCA file
                 bool completed = await DownloadCnmt(cnmtid, ncaPath).ConfigureAwait(false);
                 if (!completed) return null;
-
-                // Decrypt the CNMT NCA file (all NCA files are encrypted by nintendo)
-                // Hactool does the job for us
-                Hactool hactool = new Hactool(hactoolPath, keysPath);
-                DirectoryInfo cnmtDir = await hactool.DecryptNCA(ncaPath).ConfigureAwait(false);
-
-                cnmt = GetDownloadedCnmt(cnmtDir, ncaPath);
+                cnmt = await CNMT.FromNca(ncaPath).ConfigureAwait(false);
             }
             if (cnmt != null)
             {
@@ -1069,16 +1046,6 @@ namespace SwitchManager.nx.cdn
                 return null;
             }
             */
-        }
-
-        private CNMT GetDownloadedCnmt(DirectoryInfo cnmtDir, string ncaPath)
-        {
-            // For CNMTs, there is a section0 containing a single cnmt file, plus a Header.bin right next to section0
-            var sectionDirInfo = cnmtDir.EnumerateDirectories("section0").First();
-            var extractedCnmt = sectionDirInfo.EnumerateFiles().First();
-            var headerFile = cnmtDir.EnumerateFiles("Header.bin").First();
-
-            return new CNMT(extractedCnmt.FullName, headerFile.FullName, cnmtDir.FullName, ncaPath);
         }
 
         public async Task<HttpResponseMessage> GetEshopData(SwitchTitle title, string region, string lang)
@@ -1311,8 +1278,7 @@ namespace SwitchManager.nx.cdn
                     // Extract the images and add their file names and sizes
                     if (controlPath != null)
                     {
-                        Hactool hactool = new Hactool(hactoolPath, keysPath);
-                        var controlDir = await hactool.DecryptNCA(controlPath).ConfigureAwait(false);
+                        var controlDir = await Hactool.DecryptNCA(controlPath).ConfigureAwait(false);
                         try
                         {
                             var dirs = controlDir.EnumerateDirectories("romfs");
