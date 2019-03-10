@@ -79,46 +79,45 @@ namespace SwitchManager.nx.system
         [XmlElement(ElementName = "KeyGenerationMin")]
         public byte MasterKeyRevision { get; set; }
 
+        [XmlIgnore]
+        public long? RequiredVersion { get; set; }
+
         [XmlElement(ElementName = "RequiredSystemVersion")]
-        public long RequiredSystemVersion { get; set; }
+        public long? RequiredSystemVersion
+        {
+            get => SwitchTitle.IsDLCID(Id) ? null : RequiredVersion;
+            set { }
+        }
+
+        [XmlElement(ElementName = "RequiredApplicationVersion")]
+        public long? RequiredApplicationVersion
+        {
+            get => SwitchTitle.IsDLCID(Id) ? RequiredVersion: null;
+            set { }
+        }
 
         [XmlElement(ElementName = "PatchId")]
         public string PatchId
         {
-            get
-            {
-                return SwitchTitle.IsBaseGameID(Id) ? "0x" + SwitchTitle.GetUpdateIDFromBaseGame(Id) : null;
-            }
-            set
-            {
-
-            }
+            get => SwitchTitle.IsBaseGameID(Id) ? "0x" + SwitchTitle.GetUpdateIDFromBaseGame(Id) : null;
+            
+            set { }
         }
 
         [XmlElement(ElementName = "OriginalId")]
         public string OriginalId
         {
-            get
-            {
-                return SwitchTitle.IsUpdateTitleID(Id) ? "0x" + SwitchTitle.GetBaseGameIDFromUpdate(Id)?.ToLower() : null;
-            }
-            set
-            {
-
-            }
+            get => SwitchTitle.IsUpdateTitleID(Id) ? "0x" + SwitchTitle.GetBaseGameIDFromUpdate(Id)?.ToLower() : null;
+            
+            set { }
         }
 
         [XmlElement(ElementName = "ApplicationId")]
         public string ApplicationId
         {
-            get
-            {
-                return SwitchTitle.IsDLCID(Id) ? "0x" + SwitchTitle.GetBaseGameIDFromDLC(Id)?.ToLower() : null;
-            }
-            set
-            {
-
-            }
+            get => SwitchTitle.IsDLCID(Id) ? "0x" + SwitchTitle.GetBaseGameIDFromDLC(Id)?.ToLower() : null;
+            
+            set { }
         }
 
         [XmlIgnore]
@@ -192,7 +191,7 @@ namespace SwitchManager.nx.system
             br.BaseStream.Seek(0x18, SeekOrigin.Begin); this.RequiredDownloadSystemVersion = br.ReadUInt64().ToString();
 
             // Minimum System Version is at offset 0x28 and is 8 bytes long
-            br.BaseStream.Seek(0x28, SeekOrigin.Begin); this.RequiredSystemVersion = br.ReadInt64();
+            br.BaseStream.Seek(0x28, SeekOrigin.Begin); this.RequiredVersion = br.ReadInt64();
 
             // Get the hash/digest from the last 0x20 bytes
             br.BaseStream.Seek(-0x20, SeekOrigin.End); this.Hash = br.ReadBytes(0x20);
