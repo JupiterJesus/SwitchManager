@@ -26,7 +26,12 @@ namespace SwitchManager.nx.system
             "5.0.1",
             "5.0.2",
             "5.1.0",
-            "6.0.0"
+            "6.0.0",
+            "6.0.1",
+            "6.1.0",
+            "6.2.0",
+            "7.0.0",
+            "7.0.1",
         };
 
         private static readonly uint[] versionNumbers = new uint[]
@@ -46,7 +51,12 @@ namespace SwitchManager.nx.system
             335609886,
             335675432,
             336592976,
-            402653544,
+            402653544, // 6.0.0
+            496766464, // 6.0.1, estimate
+            708248576, // 6.1.0, estimate
+            710345728, // 6.2.0, estimate
+            969430016, // 7.0.0, estimate
+            999430016, // 7.0.1, wild guess
         };
         
         public static string VersionToString(long? requiredSystemVersion)

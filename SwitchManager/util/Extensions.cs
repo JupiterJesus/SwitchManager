@@ -74,6 +74,11 @@ namespace SwitchManager.util
             }
         }
 
+        public static byte[] Encode(this string str, Encoding encoding)
+        {
+            return encoding.GetBytes(str);
+        }
+
         public static void InvokeOrExecute(this Dispatcher dispatcher, Action action)
         {
             if (dispatcher.CheckAccess())

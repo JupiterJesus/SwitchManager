@@ -38,6 +38,9 @@ namespace SwitchManager.io
                     }
                     else
                     {
+                        string dir = Path.GetDirectoryName(path);
+                        if (!DirectoryExists(path))
+                            Directory.CreateDirectory(dir);
                         return new FileStream(path, FileMode.CreateNew, FileAccess.Write);
                     }
                 }

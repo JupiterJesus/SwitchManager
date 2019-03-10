@@ -1030,7 +1030,7 @@ namespace SwitchManager.nx.cdn
             }
             if (cnmt != null)
             {
-                title.RequiredSystemVersion = cnmt.RequiredSystemVersion;
+                title.RequiredSystemVersion = cnmt.RequiredVersion;
                 title.MasterKeyRevision = cnmt.MasterKeyRevision;
                 title.Version = cnmt.Version;
             }

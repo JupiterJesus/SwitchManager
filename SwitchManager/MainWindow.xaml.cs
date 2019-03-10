@@ -24,6 +24,7 @@ using log4net;
 using SwitchManager.io;
 using System.Threading;
 using System.Text;
+using SwitchManager.server;
 
 namespace SwitchManager
 {
@@ -45,8 +46,10 @@ namespace SwitchManager
         private string metadataFile;
         private int MaxConcurrentDownloads { get; set; }
         private SemaphoreSlim DownloadThrottle { get; set; }
+        private NutServer nutServer;
+        private HTTPServer httpServer;
 
-        #endregion 
+        #endregion
 
         #region Constructor, load, close
 
@@ -190,6 +193,12 @@ namespace SwitchManager
                 SortGrid(1, d);
             else
                 SortGrid(sort, d);
+
+            nutServer = new NutServer(library, 9000);
+            httpServer = new HTTPServer(library, 8000);
+            nutServer.Run();
+            httpServer.Run();
+            Console.WriteLine("NUT server started.");
         }
 
         private void Window_Closed(object sender, EventArgs e)
@@ -242,6 +251,10 @@ namespace SwitchManager
 
             // Make sure the download window doesn't stay open
             CloseDownloadWindow();
+
+            nutServer.Stop();
+            httpServer.Stop();
+            Console.WriteLine("Internal servers stopped.");
         }
 
         #endregion
@@ -1494,7 +1507,7 @@ namespace SwitchManager
                     CNMT cnmt = nsp.CNMT;
                     var item = library.GetTitleByID(cnmt.Id);
                     string titlekey = item?.TitleKey;
-                    item.RequiredSystemVersion = cnmt.RequiredSystemVersion;
+                    item.RequiredSystemVersion = cnmt.RequiredVersion;
                     item.MasterKeyRevision = cnmt.MasterKeyRevision;
 
                     // Once unpacked, decrypt all the NCAs.They all go into subdirectories inside of the 
@@ -1607,7 +1620,7 @@ namespace SwitchManager
                     }
 
                     SwitchTitle title = item?.Title;
-                    title.RequiredSystemVersion = cnmt.RequiredSystemVersion;
+                    title.RequiredSystemVersion = cnmt.RequiredVersion;
                     title.MasterKeyRevision = cnmt.MasterKeyRevision;
                     nsp.Title = title;
 

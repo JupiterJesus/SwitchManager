@@ -13,6 +13,8 @@ namespace SwitchManager.util
 
         public static string SanitizeFileName(string str)
         {
+            if (str == null) return null;
+
             StringBuilder sb = new StringBuilder();
             // Remove bullshit characters before creating path
             

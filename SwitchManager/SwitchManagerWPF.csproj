@@ -53,6 +53,9 @@
   <PropertyGroup>
     <StartupObject>SwitchManager.App</StartupObject>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="BespokeFusion, Version=1.0.1.10, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\MaterialMessageBox.1.0.0.11\lib\BespokeFusion.dll</HintPath>
@@ -108,6 +111,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="server\TCPServer.cs" />
+    <Compile Include="server\HTTPServer.cs" />
+    <Compile Include="server\NutServer.cs" />
     <Compile Include="nx\cdn\CertificateDeniedException.cs" />
     <Compile Include="nx\cdn\CnmtMissingException.cs" />
     <Compile Include="nx\cdn\DownloadFailedException.cs" />
@@ -212,6 +218,9 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="app.manifest">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="certs\ca-certificates.crt" />
     <None Include="certs\client-cert.cert" />
     <None Include="certs\client-pkey.pem" />
