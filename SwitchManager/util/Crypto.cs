@@ -410,35 +410,42 @@ namespace SwitchManager.util
             byte[] block = new byte[1024 * 1024]; // 1 MB at a time, just for smoother progress
 
             long len = stream.Length;
-            string name = stream is FileStream ? $"Calculating SHA256 of '{(stream as FileStream).Name}'" : $"Calculatig SHA256 of {len} byte data";
-            ProgressJob job = new ProgressJob(name, len, 0);
-
-            job.Start();
-            while (total  < len)
+            if (len > 0)
             {
-                // For each block:
-                int howMany = await stream.ReadAsync(block, 0, block.Length).ConfigureAwait(false);
+                string name = stream is FileStream ? $"Calculating SHA256 of '{(stream as FileStream).Name}'" : $"Calculatig SHA256 of {len} byte data";
+                ProgressJob job = new ProgressJob(name, len, 0);
 
-                total += howMany;
-                if (total >= len)
+                job.Start();
+                while (total < len)
                 {
-                    alg.TransformFinalBlock(block, 0, howMany);
-                    job.UpdateProgress(howMany);
-                    break;
+                    // For each block:
+                    int howMany = await stream.ReadAsync(block, 0, block.Length).ConfigureAwait(false);
+
+                    total += howMany;
+                    if (total >= len)
+                    {
+                        alg.TransformFinalBlock(block, 0, howMany);
+                        job.UpdateProgress(howMany);
+                        break;
+                    }
+                    else
+                    {
+                        alg.TransformBlock(block, 0, howMany, null, 0);
+                        job.UpdateProgress(howMany);
+                    }
                 }
-                else
-                {
-                    alg.TransformBlock(block, 0, howMany, null, 0);
-                    job.UpdateProgress(howMany);
-                }
+
+                // Get the has code
+                byte[] hash = alg.Hash;
+
+                job.Finish();
+                alg.Dispose();
+                return hash;
             }
 
-            // Get the has code
-            byte[] hash = alg.Hash;
-
-            job.Finish();
-            alg.Dispose();
-            return hash;
+            string text = "Tried to hash empty stream";
+            if (stream is FileStream) text += $" (File: {(stream as FileStream).Name}";
+            throw new Exception(text);
         }
 
         public static byte[] ComputeHash<T>(byte[] buf) where T : HashAlgorithm, new()
