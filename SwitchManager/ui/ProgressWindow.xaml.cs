@@ -9,6 +9,7 @@ using SwitchManager.util;
 using SwitchManager.io;
 using log4net;
 using System.Linq;
+using System.Windows.Media;
 
 namespace SwitchManager.ui
 {
@@ -48,19 +49,31 @@ namespace SwitchManager.ui
                 // New progress bar
                 ProgressBar bar = new ProgressBar
                 {
-                    Minimum=0, Maximum=job.ExpectedSize, Height=25,
+                    Minimum=0, Maximum=job.ExpectedSize, Height=25, Background=Brushes.LightGray,
                 };
-                    
+
                 // Bind the Progress value to the Value property
-                bar.SetBinding(ProgressBar.ValueProperty, 
+                bar.SetBinding(ProgressBar.ValueProperty,
                     new Binding("ProgressCompleted")
                     {
                         Source = job,
                         Mode = BindingMode.OneWay,
                         UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
                     });
-                bar.MouseDoubleClick += (s, a) => job.Cancel();
 
+
+                var colorConverter = new DownloadProgressColorConverter();
+                bar.SetBinding(ProgressBar.ForegroundProperty,
+                    new Binding("Status")
+                    {
+                        Source = job,
+                        Mode = BindingMode.OneWay,
+                        UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+                        Converter = colorConverter,
+                    });
+
+                bar.MouseDoubleClick += (s, a) => job.Cancel();
+                
                 TextBlock t = new TextBlock();
                 t.SetBinding(TextBlock.TextProperty,
                     new Binding("ProgressSinceLastUpdate")
@@ -96,7 +109,7 @@ namespace SwitchManager.ui
         {
             JobTracker j = jobs[job];
             //jobs.Remove(job);
-
+            
             Dispatcher?.InvokeOrExecute(delegate
             {
                 DownloadsPanel.Children.Remove(j.Container);
@@ -147,7 +160,7 @@ namespace SwitchManager.ui
         }
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            long progressSinceLast = (long)value; 
+            long progressSinceLast = (long)value;
 
             if (job.IsComplete)
             {
@@ -180,9 +193,35 @@ namespace SwitchManager.ui
                 if (job is FileWriteJob dj)
                     return $"{dj.JobName}\n{dj.FileName}\n{Miscellaneous.ToFileSize(job.ProgressCompleted)} / {Miscellaneous.ToFileSize(job.ExpectedSize)}\nDouble-click progress bar to cancel";
                 else
-                   return $"Task \"{job.JobName}\" is starting.";
+                    return $"Task \"{job.JobName}\" is starting.";
             }
 
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class DownloadProgressColorConverter : IValueConverter
+    {
+        public DownloadProgressColorConverter()
+        {
+        }
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            ProgressJobStatus status = (ProgressJobStatus)value;
+
+            switch (status)
+            {
+                case ProgressJobStatus.COMPLETE: return Brushes.DarkSeaGreen;
+                case ProgressJobStatus.FAILED: return Brushes.Red;
+                case ProgressJobStatus.RUNNING: return Brushes.ForestGreen;
+                case ProgressJobStatus.PAUSED: return Brushes.Yellow;
+                case ProgressJobStatus.NOT_STARTED: return Brushes.Yellow;
+                default: return Brushes.Yellow;
+            }
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

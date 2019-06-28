@@ -7,6 +7,16 @@ using System.Linq;
 
 namespace SwitchManager.io
 {
+    public enum ProgressJobStatus
+    {
+        NOT_STARTED,
+        RUNNING,
+        PAUSED,
+        STOPPED,
+        FAILED,
+        COMPLETE,
+    }
+
     public class ProgressJob : INotifyPropertyChanged
     {
         #region Properties
@@ -15,6 +25,7 @@ namespace SwitchManager.io
         public long ProgressCompleted { get; private set; }
         public long ProgressSinceLastUpdate { get; set; }
         public string JobName { get; set; }
+        public ProgressJobStatus Status { get; set; } = ProgressJobStatus.NOT_STARTED;
 
         #endregion
 
@@ -103,6 +114,8 @@ namespace SwitchManager.io
             Start(this);
             speed_lastUpdateCalculated = DateTime.Now;
             speed_progress = 0;
+            Status = ProgressJobStatus.RUNNING;
+            NotifyPropertyChanged("Status");
         }
 
         public virtual void UpdateProgress(int progress)
@@ -126,11 +139,15 @@ namespace SwitchManager.io
         public virtual void Cancel()
         {
             this.IsCancelled = true;
+            Status = ProgressJobStatus.STOPPED;
+            NotifyPropertyChanged("Status");
         }
 
         public virtual void Finish()
         {
             Finish(this);
+            Status = ProgressCompleted < ExpectedSize ? ProgressJobStatus.FAILED : ProgressJobStatus.COMPLETE;
+            NotifyPropertyChanged("Status");
         }
 
         #endregion
@@ -151,7 +168,7 @@ namespace SwitchManager.io
 
         internal static void Start(ProgressJob job)
         {
-            DownloadStarted?.Invoke(job);
+            DownloadStarted?.Invoke(job); 
         }
 
         internal static void MakeProgress(ProgressJob job, int progressSinceLast)
