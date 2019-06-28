@@ -515,7 +515,7 @@ namespace SwitchManager
                     }
                 }
 
-                await library.UpdateInternalMetadata(item.Title, cnmt);
+                await library.UpdateInternalMetadata(item, cnmt);
                 if (item.Title.IsGame) await library.UpdateEShopData(item);
                 if (item.LatestVersion < cnmt.Version) item.LatestVersion = cnmt.Version;
                 item.Version = cnmt.Version;
@@ -558,6 +558,7 @@ namespace SwitchManager
             bool? result = dlg.ShowDialog();
             if (result == true)
             {
+                List<Exception> exceptions = new List<Exception>();
                 foreach (var nspFile in dlg.FileNames)
                 {
                     try
@@ -571,17 +572,22 @@ namespace SwitchManager
                     }
                     catch (BadNcaException b)
                     {
-                        ShowError($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}", b);
+                        exceptions.Add(new Exception($"NSP was unpacked but couldn't be verified.\nFile: {b.NcaFile}\nMessage: {b.Message}", b));
                     }
                     catch (InvalidNspException n)
                     {
-                        ShowError($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}", n);
+                        exceptions.Add(new Exception($"NSP was invalid and couldn't be unpacked\nFile: {nspFile}\nMessage: {n.Message}", n));
                     }
                     catch (HactoolFailedException h)
                     {
-                        ShowError($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nMessage: {h.Message}", h);
+                        exceptions.Add(new Exception($"Failed to decrypt NCA with hactool\nFile: {nspFile}\nMessage: {h.Message}", h));
                     }
                 }
+
+                // Combine all exception messages
+                var messages = exceptions.Select(ex => ex.Message);
+                string message = string.Join("\n\n", messages);
+                ShowError("There were multiple errors while processing NSP import.\n\n" + message);
             }
         }
 
@@ -926,7 +932,7 @@ namespace SwitchManager
             {
                 this.library.Collection.ToList().ForEach(async t =>
                 {
-                    await library.UpdateInternalMetadata(t.Title);
+                    await library.UpdateInternalMetadata(t);
                     await library.UpdateEShopData(t);
                 });
             });
@@ -1505,7 +1511,7 @@ namespace SwitchManager
                     NSP nsp = await NSP.Unpack(nspFile);
                     await nsp.Verify().ConfigureAwait(false);
                     CNMT cnmt = nsp.CNMT;
-                    var item = library.GetTitleByID(cnmt.Id);
+                    var item = SwitchTitle.IsBaseGameID(cnmt.Id) ? library.GetTitleByID(cnmt.Id) : library.GetBaseTitleByID(cnmt.Id).GetUpdate(cnmt.Version);
                     string titlekey = item?.TitleKey;
                     item.RequiredSystemVersion = cnmt.RequiredVersion;
                     item.MasterKeyRevision = cnmt.MasterKeyRevision;
@@ -1790,9 +1796,9 @@ namespace SwitchManager
                         {
                             try
                             {
-                                await library.UpdateInternalMetadata(title);
+                                await library.UpdateInternalMetadata(item);
                                 foreach (var up in item.Updates)
-                                    await library.UpdateInternalMetadata(up.Title);
+                                    await library.UpdateInternalMetadata(up);
                             }
                             catch (HactoolFailedException ex)
                             {
@@ -1842,7 +1848,7 @@ namespace SwitchManager
                 var title = item?.Title;
                 uint version = await library.GetDownloadVersion(title).ConfigureAwait(false);
 
-                var result = await library.Loader.GetTitleSize(item?.Title, version, titledir);
+                var result = await library.Loader.GetTitleSize(item, version, titledir);
                 item.Size = result;
             }
             catch (HactoolFailedException)

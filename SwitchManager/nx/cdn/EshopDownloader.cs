@@ -16,6 +16,7 @@ using System.Text;
 using SwitchManager.io;
 using log4net;
 using System.Threading;
+using SwitchManager.nx.library;
 
 namespace SwitchManager.nx.cdn
 {
@@ -67,8 +68,10 @@ namespace SwitchManager.nx.cdn
             this.EShopLoginToken = LogInToEshop().Result; // Force waiting because constructor, but it is fast anyway
         }
 
-        public async Task DownloadAndUpdateTitleMetadata(SwitchTitle title, string titleDir, CNMT cnmt)
+        public async Task DownloadAndUpdateTitleMetadata(SwitchCollectionItem item, string titleDir, CNMT cnmt)
         {
+            SwitchTitle title = item?.Title;
+
             // Locking on a specific title - in the images directory -  which should ensure that none of the same files are accessed
             var @lock = await AquireLock(titleDir, title, cnmt.Version).ConfigureAwait(false);
             try
@@ -87,7 +90,7 @@ namespace SwitchManager.nx.cdn
                 if (ncaID != null && (!FileUtils.FileExists(targetImageFile) || title.IsMissingControlData || title.IsMissingIconData))
                 {
                     string fpath = titleDir + Path.DirectorySeparatorChar + ncaID + ".nca";
-                    if (await DownloadNCA(ncaID, fpath).ConfigureAwait(false))
+                    if (await DownloadNCA(ncaID, fpath, item).ConfigureAwait(false))
                     {
                         var controlDir = await Hactool.DecryptNCA(fpath).ConfigureAwait(false);
 
@@ -156,14 +159,13 @@ namespace SwitchManager.nx.cdn
             }
         }
 
-        public async Task DownloadAndUpdateTitleMetadata(SwitchTitle title, string titleDir, uint version)
+        public async Task DownloadAndUpdateTitleMetadata(SwitchCollectionItem item, string titleDir, uint version)
         {
-
             try
             {
-                using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false))
+                using (var cnmt = await DownloadAndDecryptCnmt(item, version, titleDir).ConfigureAwait(false))
                 {
-                    if (!title.IsUpdate) await DownloadAndUpdateTitleMetadata(title, titleDir, cnmt).ConfigureAwait(false);
+                    if (!item.Title.IsUpdate) await DownloadAndUpdateTitleMetadata(item, titleDir, cnmt).ConfigureAwait(false);
                 }
             }
             finally
@@ -214,8 +216,9 @@ namespace SwitchManager.nx.cdn
         /// <param name="verify">true to verify the SHA256 of each file with the expected hash and fail if the hashes don't match</param>
         /// <param name="titleDir">Directory to download everything to.</param>
         /// <returns></returns>
-        public async Task<NSP> DownloadTitle(SwitchTitle title, uint version, string titleDir, bool nspRepack = false)
+        public async Task<NSP> DownloadTitle(SwitchCollectionItem item, uint version, string titleDir, bool nspRepack = false)
         {
+            SwitchTitle title = item.Title;
             logger.Info($"Downloading title {title.Name}, ID: {title.TitleID}, VERSION: {version}");
 
             // Locking one a specific title and version, which should ensure that none of the same files are accessed
@@ -223,7 +226,7 @@ namespace SwitchManager.nx.cdn
 
             try
             {
-                using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(true))
+                using (var cnmt = await DownloadAndDecryptCnmt(item, version, titleDir).ConfigureAwait(true))
                 {
                     // Now that the CNMT NCA was downloaded and decrypted, read it f
                     string ticketPath = null, certPath = null;
@@ -259,7 +262,7 @@ namespace SwitchManager.nx.cdn
                             // Dont redownload the cnmt. It wont work anyway, not at this url.
                             if (content.Value.Type != NCAType.Meta)
                             {
-                                Task<bool> t = DoDownloadNCA(ncaID, path, hash, title);
+                                Task<bool> t = DoDownloadNCA(ncaID, path, hash, item);
                                 tasks.Add(t);
                             }
                         }
@@ -538,7 +541,7 @@ namespace SwitchManager.nx.cdn
             return null;
         }
 
-        private async Task<bool> DoDownloadNCA(string ncaID, string path, byte[] expectedHash, SwitchTitle title = null)
+        private async Task<bool> DoDownloadNCA(string ncaID, string path, byte[] expectedHash, SwitchCollectionItem item = null)
         {
             if (FileUtils.FileExists(path))
             {
@@ -551,17 +554,17 @@ namespace SwitchManager.nx.cdn
             }
 
             logger.Info($"Downloading NCA {ncaID}.");
-            bool completed = await DownloadNCA(ncaID, path, title).ConfigureAwait(false);
+            bool completed = await DownloadNCA(ncaID, path, item).ConfigureAwait(false);
 
             // A null hash means no verification necessary, just return true
             return completed && await Crypto.VerifySha256Hash(path, expectedHash).ConfigureAwait(false);
         }
 
-        private async Task<bool> DownloadNCA(string ncaID, string path, SwitchTitle title = null)
+        private async Task<bool> DownloadNCA(string ncaID, string path, SwitchCollectionItem item = null)
         {
             string url = $"https://atum.hac.{environment}.d4c.nintendo.net/c/c/{ncaID}?device_id={deviceId}";
 
-            return await DownloadFile(url, path, title?.ToString()).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
+            return await DownloadFile(url, path, item).ConfigureAwait(false); // download file and wait for it since we can't do anything until it is done
         }
 
         public void UpdateClientCert(string path)
@@ -602,7 +605,7 @@ namespace SwitchManager.nx.cdn
         /// </summary>
         /// <param name="url"></param>
         /// <param name="fpath"></param>
-        public async Task<bool> DownloadFile(string url, string fpath, string jobName = null)
+        public async Task<bool> DownloadFile(string url, string fpath, SwitchCollectionItem item = null)
         {
             downloadTasks.TryGetValue(fpath, out Task<bool> task);
             if (task == null)
@@ -652,6 +655,13 @@ namespace SwitchManager.nx.cdn
                     }
 
                 }
+                /*else if (FileUtils.FileExists(item?.RomPath))
+                {
+                    string fileDir = Path.GetDirectoryName(fpath);
+                    string filePath = Path.GetFileName(fpath);
+                    await NSP.ParseNSP(item?.RomPath, fileDir, filePath).ConfigureAwait(false);
+                    return true;
+                }*/
                 else
                 {
                     fs = File.Create(fpath);
@@ -668,6 +678,7 @@ namespace SwitchManager.nx.cdn
                     return false;
                 }
 
+                string jobName = item?.Title?.ToString();
                 task = StartDownload(fs, result, expectedSize, downloaded, jobName).ContinueWith(a =>
                 {
                     try
@@ -990,27 +1001,22 @@ namespace SwitchManager.nx.cdn
             return await DownloadFile(url, path).ConfigureAwait(false);
         }
 
-        private async Task<CNMT> DownloadAndDecryptCnmt(SwitchTitle title, uint version, string titleDir)
+        private async Task<CNMT> DownloadAndDecryptCnmt(SwitchCollectionItem item, uint version, string titleDir)
         {
+            SwitchTitle title = item?.Title;
+
             // First, look for any existing cnmt files
             CNMT cnmt = null;
             if (FileUtils.DirectoryExists(titleDir))
-                foreach (var c in Directory.EnumerateFiles(titleDir, "*.cnmt.nca"))
-                {
-                    string xml = c.Replace("nca", "xml");
-                    CNMT checkcnmt = null;
-                    if (FileUtils.FileExists(xml))
-                        checkcnmt = CNMT.FromXml(xml);
-                    else
-                        checkcnmt = await CNMT.FromNca(c).ConfigureAwait(false);
+            {
+                cnmt = await FindExistingCnmt(title, version, titleDir).ConfigureAwait(false);
+            }
 
-                    if (checkcnmt.Id.Equals(title.TitleID, StringComparison.CurrentCultureIgnoreCase) && checkcnmt.Version == version)
-                    {
-                        logger.Info($"CNMT file {c} already exists, decrypting existing file");
-                        cnmt = checkcnmt;
-                        break;
-                    }
-                }
+            if (cnmt == null && File.Exists(item.RomPath))
+            {
+                //await NSP.ParseNSP(item.RomPath, titleDir, ".cnmt.nca").ConfigureAwait(false);
+                //cnmt = await FindExistingCnmt(title, version, titleDir).ConfigureAwait(false);
+            }
 
             // If it doesn't exist, look it up
             if (cnmt == null)
@@ -1046,6 +1052,27 @@ namespace SwitchManager.nx.cdn
                 return null;
             }
             */
+        }
+
+        private async Task<CNMT> FindExistingCnmt(SwitchTitle title, uint version, string titleDir)
+        {
+            foreach (var c in Directory.EnumerateFiles(titleDir, "*.cnmt.nca"))
+            {
+                string xml = c.Replace("nca", "xml");
+                CNMT checkcnmt = null;
+                if (FileUtils.FileExists(xml))
+                    checkcnmt = CNMT.FromXml(xml);
+                else
+                    checkcnmt = await CNMT.FromNca(c).ConfigureAwait(false);
+
+                if (checkcnmt.Id.Equals(title.TitleID, StringComparison.CurrentCultureIgnoreCase) && checkcnmt.Version == version)
+                {
+                    logger.Info($"CNMT file {c} already exists, decrypting existing file");
+                    return checkcnmt;
+                }
+            }
+
+            return null;
         }
 
         public async Task<HttpResponseMessage> GetEshopData(SwitchTitle title, string region, string lang)
@@ -1212,8 +1239,10 @@ namespace SwitchManager.nx.cdn
         /// <param name="version"></param>
         /// <param name="titleDir"></param>
         /// <returns></returns>
-        public async Task<long> GetTitleSize(SwitchTitle title, uint version, string titleDir)
+        public async Task<long> GetTitleSize(SwitchCollectionItem item, uint version, string titleDir)
         {
+            SwitchTitle title = item?.Title;
+
             // Locking one a specific title and version - in the title directory -  which should ensure that none of the same files are accessed
             // I noticed some crazy errors that came up because the event that fires on grid details visibility changed was firing
             // multiple times very fast, which (I think) meant that the same files were getting written to by two different worker threads at once
@@ -1225,7 +1254,7 @@ namespace SwitchManager.nx.cdn
             var @lock = await AquireLock(titleDir, title, version).ConfigureAwait(false);
             try
             {
-                using (var cnmt = await DownloadAndDecryptCnmt(title, version, titleDir).ConfigureAwait(false))
+                using (var cnmt = await DownloadAndDecryptCnmt(item, version, titleDir).ConfigureAwait(false))
                 {
                     var cnmtSize = FileUtils.GetFileSystemSize(cnmt.CnmtFilePath) ?? 0;
 
