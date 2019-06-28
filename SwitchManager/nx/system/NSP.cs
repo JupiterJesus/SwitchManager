@@ -246,8 +246,11 @@ namespace SwitchManager.nx.system
 
         /// <summary>
         /// </summary>
-        /// <param name="nspPath"></param>
-        public static async Task<NSP> ParseNSP(string nspPath, string outputDirectory = null)
+        /// <param name="nspPath">Path to the NSP file you want to extract.</param>
+        /// <param name="outputDirectory">Path to a directory where the extracted file will be placed. 
+        /// If null, the NSP will be extracted to a new directory named after the NSP file and with the same parent as the NSP file. </param>
+        /// <param name="specificFile">A specific file within the NSP to extract, or null to extract all files.</param>
+        public static async Task<NSP> ParseNSP(string nspPath, string outputDirectory = null, string specificFile = null)
         {
             if (string.IsNullOrWhiteSpace(nspPath))
             {
@@ -323,7 +326,7 @@ namespace SwitchManager.nx.system
                     // However, these 0s are INCLUDED as part of the string table. Thus, they've already been
                     // read (and skipped)
                     
-                    if (!FileUtils.DirectoryExists(outputDirectory))
+                    if (outputDirectory == null)
                     { 
                         // Create a directory right next to the NSP, using the NSP's file name (no extension)
                         DirectoryInfo parentDir = finfo.Directory;
@@ -334,43 +337,55 @@ namespace SwitchManager.nx.system
                     NSP nsp = new NSP(outputDirectory);
                     List<string> ncas = new List<string>();
 
+                    long dataPosition = nspReadStream.Position;
+
                     // Copy each file in the NSP to a new file.
                     for (int i = 0; i < files.Length; i++)
                     {
-                        // NSPs are just groups of files, but switch titles have very specific files in them
-                        // So we allow quick reference to these files
-                        string filePath = outputDirectory + Path.DirectorySeparatorChar + files[i];
-                        if (filePath.ToLower().EndsWith(".cnmt.xml"))
-                            nsp.CnmtXML = filePath;
-                        else if (filePath.ToLower().EndsWith(".programinfo.xml"))
-                            nsp.PrograminfoXML = filePath;
-                        else if (filePath.ToLower().EndsWith(".legalinfo.xml"))
-                            nsp.LegalinfoXML = filePath;
-                        else if (filePath.ToLower().EndsWith(".nacp.xml"))
-                            nsp.ControlXML = filePath;
-                        else if (filePath.ToLower().EndsWith(".cert"))
-                            nsp.Certificate = filePath;
-                        else if (filePath.ToLower().EndsWith(".tik"))
-                            nsp.Ticket = filePath;
-                        else if (filePath.ToLower().StartsWith("icon_") || filePath.ToLower().EndsWith(".jpg"))
-                            nsp.AddImage(filePath);
-                        else if (filePath.ToLower().EndsWith(".nca"))
+                        string currentFile = files[i];
+
+                        // If specificFile is null, extract all, otherwise only extract matching filename
+                        if (specificFile == null || currentFile.ToLower().Contains(specificFile.ToLower()))
                         {
-                            if (filePath.ToLower().EndsWith(".cnmt.nca"))
-                                nsp.CnmtNCA = filePath;
-                            ncas.Add(filePath);
-                        }
-                        else
-                        {
-                            logger.Warn($"Unknown file type found in NSP, {filePath}");
-                            nsp.AddFile(filePath);
-                        }
-                        
-                        using (FileStream fs = FileUtils.OpenWriteStream(filePath))
-                        {
-                            logger.Info($"Unpacking NSP from file {nspPath}.");
-                            await nspReadStream.CopyToAsync(fs, fileSizes[i]).ConfigureAwait(false);
-                            logger.Info($"Copied NSP contents to file {filePath}");
+                            // NSPs are just groups of files, but switch titles have very specific files in them
+                            // So we allow quick reference to these files
+                            string filePath = outputDirectory + Path.DirectorySeparatorChar + currentFile;
+                            if (filePath.ToLower().EndsWith(".cnmt.xml"))
+                                nsp.CnmtXML = filePath;
+                            else if (filePath.ToLower().EndsWith(".programinfo.xml"))
+                                nsp.PrograminfoXML = filePath;
+                            else if (filePath.ToLower().EndsWith(".legalinfo.xml"))
+                                nsp.LegalinfoXML = filePath;
+                            else if (filePath.ToLower().EndsWith(".nacp.xml"))
+                                nsp.ControlXML = filePath;
+                            else if (filePath.ToLower().EndsWith(".cert"))
+                                nsp.Certificate = filePath;
+                            else if (filePath.ToLower().EndsWith(".tik"))
+                                nsp.Ticket = filePath;
+                            else if (filePath.ToLower().StartsWith("icon_") || filePath.ToLower().EndsWith(".jpg"))
+                                nsp.AddImage(filePath);
+                            else if (filePath.ToLower().EndsWith(".nca"))
+                            {
+                                if (filePath.ToLower().EndsWith(".cnmt.nca"))
+                                    nsp.CnmtNCA = filePath;
+                                ncas.Add(filePath);
+                            }
+                            else
+                            {
+                                logger.Warn($"Unknown file type found in NSP, {filePath}");
+                                nsp.AddFile(filePath);
+                            }
+
+                            using (FileStream fs = FileUtils.OpenWriteStream(filePath))
+                            {
+                                logger.Info($"Unpacking NSP from file {nspPath}.");
+
+                                long fileOffset = fileOffsets[i];
+                                long fileSize = fileSizes[i];
+                                nspReadStream.Seek(dataPosition + fileOffset, SeekOrigin.Begin);
+                                await nspReadStream.CopyToAsync(fs, fileSize).ConfigureAwait(false);
+                                logger.Info($"Copied NSP contents to file {filePath}");
+                            }
                         }
                     }
                     CNMT cnmt = nsp.CNMT = await nsp.ReadCNMT().ConfigureAwait(false);
@@ -449,9 +464,9 @@ namespace SwitchManager.nx.system
             }
         }
 
-        public async static Task<NSP> Unpack(string nspFile, string outputDirectory = null)
+        public async static Task<NSP> Unpack(string nspFile, string outputDirectory = null, string specificFile = null)
         {
-            return await ParseNSP(nspFile, outputDirectory).ConfigureAwait(false);
+            return await ParseNSP(nspFile, outputDirectory, specificFile).ConfigureAwait(false);
         }
 
         public void AddFile(string filePath)
