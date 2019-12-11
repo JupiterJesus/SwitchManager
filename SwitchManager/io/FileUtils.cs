@@ -8,6 +8,34 @@ namespace SwitchManager.io
 {
     public class FileUtils
     {
+        public static string BuildPath(params string[] components)
+        {
+            if (components == null || components.Length == 0 || string.IsNullOrWhiteSpace(components[0]))
+                return null;
+
+            string path = components[0];
+
+            for (int i = 1; i < components.Length; i++)
+            {
+                string c = components[i];
+                while (c[0] == Path.DirectorySeparatorChar || c[0] == Path.AltDirectorySeparatorChar)
+                    c = c.Substring(1);
+
+                while (c[c.Length - 1] == Path.DirectorySeparatorChar || c[c.Length - 1] == Path.AltDirectorySeparatorChar)
+                    c = c.Substring(0, c.Length - 1);
+
+                path = path + Path.DirectorySeparatorChar + components[i];
+            }
+
+            return path;
+        }
+        public static string BuildFilePath(string dir, string name, string extension)
+        {
+            string path = dir + Path.DirectorySeparatorChar + name + "." + extension;
+            
+            return path;
+        }
+
         public static FileStream OpenReadStream(string path)
         {
             return File.OpenRead(path);
@@ -242,6 +270,26 @@ namespace SwitchManager.io
             if (!FileExists(path)) return null;
             var f = new FileInfo(path);
             return f?.CreationTime;
+        }
+
+        /// <summary>
+        /// Gets the parent directory of any file or directory path.
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        internal static string GetParentDirectory(string path)
+        {
+            FileInfo fi = new FileInfo(path);
+            if (fi.Exists)
+                return fi.DirectoryName;
+            else
+            {
+                DirectoryInfo di = new DirectoryInfo(path);
+                if (di.Exists)
+                    return fi.DirectoryName;
+            }
+
+            return null;
         }
     }
 }
