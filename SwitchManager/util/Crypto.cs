@@ -19,7 +19,7 @@ namespace SwitchManager.util
 {
     public class Crypto
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof(Hactool));
+        private static readonly ILog logger = LogManager.GetLogger(typeof(Crypto));
 
         /*
         public static void Pkcs12ToPfx(string certFile, string keyFile, string pfxFile)
