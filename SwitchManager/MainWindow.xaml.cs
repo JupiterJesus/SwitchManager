@@ -471,8 +471,14 @@ namespace SwitchManager
             try
             {
                 // First, unpack the NSP
+                if (nspFile.EndsWith(".nsz"))
+                {
+                    string nszDir = FileUtils.GetParentDirectory(nspFile);
+                    nspFile = await Compression.UnpackNSZ(nspFile, nszDir).ConfigureAwait(false);
+                }
+
                 NSP nsp = await NSP.Unpack(nspFile);
-                //nsp.Verify(); // don't verify now, that'll happen in the download call
+               // nsp.Verify(); // don't verify now, that'll happen in the download call
                 CNMT cnmt = nsp.CNMT;
 
                 cnmt.DeleteDirectory();
@@ -547,8 +553,7 @@ namespace SwitchManager
         {
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
             {
-                DefaultExt = ".nsp",
-                Filter = "Nintendo NSP Titles (*.nsp,*.nsx)|*.nsp;*.nsx",
+                Filter = "Nintendo eShop Package (*.nsp,*.nsz,*.nsx)|*.nsp;*.nsz;*.nsx",
                 Multiselect = true,
                 CheckPathExists = true,
                 DereferenceLinks = true,
@@ -595,8 +600,7 @@ namespace SwitchManager
         {
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
             {
-                DefaultExt = ".nsp",
-                Filter = "Nintendo NSP Titles (*.nsp,*.nsx)|*.nsp;*.nsx",
+                Filter = "Nintendo eShop Package (*.nsp,*.nsz,*.nsx)|*.nsp;*.nsz;*.nsx",
                 Multiselect = true,
                 CheckPathExists = true,
                 DereferenceLinks = true,

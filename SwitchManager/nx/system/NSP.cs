@@ -336,6 +336,7 @@ namespace SwitchManager.nx.system
 
                     NSP nsp = new NSP(outputDirectory);
                     List<string> ncas = new List<string>();
+                    List<string> nczs = new List<string>();
 
                     long dataPosition = nspReadStream.Position;
 
@@ -349,7 +350,7 @@ namespace SwitchManager.nx.system
                         {
                             // NSPs are just groups of files, but switch titles have very specific files in them
                             // So we allow quick reference to these files
-                            string filePath = outputDirectory + Path.DirectorySeparatorChar + currentFile;
+                            string filePath = FileUtils.BuildPath(outputDirectory, currentFile);
                             if (filePath.ToLower().EndsWith(".cnmt.xml"))
                                 nsp.CnmtXML = filePath;
                             else if (filePath.ToLower().EndsWith(".programinfo.xml"))
@@ -369,6 +370,10 @@ namespace SwitchManager.nx.system
                                 if (filePath.ToLower().EndsWith(".cnmt.nca"))
                                     nsp.CnmtNCA = filePath;
                                 ncas.Add(filePath);
+                            }
+                            else if (filePath.ToLower().EndsWith(".ncz"))
+                            {
+                                nczs.Add(filePath);
                             }
                             else
                             {
@@ -396,6 +401,21 @@ namespace SwitchManager.nx.system
                         string ncaid = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(ncafile));
                         var entry = cnmtNcas[ncaid];
                         nsp.AddNCAByID(entry.Type, ncaid);
+                    }
+
+                    // Ugh, handle compressed NCZ files by decrypting them and deleting the original
+                    foreach (var nczfile in nczs)
+                    {
+                        string nczFullPath = FileUtils.BuildPath(outputDirectory, nczfile);
+                        string ncaid = Path.GetFileNameWithoutExtension(nczfile);
+                        string ncafile = await Compression.UnpackNCZ(nczFullPath, outputDirectory).ConfigureAwait(false);
+
+                        if (!string.IsNullOrWhiteSpace(ncafile))
+                        {
+                            FileUtils.DeleteFile(nczFullPath);
+                            var entry = cnmtNcas[ncaid];
+                            nsp.AddNCAByID(entry.Type, ncaid);
+                        }
                     }
                     return nsp;
                 }
