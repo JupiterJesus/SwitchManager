@@ -376,7 +376,7 @@ namespace SwitchManager.nx.cdn
         /// <returns></returns>
         public async Task<Tuple<string, string>> GenerateTitleTicket(SwitchTitle title, CNMT cnmt, string titleDir)
         {
-            string rightsID = $"{title.TitleID}{new String('0', 15)}{cnmt.MasterKeyRevision}";
+            string rightsID = $"{title.TitleID}{cnmt.MasterKeyRevision:x16}";
             string ticketPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".tik";
             string certPath = titleDir + Path.DirectorySeparatorChar + rightsID + ".cert";
 
